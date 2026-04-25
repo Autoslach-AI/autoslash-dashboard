@@ -202,43 +202,9 @@ export default function NeuralCommandCenterV31() {
     orchestrator: 'ACTIVE'
   });
 
-  // Diagnostic State (Temporary)
-  const [diagnostic, setDiagnostic] = useState<{
-    url: string;
-    connectionTest: string;
-    queryError: string;
-    show: boolean;
-  }>({
-    url: '',
-    connectionTest: 'Pending...',
-    queryError: '',
-    show: true
-  });
 
   // Fetch Fleet Data
   useEffect(() => {
-    async function runDiagnostics() {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'NOT_DEFINED';
-      const maskedUrl = url.length > 20 ? url.substring(0, url.length - 20) + '...' : url;
-      
-      try {
-        const { data, error } = await supabase.from('enterprises').select('id').limit(1);
-        setDiagnostic({
-          url: maskedUrl,
-          connectionTest: error ? 'FAILED' : 'SUCCESS',
-          queryError: error ? `${error.code}: ${error.message}` : 'None',
-          show: true
-        });
-      } catch (err: any) {
-        setDiagnostic({
-          url: maskedUrl,
-          connectionTest: 'EXCEPTION',
-          queryError: err.message || 'Unexpected error',
-          show: true
-        });
-      }
-    }
-    runDiagnostics();
 
     async function fetchFleet() {
       const { data, error } = await supabase
@@ -387,28 +353,6 @@ export default function NeuralCommandCenterV31() {
   const brandName = isAdminOracle ? 'THE ORACLE' : (clients[0]?.name || 'NEURAL_SYSTEM');
   return (
     <>
-      {diagnostic.show && (
-        <div className="fixed bottom-4 right-4 z-[9999] bg-black/95 border border-[#4ade80]/30 p-4 rounded-lg font-mono text-[10px] w-80 shadow-2xl backdrop-blur-md">
-          <div className="flex justify-between items-center mb-2 border-b border-white/10 pb-1">
-            <span className="text-[#4ade80] font-bold tracking-widest">SUPABASE_DIAGNOSTIC</span>
-            <button onClick={() => setDiagnostic(prev => ({ ...prev, show: false }))} className="text-white/40 hover:text-white">×</button>
-          </div>
-          <div className="space-y-2">
-            <div>
-              <p className="text-white/40 uppercase">URL_ENDPOINT:</p>
-              <p className="text-white break-all">{diagnostic.url}</p>
-            </div>
-            <div>
-              <p className="text-white/40 uppercase">CONNECTION_TEST:</p>
-              <p className={diagnostic.connectionTest === 'SUCCESS' ? 'text-[#4ade80]' : 'text-red-500'}>{diagnostic.connectionTest}</p>
-            </div>
-            <div>
-              <p className="text-white/40 uppercase">QUERY_ERROR:</p>
-              <p className="text-red-400 break-words">{diagnostic.queryError}</p>
-            </div>
-          </div>
-        </div>
-      )}
       <DoubleRibbonIntelligent
       primaryItems={primaryItems}
       secondaryItems={secondaryItems}
