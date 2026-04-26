@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Lock, Mail, ShieldAlert, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
