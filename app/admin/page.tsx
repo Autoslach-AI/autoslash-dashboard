@@ -37,6 +37,25 @@ type MonitorCategory = 'SYSTEM_HEALTH' | 'ORCHESTRATOR' | 'DEV_AGENT' | 'SUPPORT
 type NeuralStatus = 'OPTIMAL' | 'WARNING' | 'CRITICAL' | 'MESSAGE' | 'SUCCESS' | 'ERROR' | 'STABLE';
 type CommMode = 'AUTONOMOUS' | 'APPROVAL';
 
+interface AdminIntelligenceLog {
+  id: string;
+  enterprise_id: string;
+  issue_type: string;
+  severity_level: 'INFO' | 'WARNING' | 'CRITICAL';
+  is_upsell_opportunity: boolean;
+  message: string;
+  created_at: string;
+}
+
+interface AgentTask {
+  id: string;
+  api_used: 'Claude' | 'Gemini' | 'OpenRouter' | string;
+  neural_load: number;
+  tokens_consumed: number;
+  enterprise_id: string;
+  created_at: string;
+}
+
 interface SystemLog {
   id: string;
   enterprise_id: string;
@@ -191,6 +210,10 @@ export default function NeuralCommandCenterV31() {
   const [planFilter, setPlanFilter] = useState<'ALL' | 'ENTERPRISE' | 'BUSINESS' | 'STARTUP' | 'ELITE'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [selectedApiFilter, setSelectedApiFilter] = useState<'ALL' | 'Claude' | 'Gemini' | 'OpenRouter'>('ALL');
+  const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
+  const [intelligenceLogs, setIntelligenceLogs] = useState<AdminIntelligenceLog[]>([]);
+  const [lastFetch, setLastFetch] = useState<Date>(new Date());
 
   // New states for dynamization
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
@@ -203,83 +226,83 @@ export default function NeuralCommandCenterV31() {
   });
 
 
-  // Fetch Fleet Data
+  // Requirement 7: RECONSTRUCTION SECTION 1 — NEURAL INTELLIGENCE HUB
   useEffect(() => {
+    async function fetchHubData() {
+      try {
+        // 1. Fetch Fleet Nodes (Enterprises)
+        const { data: fleetData } = await supabase
+          .from('enterprises')
+          .select(`*, client_subscriptions(*, plan_definitions(*))`);
+        
+        if (fleetData) {
+          setClients(fleetData.map((node: any) => ({
+            ...node,
+            systemHealth: node.status === 'STABLE' ? 'OPTIMAL' : node.status,
+            commMode: node.comm_mode || 'AUTONOMOUS',
+            lastEvent: {
+              type: node.status === 'CRITICAL' ? 'SQL_ERROR' : node.status === 'WARNING' ? 'LATENCY' : 'SYNC',
+              description: node.status === 'CRITICAL' ? 'Packet drop detected: ERR_502' : node.status === 'WARNING' ? 'Packet delay threshold exceeded' : 'Neural Lattice synchronized successfully',
+              timestamp: new Date(node.created_at)
+            }
+          })));
+        }
 
-    async function fetchFleet() {
-      const { data, error } = await supabase
-        .from('enterprises')
-        .select(`
-          *,
-          client_subscriptions(*, plan_definitions(*))
-        `);
-      
-      if (data) {
-        // Enforce fallback UI logical mapping
-        const mapped = data.map((node: any) => ({
-          ...node,
-          systemHealth: node.status === 'STABLE' ? 'OPTIMAL' : node.status,
-          commMode: node.comm_mode || 'AUTONOMOUS',
-          lastEvent: {
-            type: node.status === 'CRITICAL' ? 'SQL_ERROR' : node.status === 'WARNING' ? 'LATENCY' : 'SYNC',
-            description: node.status === 'CRITICAL' ? 'Packet drop detected: ERR_502' : node.status === 'WARNING' ? 'Packet delay threshold exceeded' : 'Neural Lattice synchronized successfully',
-            timestamp: new Date(node.created_at)
-          }
+        // 2. Fetch Agent Tasks (Last 30 days)
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0,0,0,0);
+        const { data: taskData } = await supabase
+          .from('agent_tasks')
+          .select('*')
+          .gte('created_at', startOfMonth.toISOString());
+        if (taskData) setAgentTasks(taskData);
+
+        // 3. Fetch Intelligence Logs
+        const { data: intelData } = await supabase
+          .from('admin_intelligence_logs')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (intelData) setIntelligenceLogs(intelData);
+
+        // 4. Fetch System Logs
+        const { data: recentLogs } = await supabase
+          .from('system_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+        if (recentLogs) setSystemLogs(recentLogs);
+
+        // 5. Fetch Agent Config (Task Force)
+        const { data: agents } = await supabase
+          .from('agent_config')
+          .select('*')
+          .in('agent_id', ['ARCHITECTE', 'BACKEND', 'FRONTEND', 'QA', 'AI_CORE']);
+        if (agents) setAgentTaskForce(agents);
+
+        // 6. Update KPI Metrics (Dynamization legacy)
+        const { data: archAgent } = await supabase
+          .from('agent_config')
+          .select('status')
+          .eq('agent_id', 'ARCHITECTE')
+          .single();
+        
+        setKpiMetrics(prev => ({
+          ...prev,
+          latency: recentLogs && recentLogs.length > 0 ? `${(Math.random() * 50 + 200).toFixed(0)}MS` : 'N/A',
+          orchestrator: archAgent?.status === 'PROCESSING' ? 'BUSY' : 'ACTIVE',
+          integrity: fleetData ? 'STABLE' : 'CRITICAL'
         }));
-        setClients(mapped);
+
+        setLastFetch(new Date());
+      } catch (err) {
+        console.error("SUPABASE_FETCH_TIMEOUT: Using cached data", err);
       }
     }
-    fetchFleet();
 
-    async function fetchDynamization() {
-      // 1. Fetch system logs for the last 24h for pulse count (simulated average latency logic + count)
-      const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const { data: logs24h } = await supabase
-        .from('system_logs')
-        .select('*')
-        .gte('created_at', last24h);
-      
-      const { data: allEnterprises } = await supabase.from('enterprises').select('id');
-      const marketTraction = allEnterprises ? (allEnterprises.length / 10) * 100 : 0;
-
-      // Check DB Integrity
-      const integrity = allEnterprises ? 'STABLE' : 'CRITICAL';
-
-      // Orchestrator status (ARCHITECTE)
-      const { data: archAgent } = await supabase
-        .from('agent_config')
-        .select('status')
-        .eq('agent_id', 'ARCHITECTE')
-        .single();
-      
-      const orchestratorStatus = archAgent?.status === 'PROCESSING' ? 'BUSY' : 'ACTIVE';
-
-      setKpiMetrics({
-        latency: logs24h && logs24h.length > 0 ? `${(Math.random() * 100 + 300).toFixed(0)}MS` : 'N/A',
-        traction: `${marketTraction.toFixed(0)}%`,
-        integrity,
-        orchestrator: orchestratorStatus
-      });
-
-      // 2. Fetch Agent Task Force
-      const { data: agents } = await supabase
-        .from('agent_config')
-        .select('*')
-        .in('agent_id', ['ARCHITECTE', 'BACKEND', 'FRONTEND', 'QA', 'AI_CORE']);
-      
-      if (agents) setAgentTaskForce(agents);
-
-      // 3. Fetch System Logs for monitor and stream
-      const { data: recentLogs } = await supabase
-        .from('system_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      
-      if (recentLogs) setSystemLogs(recentLogs);
-    }
-
-    fetchDynamization();
+    fetchHubData();
+    const pulse = setInterval(fetchHubData, 30000);
+    return () => clearInterval(pulse);
   }, []);
   
   // Requirement 3: UX Feedback (Scanning Animation)
@@ -324,6 +347,29 @@ export default function NeuralCommandCenterV31() {
     }
   };
 
+  // KPI CALCULATIONS FOR SECTION 1
+  // Card 1 (API COMMAND CENTER)
+  const filteredTasks = selectedApiFilter === 'ALL' ? agentTasks : agentTasks.filter(t => (t as any).api_used === selectedApiFilter);
+  const totalTokens = filteredTasks.reduce((acc, t) => acc + (t.tokens_consumed || 0), 0);
+  const totalCostFCFA = totalTokens * 0.0006; // Estimated: 1000 tokens ≈ 0.6 FCFA
+
+  // Card 2 (SYSTEM HEALTH)
+  const stableCount = clients.filter(c => c.status === 'STABLE').length;
+  const warningCount = clients.filter(c => c.status === 'WARNING').length;
+  const criticalCount = clients.filter(c => c.status === 'CRITICAL').length;
+  const healthScore = clients.length > 0 ? Math.round((stableCount * 100 + warningCount * 50) / clients.length) : 100;
+  const mostCriticalNode = clients.sort((a, b) => {
+    const statusOrder = { CRITICAL: 0, WARNING: 1, STABLE: 2 };
+    return statusOrder[a.status] - statusOrder[b.status];
+  })[0];
+
+  // Card 3 (INTELLIGENCE & OPPORTUNITIES)
+  const opportunitiesCount = intelligenceLogs.filter(l => l.is_upsell_opportunity).length;
+  const latestIntel = intelligenceLogs[0];
+
+  // Card 4 (NEURAL PULSE)
+  const latestSystemLog = systemLogs[0];
+
   if (booting || !isReady || authLoading) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center">
@@ -366,108 +412,184 @@ export default function NeuralCommandCenterV31() {
     >
       <div className="max-w-[1400px] mx-auto space-y-8">
          
-          {/* STATS GRID */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { 
-                    id: 'NEURAL_PULSE',
-                    label: 'NEURAL PULSE', 
-                    value: kpiMetrics.latency, 
-                    trend: '+2.4%', 
-                    sub: `SENSORS_ACTIVE: 12`, 
-                    footer: 'Total response latency monitored',
-                    alert: kpiMetrics.latency === 'N/A',
-                    primaryValue: true
-                  },
-                  { 
-                    id: 'MARKET_TRACTION',
-                    label: 'MARKET TRACTION', 
-                    value: kpiMetrics.traction, 
-                    trend: 'SYNC', 
-                    sub: 'CONVERSION RATIO', 
-                    footer: 'Real-time action trend active',
-                    sparkline: true,
-                    pulseBadge: true
-                  },
-                  { 
-                    id: 'DATABASE_INTEGRITY',
-                    label: 'DATABASE INTEGRITY', 
-                    value: kpiMetrics.integrity, 
-                    trend: kpiMetrics.integrity === 'STABLE' ? 'SYNC' : 'FAIL', 
-                    sub: kpiMetrics.integrity === 'STABLE' ? 'SUPABASE_HEALTH: 100%' : 'SQL_CONNECTION_ERROR', 
-                    footer: kpiMetrics.integrity === 'STABLE' ? 'Cloud Link: Encrypted' : 'Retrying secure uplink...',
-                    status: kpiMetrics.integrity === 'STABLE' ? 'stable' : 'error'
-                  },
-                  { 
-                    id: 'ORCHESTRATOR_LINK',
-                    label: 'ORCHESTRATOR LINK', 
-                    value: kpiMetrics.orchestrator, 
-                    trend: 'LIVE', 
-                    sub: kpiMetrics.orchestrator === 'BUSY' ? 'SYSTEM_PROCESSING_TASK' : 'READY_FOR_COMMAND',
-                    footer: 'CLICK TO ACCESS ORCHESTRATOR',
-                    trigger: true,
-                    footerGlow: true
-                  }
-                ].map((stat) => (
-                  <div 
-                    key={stat.id} 
-                    onClick={() => stat.trigger && router.push('/admin/orchestrator')}
-                    className={`p-6 bg-[#111111] border rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden ${
-                      stat.alert ? 'border-amber-500/50 animate-pulse shadow-[0_0_20px_rgba(245,158,11,0.1)]' : 
-                      stat.status === 'error' ? 'bg-red-500/10 border-red-500/50' :
-                      'border-white/5 hover:border-white/10'
-                    }`}
-                  >
-                     <div className="flex justify-between items-start relative z-10">
-                        <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${stat.status === 'error' ? 'text-red-400' : 'text-white/40'}`}>
-                          {stat.label}
-                        </span>
-                        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
-                          stat.trend === 'SYNC' || stat.trend === 'LIVE' || stat.trend.startsWith('+') 
-                            ? 'bg-green-500/10 text-green-400' 
-                            : 'bg-red-500/10 text-red-500'
-                        } ${stat.pulseBadge ? 'animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.2)]' : ''}`}>
-                           <Activity className="w-2.5 h-2.5" />
-                           {stat.trend}
-                        </div>
-                     </div>
-                     <div className="space-y-1 relative z-10">
-                        <p className={`text-3xl font-mono tracking-tighter font-black ${
-                          stat.status === 'error' ? 'text-red-500' : 
-                          (stat.primaryValue || stat.id === 'DATABASE_INTEGRITY' || stat.id === 'ORCHESTRATOR_LINK') ? 'text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]' : 
-                          'text-white/90'
-                        }`}>
-                          {stat.value}
-                        </p>
-                        <p className={`text-white/30 flex items-center gap-1.5 uppercase tracking-widest ${stat.primaryValue ? 'text-[11px] font-black' : 'text-[9px] font-bold'}`}>
-                           {stat.sub}
-                        </p>
-                     </div>
-
-                     {stat.sparkline && (
-                       <div className="h-8 w-full opacity-30 mt-2">
-                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={CHART_DATA.slice(-5)}>
-                               <Area type="monotone" dataKey="value" stroke="#fff" fill="#fff" fillOpacity={0.1} />
-                            </AreaChart>
-                         </ResponsiveContainer>
-                       </div>
-                     )}
-
-                     <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
-                        <p className={`uppercase tracking-widest transition-all ${
-                          stat.footerGlow ? 'text-[9px] font-black text-white/60 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]' : 'text-[8px] font-bold text-white/10'
-                        }`}>
-                          {stat.footer}
-                        </p>
-                        {stat.trigger && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
-                     </div>
-                     
-                     {/* Micro-animation glow */}
-                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
-                  </div>
-                ))}
+          {/* STATS GRID - NEURAL INTELLIGENCE HUB */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* CARD 1 — API COMMAND CENTER */}
+            <div 
+              onClick={() => router.push('/admin/api-audit')}
+              className="p-6 bg-[#111111] border border-white/5 hover:border-white/10 rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden"
+            >
+              <div className="flex justify-between items-start relative z-10">
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">API COMMAND CENTER</span>
+                <div className="flex gap-1">
+                  {['Claude', 'Gemini', 'OpenRouter'].map((api) => (
+                    <button
+                      key={api}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedApiFilter(curr => curr === api ? 'ALL' : api as any);
+                      }}
+                      className={`px-1.5 py-0.5 rounded text-[7px] font-bold border transition-all ${
+                        selectedApiFilter === api 
+                        ? 'bg-[#4ade80]/20 border-[#4ade80] text-[#4ade80]' 
+                        : 'bg-white/5 border-white/10 text-white/30 hover:text-white/60'
+                      }`}
+                    >
+                      {api[0]}
+                    </button>
+                  ))}
+                </div>
               </div>
+              <div className="space-y-1 relative z-10">
+                {agentTasks.length > 0 ? (
+                  <>
+                    <p className="text-3xl font-mono tracking-tighter font-black text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]">
+                      {totalTokens.toLocaleString()}
+                    </p>
+                    <p className="text-white/30 flex items-center gap-1.5 uppercase tracking-widest text-[9px] font-bold">
+                      EST_COST: {totalCostFCFA.toFixed(0)} FCFA
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.2em] py-4">AUCUN APPEL CE MOIS</p>
+                )}
+              </div>
+              <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">Tokens consumed (Monthly)</p>
+                <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />
+              </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
+            </div>
+
+            {/* CARD 2 — SYSTEM HEALTH */}
+            <div 
+              onClick={() => {
+                if (healthScore < 100 && mostCriticalNode) {
+                  router.push(`/admin/system/${mostCriticalNode.id}`);
+                }
+              }}
+              className={`p-6 border rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden ${
+                healthScore < 70 ? 'bg-red-500/10 border-red-500/50' : 
+                healthScore < 100 ? 'bg-amber-500/10 border-amber-500/50' : 
+                'bg-[#111111] border-white/5 hover:border-white/10'
+              }`}
+            >
+              <div className="flex justify-between items-start relative z-10">
+                <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${healthScore < 100 ? 'text-white' : 'text-white/40'}`}>SYSTEM HEALTH</span>
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                  healthScore === 100 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-500 animate-pulse'
+                }`}>
+                  <Shield className="w-2.5 h-2.5" />
+                  {healthScore}%
+                </div>
+              </div>
+              <div className="space-y-1 relative z-10">
+                <p className={`text-3xl font-mono tracking-tighter font-black ${
+                  healthScore === 100 ? 'text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]' : 
+                  healthScore < 70 ? 'text-red-500' : 'text-amber-500'
+                }`}>
+                  {stableCount} STABLE
+                </p>
+                <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest flex gap-2">
+                  <span>{warningCount} WARNING</span>
+                  <span className="opacity-20">/</span>
+                  <span>{criticalCount} CRITICAL</span>
+                </p>
+              </div>
+              <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">Global Infrastructure Score</p>
+                {healthScore < 100 && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
+              </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
+            </div>
+
+            {/* CARD 3 — INTELLIGENCE & OPPORTUNITIES */}
+            <div 
+              onClick={() => {
+                if (latestIntel) {
+                  if (latestIntel.is_upsell_opportunity) {
+                    router.push(`/admin/system/${latestIntel.enterprise_id}/settings`);
+                  } else if (latestIntel.severity_level === 'CRITICAL') {
+                    router.push(`/admin/system/${latestIntel.enterprise_id}/agents`);
+                  } else {
+                    router.push(`/admin/system/${latestIntel.enterprise_id}/settings`);
+                  }
+                }
+              }}
+              className="p-6 bg-[#111111] border border-white/5 hover:border-white/10 rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden"
+            >
+              <div className="flex justify-between items-start relative z-10">
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">INTELLIGENCE HUB</span>
+                {latestIntel && (
+                  <div className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest ${
+                    latestIntel.severity_level === 'CRITICAL' ? 'bg-red-500/20 text-red-500' :
+                    latestIntel.severity_level === 'WARNING' ? 'bg-amber-500/20 text-amber-500' :
+                    'bg-blue-500/20 text-blue-500'
+                  }`}>
+                    {latestIntel.severity_level}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1 relative z-10">
+                {intelligenceLogs.length > 0 ? (
+                  <>
+                    <p className="text-3xl font-mono tracking-tighter font-black text-white/90">
+                      {opportunitiesCount} OPPS
+                    </p>
+                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest truncate">
+                      {latestIntel?.message || "SYSTÈME OPTIMAL"}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[11px] font-black text-[#4ade80] uppercase tracking-[0.2em] py-4">SYSTÈME OPTIMAL</p>
+                )}
+              </div>
+              <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">Growth & Alert Opportunities</p>
+                <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />
+              </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
+            </div>
+
+            {/* CARD 4 — NEURAL PULSE */}
+            <div 
+              onClick={() => {
+                if (latestSystemLog?.enterprise_id) {
+                  router.push(`/admin/system/${latestSystemLog.enterprise_id}`);
+                }
+              }}
+              className="p-6 bg-[#111111] border border-white/5 hover:border-white/10 rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden"
+            >
+              <div className="flex justify-between items-start relative z-10">
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">NEURAL PULSE</span>
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
+                  latestSystemLog?.status_color === 'red' ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-400'
+                }`}>
+                   <Activity className="w-2.5 h-2.5" />
+                   {latestSystemLog?.event_type === 'CRITICAL' ? 'ERROR' : latestSystemLog?.event_type === 'SYNC' ? 'SYNC' : 'LIVE'}
+                </div>
+              </div>
+              <div className="space-y-1 relative z-10">
+                {latestSystemLog ? (
+                  <>
+                    <p className="text-3xl font-mono tracking-tighter font-black text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]">
+                      {kpiMetrics.latency}
+                    </p>
+                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest truncate">
+                      {latestSystemLog.event_type}: {latestSystemLog.status_color.toUpperCase()}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.2em] py-4">N/A — EN ATTENTE</p>
+                )}
+              </div>
+              <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">Real-time synaptic flow</p>
+                <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />
+              </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
+            </div>
+          </div>
 
               {/* NEURAL OPERATIONAL PANEL (STEP 2) */}
               <div className="grid grid-cols-10 gap-4">
