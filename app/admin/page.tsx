@@ -231,10 +231,14 @@ export default function NeuralCommandCenterV31() {
     async function fetchHubData() {
       try {
         // 1. Fetch Fleet Nodes (Enterprises)
-        const { data: fleetData } = await supabase
+        const { data: fleetData, error: fleetError } = await supabase
           .from('enterprises')
           .select(`*, client_subscriptions(*, plan_definitions(*))`);
         
+        if (fleetError) {
+          console.error('FLEET_SYNC_ERROR:', fleetError.message);
+        }
+
         if (fleetData) {
           setClients(fleetData.map((node: any) => ({
             ...node,
