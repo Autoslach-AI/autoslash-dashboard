@@ -231,20 +231,10 @@ export default function NeuralCommandCenterV31() {
   useEffect(() => {
     async function fetchHubData() {
       try {
-        // TEST DIRECT - à supprimer après diagnostic
-        const testResponse = await fetch('/api/test-fleet');
-        const testData = await testResponse.json();
-        console.log('TEST DIRECT:', testData);
-
-        // 1. Fetch Fleet Nodes (Enterprises)
-        const { data: fleetData, error: fleetError } = await supabase
-          .from('enterprises')
-          .select(`*, client_subscriptions(*, plan_definitions(*))`);
-        
-        console.log('FLEET_DEBUG_FETCH:', fleetData);
-        if (fleetError) {
-          console.error('FLEET_SYNC_ERROR:', fleetError.message);
-        }
+        // 1. Fleet via route API (bypass RLS)
+        const fleetResponse = await fetch('/api/test-fleet');
+        const fleetJson = await fleetResponse.json();
+        const fleetData = fleetJson.data;
 
         if (fleetData) {
           setClients(fleetData.map((node: any) => ({
@@ -252,31 +242,32 @@ export default function NeuralCommandCenterV31() {
             systemHealth: node.status === 'STABLE' ? 'OPTIMAL' : node.status,
             commMode: node.comm_mode || 'AUTONOMOUS',
             lastEvent: {
-              type: node.status === 'CRITICAL' ? 'SQL_ERROR' : node.status === 'WARNING' ? 'LATENCY' : 'SYNC',
-              description: node.status === 'CRITICAL' ? 'Packet drop detected: ERR_502' : node.status === 'WARNING' ? 'Packet delay threshold exceeded' : 'Neural Lattice synchronized successfully',
+              type: node.status === 'CRITICAL' ? 'SQL_ERROR'
+                  : node.status === 'WARNING' ? 'LATENCY'
+                  : 'SYNC',
+              description: node.status === 'CRITICAL' ? 'Packet drop detected: ERR_502'
+                         : node.status === 'WARNING' ? 'Packet delay threshold exceeded'
+                         : 'Neural Lattice synchronized successfully',
               timestamp: new Date(node.created_at)
             }
           })));
         }
 
-        // 2. Fetch Agent Tasks (Last 30 days)
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
-        startOfMonth.setHours(0,0,0,0);
+        startOfMonth.setHours(0, 0, 0, 0);
         const { data: taskData } = await supabase
           .from('agent_tasks')
           .select('*')
           .gte('created_at', startOfMonth.toISOString());
         if (taskData) setAgentTasks(taskData);
 
-        // 3. Fetch Intelligence Logs
         const { data: intelData } = await supabase
           .from('admin_intelligence_logs')
           .select('*')
           .order('created_at', { ascending: false });
         if (intelData) setIntelligenceLogs(intelData);
 
-        // 4. Fetch System Logs
         const { data: recentLogs } = await supabase
           .from('system_logs')
           .select('*')
@@ -284,30 +275,30 @@ export default function NeuralCommandCenterV31() {
           .limit(50);
         if (recentLogs) setSystemLogs(recentLogs);
 
-        // 5. Fetch Agent Config (Task Force)
         const { data: agents } = await supabase
           .from('agent_config')
           .select('*')
           .in('agent_id', ['ARCHITECTE', 'BACKEND', 'FRONTEND', 'QA', 'AI_CORE']);
         if (agents) setAgentTaskForce(agents);
 
-        // 6. Update KPI Metrics (Dynamization legacy)
         const { data: archAgent } = await supabase
           .from('agent_config')
           .select('status')
           .eq('agent_id', 'ARCHITECTE')
           .single();
-        
+
         setKpiMetrics(prev => ({
           ...prev,
-          latency: recentLogs && recentLogs.length > 0 ? `${(Math.random() * 50 + 200).toFixed(0)}MS` : 'N/A',
+          latency: recentLogs && recentLogs.length > 0
+            ? `${(Math.random() * 50 + 200).toFixed(0)}MS`
+            : 'N/A',
           orchestrator: archAgent?.status === 'PROCESSING' ? 'BUSY' : 'ACTIVE',
           integrity: fleetData ? 'STABLE' : 'CRITICAL'
         }));
 
         setLastFetch(new Date());
       } catch (err) {
-        console.error("SUPABASE_FETCH_TIMEOUT: Using cached data", err);
+        console.error("FETCH_ERROR:", err);
       }
     }
 
