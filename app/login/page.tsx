@@ -26,18 +26,20 @@ export default function LoginPage() {
       });
 
       if (authError) throw authError;
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', authData.user.id)
-        .single();
-
-      if (profileError) throw profileError;
+      
+      const profileResponse = await fetch(
+        `/api/auth/profile?userId=${authData.user.id}`
+      )
+      const profileJson = await profileResponse.json()
+      const profile = profileJson.data
+      
+      if (profileJson.error) {
+        console.error('PROFILE_ERROR:', profileJson.error);
+      }
 
       if (!profile?.is_admin) {
-        await supabase.auth.signOut();
-        throw new Error('ACCÈS REFUSÉ : Privilèges administrateur requis.');
+        await supabase.auth.signOut()
+        throw new Error('ACCÈS REFUSÉ : Privilèges administrateur requis.')
       }
 
       router.push('/admin');
