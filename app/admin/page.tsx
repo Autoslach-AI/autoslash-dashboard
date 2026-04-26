@@ -231,6 +231,11 @@ export default function NeuralCommandCenterV31() {
   useEffect(() => {
     async function fetchHubData() {
       try {
+        // TEST DIRECT - à supprimer après diagnostic
+        const testResponse = await fetch('/api/test-fleet');
+        const testData = await testResponse.json();
+        console.log('TEST DIRECT:', testData);
+
         // 1. Fetch Fleet Nodes (Enterprises)
         const { data: fleetData, error: fleetError } = await supabase
           .from('enterprises')
