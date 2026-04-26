@@ -35,7 +35,8 @@ import {
   Activity
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase';
+const supabase = createClient();
 
 const DOMAINS = [
   { id: 'AGRICULTURE', label: 'Agriculture / Ferme', icon: Leaf },

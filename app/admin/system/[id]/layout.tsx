@@ -17,7 +17,8 @@ import {
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SystemProvider, useSystem } from './SystemContext';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase';
+const supabase = createClient();
 
 interface ClientData {
   projectId: string;

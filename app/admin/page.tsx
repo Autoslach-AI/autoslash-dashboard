@@ -29,7 +29,8 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { useConfig } from '@/lib/contexts/config-context';
 import { useUser } from '@/lib/contexts/user-context';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase';
+const supabase = createClient();
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
 
 type Tab = 'NEURAL_HUB' | 'MEMORY_VAULT' | 'BUSINESS_CONFIG' | 'UNIVERSAL_INVENTORY';
@@ -235,6 +236,7 @@ export default function NeuralCommandCenterV31() {
           .from('enterprises')
           .select(`*, client_subscriptions(*, plan_definitions(*))`);
         
+        console.log('FLEET_DEBUG_FETCH:', fleetData);
         if (fleetError) {
           console.error('FLEET_SYNC_ERROR:', fleetError.message);
         }

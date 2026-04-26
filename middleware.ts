@@ -38,12 +38,10 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  /* Protection of the /admin route (excluding /admin/auth)
-  if (request.nextUrl.pathname.startsWith('/admin') && 
-      !request.nextUrl.pathname.includes('/auth') && 
-      !user) {
-    return NextResponse.redirect(new URL('/admin/auth', request.url))
-  } */
+  // Protection of the /admin route
+  if (request.nextUrl.pathname.startsWith('/admin') && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
 
   return response
 }
