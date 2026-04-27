@@ -214,6 +214,21 @@ export default function NeuralCommandCenterV31() {
   const [selectedApiFilter, setSelectedApiFilter] = useState<'ALL' | 'Claude' | 'Gemini' | 'OpenRouter'>('ALL');
   const [agentTasks, setAgentTasks] = useState<AgentTask[]>([]);
   const [intelligenceLogs, setIntelligenceLogs] = useState<AdminIntelligenceLog[]>([]);
+  const [intelligenceSummary, setIntelligenceSummary] = useState<{
+    totalActive: number;
+    topMessage: string | null;
+    topSeverity: 'INFO' | 'WARNING' | 'CRITICAL' | 'UPSELL' | null;
+    topIssueType: string | null;
+    topEnterpriseId: string | null;
+    isUpsell: boolean;
+  }>({
+    totalActive: 0,
+    topMessage: null,
+    topSeverity: null,
+    topIssueType: null,
+    topEnterpriseId: null,
+    isUpsell: false
+  });
   const [lastFetch, setLastFetch] = useState<Date>(new Date());
 
   // New states for dynamization
@@ -295,6 +310,13 @@ export default function NeuralCommandCenterV31() {
           orchestrator: archAgent?.status === 'PROCESSING' ? 'BUSY' : 'ACTIVE',
           integrity: fleetData ? 'STABLE' : 'CRITICAL'
         }));
+
+        // 7. Intelligence Hub Summary
+        const summaryResponse = await fetch('/api/admin/intelligence-summary');
+        const summaryJson = await summaryResponse.json();
+        if (summaryJson && !summaryJson.error) {
+          setIntelligenceSummary(summaryJson);
+        }
 
         setLastFetch(new Date());
       } catch (err) {
@@ -490,50 +512,56 @@ export default function NeuralCommandCenterV31() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
             </div>
 
-            {/* CARD 3 — INTELLIGENCE & OPPORTUNITIES */}
+            {/* CARD 3 — INTELLIGENCE HUB */}
             <div 
               onClick={() => {
-                if (latestIntel) {
-                  if (latestIntel.is_upsell_opportunity) {
-                    router.push(`/admin/system/${latestIntel.enterprise_id}/settings`);
-                  } else if (latestIntel.severity_level === 'CRITICAL') {
-                    router.push(`/admin/system/${latestIntel.enterprise_id}/agents`);
+                if (intelligenceSummary.totalActive > 0 && intelligenceSummary.topEnterpriseId) {
+                  const id = intelligenceSummary.topEnterpriseId;
+                  const type = intelligenceSummary.topIssueType;
+                  if (type === 'TOKEN_LIMIT' || type === 'TOKEN_WARNING' || type === 'UPSELL') {
+                    router.push(`/admin/system/${id}/settings`);
+                  } else if (type === 'AGENT_ERROR' || type === 'SECURITY') {
+                    router.push(`/admin/system/${id}/agents`);
                   } else {
-                    router.push(`/admin/system/${latestIntel.enterprise_id}/settings`);
+                    router.push(`/admin/system/${id}`);
                   }
                 }
               }}
-              className="p-6 bg-[#111111] border border-white/5 hover:border-white/10 rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden"
+              className={`p-6 bg-[#111111] border border-white/5 ${intelligenceSummary.totalActive > 0 ? 'hover:border-white/10 cursor-pointer' : 'cursor-default'} rounded-xl space-y-4 transition-all group relative overflow-hidden`}
             >
               <div className="flex justify-between items-start relative z-10">
                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">INTELLIGENCE HUB</span>
-                {latestIntel && (
+                {intelligenceSummary.totalActive > 0 && intelligenceSummary.topSeverity && (
                   <div className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest ${
-                    latestIntel.severity_level === 'CRITICAL' ? 'bg-red-500/20 text-red-500' :
-                    latestIntel.severity_level === 'WARNING' ? 'bg-amber-500/20 text-amber-500' :
+                    intelligenceSummary.topSeverity === 'CRITICAL' ? 'bg-red-500/20 text-red-500' :
+                    intelligenceSummary.topSeverity === 'WARNING' ? 'bg-amber-500/20 text-amber-500' :
+                    intelligenceSummary.topSeverity === 'UPSELL' ? 'bg-green-500/20 text-green-500' :
                     'bg-blue-500/20 text-blue-500'
                   }`}>
-                    {latestIntel.severity_level}
+                    {intelligenceSummary.topSeverity}
                   </div>
                 )}
               </div>
               <div className="space-y-1 relative z-10">
-                {intelligenceLogs.length > 0 ? (
+                {intelligenceSummary.totalActive === 0 ? (
                   <>
-                    <p className="text-3xl font-mono tracking-tighter font-black text-white/90">
-                      {opportunitiesCount} OPPS
-                    </p>
-                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest truncate">
-                      {latestIntel?.message || "SYSTÈME OPTIMAL"}
-                    </p>
+                    <p className="text-[11px] font-black text-[#4ade80] uppercase tracking-[0.2em] py-1">SYSTÈME OPTIMAL</p>
+                    <p className="text-white/20 text-[9px] font-bold uppercase tracking-widest">AUCUNE ALERTE ACTIVE</p>
                   </>
                 ) : (
-                  <p className="text-[11px] font-black text-[#4ade80] uppercase tracking-[0.2em] py-4">SYSTÈME OPTIMAL</p>
+                  <>
+                    <p className="text-lg font-mono font-black text-white/90 leading-tight line-clamp-2">
+                      {intelligenceSummary.topMessage}
+                    </p>
+                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest">
+                      {intelligenceSummary.totalActive} ALERTES ACTIVES CE MOIS
+                    </p>
+                  </>
                 )}
               </div>
-              <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
-                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">Growth & Alert Opportunities</p>
-                <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />
+              <div className={`pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10 ${intelligenceSummary.totalActive === 0 ? 'opacity-20' : ''}`}>
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">GROWTH & ALERT OPPORTUNITIES &gt;</p>
+                {intelligenceSummary.totalActive > 0 && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
               </div>
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
             </div>
