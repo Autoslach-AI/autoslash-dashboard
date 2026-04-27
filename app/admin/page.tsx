@@ -418,49 +418,34 @@ export default function NeuralCommandCenterV31() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* CARD 1 — API COMMAND CENTER */}
             <div 
-              onClick={() => router.push('/admin/api-audit')}
-              className="p-6 bg-[#111111] border border-white/5 hover:border-white/10 rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden"
+              className="p-6 bg-[#111111] border border-white/5 rounded-xl space-y-4 transition-all relative overflow-hidden"
             >
               <div className="flex justify-between items-start relative z-10">
                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">API COMMAND CENTER</span>
-                <div className="flex gap-1">
+                <div className="flex gap-1 opacity-20">
                   {['Claude', 'Gemini', 'OpenRouter'].map((api) => (
-                    <button
+                    <div
                       key={api}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedApiFilter(curr => curr === api ? 'ALL' : api as any);
-                      }}
-                      className={`px-1.5 py-0.5 rounded text-[7px] font-bold border transition-all ${
-                        selectedApiFilter === api 
-                        ? 'bg-[#4ade80]/20 border-[#4ade80] text-[#4ade80]' 
-                        : 'bg-white/5 border-white/10 text-white/30 hover:text-white/60'
-                      }`}
+                      className="px-1.5 py-0.5 rounded text-[7px] font-bold border border-white/10 text-white/30 bg-white/5"
                     >
                       {api[0]}
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
-              <div className="space-y-1 relative z-10">
-                {agentTasks.length > 0 ? (
-                  <>
-                    <p className="text-3xl font-mono tracking-tighter font-black text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]">
-                      {totalTokens.toLocaleString()}
-                    </p>
-                    <p className="text-white/30 flex items-center gap-1.5 uppercase tracking-widest text-[9px] font-bold">
-                      EST_COST: {totalCostFCFA.toFixed(0)} FCFA
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.2em] py-4">AUCUN APPEL CE MOIS</p>
-                )}
+              <div className="space-y-2 relative z-10 py-2">
+                <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] leading-tight">
+                  AUCUN AGENT DÉPLOYÉ CE MOIS
+                </p>
+                <p className="text-[8px] font-medium text-white/20 uppercase tracking-[0.1em] leading-relaxed max-w-[180px]">
+                  Les données apparaîtront dès le premier agent client activé
+                </p>
               </div>
-              <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
-                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">Tokens consumed (Monthly)</p>
-                <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />
+              <div className="pt-6 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">TOKENS CONSUMED (MONTHLY)</p>
+                <span className="text-[10px] font-mono font-bold text-white/20">—</span>
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 rounded-full" />
             </div>
 
             {/* CARD 2 — SYSTEM HEALTH */}
