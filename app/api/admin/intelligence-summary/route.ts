@@ -7,15 +7,11 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const startOfMonth = new Date()
-  startOfMonth.setDate(1)
-  startOfMonth.setHours(0, 0, 0, 0)
-
   const { data: logs, error } = await supabase
     .from('admin_intelligence_logs')
     .select('*')
-    .gte('created_at', startOfMonth.toISOString())
     .order('created_at', { ascending: false })
+    .limit(10)
 
   if (error) {
     console.error('INTELLIGENCE_SUMMARY_ERROR:', error)
