@@ -2,8 +2,6 @@
 
 import { Inter, Outfit, Lora } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/header";
-import { usePathname } from "next/navigation";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-display" });
@@ -17,16 +15,11 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = usePathname();
-  // Hide Header on admin and auth routes
-  const hideHeader = pathname.startsWith('/admin') || pathname.includes('/auth') || pathname.includes('/login');
-
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable} ${lora.variable}`}>
       <body className="font-sans antialiased bg-black text-white">
         <ConfigProvider>
           <UserProvider>
-            {!hideHeader && <Header />}
             <main>
               {children}
             </main>
