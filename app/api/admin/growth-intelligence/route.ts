@@ -40,7 +40,7 @@ export async function GET() {
     }))
 
   const churnRisks = enterprises
-    .filter(e => e.status === 'WARNING')
+    .filter(e => e.status === 'WARNING' || e.status === 'CRITICAL')
     .map(e => ({
       enterprise_id: e.id,
       name: e.name,

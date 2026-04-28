@@ -232,6 +232,8 @@ export default function NeuralCommandCenterV31() {
   const [neuralPulse, setNeuralPulse] = useState<any>(null);
   const [thoughtStream, setThoughtStream] = useState<any[]>([]);
   const [apiMonitor, setApiMonitor] = useState<any>(null);
+  const [activeApis, setActiveApis] = useState<string[]>([]);
+  const [monitorDays, setMonitorDays] = useState('30');
   const [growthIntel, setGrowthIntel] = useState<any>(null);
   const [lastFetch, setLastFetch] = useState<Date>(new Date());
 
@@ -342,9 +344,12 @@ export default function NeuralCommandCenterV31() {
         }
 
         // 11. API Monitor
-        const apiRes = await fetch('/api/admin/api-monitor');
+        const apiRes = await fetch(`/api/admin/api-monitor?days=${monitorDays}`);
         const apiData = await apiRes.json();
         setApiMonitor(apiData);
+        if (apiData.apiKeys && activeApis.length === 0) {
+          setActiveApis(apiData.apiKeys);
+        }
 
         // 12. Growth Intelligence
         const growthRes = await fetch('/api/admin/growth-intelligence');
@@ -364,12 +369,20 @@ export default function NeuralCommandCenterV31() {
   
   // Requirement 3: UX Feedback (Scanning Animation)
   useEffect(() => {
-    if (searchQuery) {
-      setIsScanning(true);
-      const timer = setTimeout(() => setIsScanning(false), 600);
-      return () => clearTimeout(timer);
+    async function refreshApiMonitor() {
+      try {
+        const apiRes = await fetch(`/api/admin/api-monitor?days=${monitorDays}`);
+        const apiData = await apiRes.json();
+        setApiMonitor(apiData);
+        if (apiData.apiKeys && activeApis.length === 0) {
+          setActiveApis(apiData.apiKeys);
+        }
+      } catch (err) {
+        console.error("API_MONITOR_REFRESH_ERROR:", err);
+      }
     }
-  }, [searchQuery]);
+    if (!booting) refreshApiMonitor();
+  }, [monitorDays]);
 
   const [activeSubTab, setActiveSubTab] = useState('Outline');
   const [booting, setBooting] = useState(true);
@@ -769,12 +782,29 @@ export default function NeuralCommandCenterV31() {
                      <h3 className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">API MONITOR</h3>
                      <p className="text-[8px] font-mono text-white/20 uppercase">Autonomous Neural Traffic Control</p>
                    </div>
-                   {apiMonitor?.mostUsed && (
-                     <div className="px-2 py-1 bg-violet-500/10 border border-violet-500/20 rounded flex items-center gap-2">
-                       <span className="text-[8px] font-bold text-violet-400 uppercase tracking-widest">MOST USED:</span>
-                       <span className="text-[8px] font-mono text-white/80 uppercase">{apiMonitor.mostUsed}</span>
+                   <div className="flex items-center gap-4">
+                     <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
+                        {['7', '30', '90'].map(d => (
+                          <button
+                            key={d}
+                            onClick={() => setMonitorDays(d)}
+                            className={`px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all ${
+                              monitorDays === d 
+                              ? 'bg-white/10 text-white' 
+                              : 'text-white/20 hover:text-white/40'
+                            }`}
+                          >
+                            {d}J
+                          </button>
+                        ))}
                      </div>
-                   )}
+                     {apiMonitor?.mostUsed && (
+                       <div className="px-2 py-1 bg-violet-500/10 border border-violet-500/20 rounded flex items-center gap-2">
+                         <span className="text-[8px] font-bold text-violet-400 uppercase tracking-widest">MOST USED:</span>
+                         <span className="text-[8px] font-mono text-white/80 uppercase">{apiMonitor.mostUsed}</span>
+                       </div>
+                     )}
+                   </div>
                  </div>
 
                  <div className="flex-1 min-h-[300px] w-full relative">
@@ -820,6 +850,7 @@ export default function NeuralCommandCenterV31() {
                         />
                         {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
                           const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
+                          if (!activeApis.includes(apiKey)) return null;
                           return (
                             <Line 
                               key={apiKey}
@@ -841,12 +872,23 @@ export default function NeuralCommandCenterV31() {
                     <div className="flex flex-wrap gap-2">
                       {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
                         const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
+                        const isActive = activeApis.includes(apiKey);
                         return (
-                          <div key={apiKey} className="flex items-center gap-2 px-3 py-1.5 bg-black/40 border border-white/5 rounded-lg group hover:border-white/20 transition-all">
+                          <button 
+                            key={apiKey} 
+                            onClick={() => {
+                              if (isActive) {
+                                setActiveApis(activeApis.filter(a => a !== apiKey));
+                              } else {
+                                setActiveApis([...activeApis, apiKey]);
+                              }
+                            }}
+                            className={`flex items-center gap-2 px-3 py-1.5 bg-black/40 border border-white/5 rounded-lg group hover:border-white/20 transition-all ${!isActive ? 'opacity-40' : 'opacity-100'}`}
+                          >
                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                              <span className="text-[9px] font-bold text-white/60 uppercase tracking-tight">{apiKey}</span>
                              <span className="text-[9px] font-mono text-white/20">({apiMonitor.totals[apiKey] || 0})</span>
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
@@ -911,7 +953,7 @@ export default function NeuralCommandCenterV31() {
                           >
                             <div className="space-y-1">
                               <p className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</p>
-                              <p className="text-[9px] font-mono text-red-500/40 uppercase">Critical Status Detected</p>
+                              <p className="text-[9px] font-mono text-red-500/40 uppercase">{item.status} DETECTION ACTIVE</p>
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="text-right">

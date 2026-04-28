@@ -3,20 +3,23 @@ import { NextResponse } from 'next/server'
 
 export const revalidate = 30;
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const days = parseInt(searchParams.get('days') || '30')
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const thirtyDaysAgo = new Date()
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const rangeStart = new Date()
+  rangeStart.setDate(rangeStart.getDate() - days)
 
-  // Fetch all tasks from last 30 days
+  // Fetch all tasks from last X days
   const { data: tasks, error } = await supabase
     .from('agent_tasks')
     .select('api_used, started_at')
-    .gte('started_at', thirtyDaysAgo.toISOString())
+    .gte('started_at', rangeStart.toISOString())
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
