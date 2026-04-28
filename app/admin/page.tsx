@@ -858,43 +858,67 @@ export default function NeuralCommandCenterV31() {
                       </div>
 
                       {/* GRAPH AREA */}
-                      <div style={{ width: '100%', height: 300, marginTop: 16 }}>
+                      <div style={{ width: '100%', height: 320, marginTop: 24, position: 'relative' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={apiMonitor?.dailyData || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <AreaChart data={apiMonitor?.dailyData || []} margin={{ top: 20, right: 10, left: -20, bottom: 20 }}>
                             <defs>
                               {(apiMonitor?.apiKeys || []).map((api: string, index: number) => (
                                 <linearGradient key={api} id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.3} />
+                                  <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.15} />
                                   <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0} />
                                 </linearGradient>
                               ))}
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
+                            {/* Neural Grid Pattern */}
+                            <CartesianGrid strokeDasharray="1 15" stroke="#ffffff10" vertical={true} />
                             <XAxis
                               dataKey="date"
-                              tick={{ fill: '#4b5563', fontSize: 10, fontFamily: 'monospace' }}
+                              tick={{ fill: '#374151', fontSize: 9, fontFamily: 'monospace' }}
                               axisLine={false}
                               tickLine={false}
-                              tickFormatter={(val) => val.slice(5)}
+                              tickFormatter={(val) => val.slice(5).replace('-', '/')}
+                              dy={15}
                             />
                             <YAxis
-                              tick={{ fill: '#4b5563', fontSize: 10 }}
+                              tick={{ fill: '#374151', fontSize: 9, fontFamily: 'monospace' }}
                               axisLine={false}
                               tickLine={false}
                               allowDecimals={false}
                             />
                             <Tooltip
-                              contentStyle={{
-                                background: '#0a0a0a',
-                                border: '1px solid #1f2937',
-                                borderRadius: '8px',
-                                fontFamily: 'monospace',
-                                fontSize: 12
+                              cursor={{ stroke: '#ffffff20', strokeWidth: 1 }}
+                              content={({ active, payload, label }) => {
+                                if (active && payload && payload.length) {
+                                  return (
+                                    <div className="bg-[#050505] border border-white/10 p-6 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] backdrop-blur-3xl space-y-4 min-w-[260px]">
+                                      <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                        <p className="text-[10px] font-mono text-white/30 uppercase tracking-[0.3em]">{label} UTC</p>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse" />
+                                      </div>
+                                      <div className="space-y-3">
+                                         {payload.map((p: any) => (
+                                           <div key={p.dataKey} className="flex items-center justify-between gap-8">
+                                              <div className="flex items-center gap-3">
+                                                 <span className="text-[10px]" style={{ color: p.stroke }}>●</span>
+                                                 <span className="text-[11px] font-black text-white uppercase tracking-tight">{p.dataKey.replace('-', ' ')}</span>
+                                              </div>
+                                              <span className="text-[11px] font-mono text-white/50">{p.value} CALLS</span>
+                                           </div>
+                                         ))}
+                                      </div>
+                                      {payload.some((p: any) => p.value > 10) && (
+                                         <div className="pt-3 border-t border-white/5 space-y-1">
+                                            <p className="text-[9px] font-mono text-red-500 uppercase tracking-widest font-bold">
+                                               CRITICAL: PACKET_BURST_DETECTED
+                                            </p>
+                                            <p className="text-[8px] font-mono text-white/10 uppercase">Duration: 1h 00m</p>
+                                         </div>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                                return null;
                               }}
-                              labelStyle={{ color: '#6b7280', marginBottom: 8, letterSpacing: 2 }}
-                              itemStyle={{ color: '#e5e7eb' }}
-                              formatter={(value: any, name: any) => [`${value} calls`, String(name || '').toUpperCase()]}
-                              labelFormatter={(label) => `${label} UTC`}
                             />
                             {(apiMonitor?.apiKeys || []).map((api: string, index: number) =>
                               activeApis.includes(api) ? (
@@ -905,17 +929,33 @@ export default function NeuralCommandCenterV31() {
                                   stroke={COLORS[index % COLORS.length]}
                                   strokeWidth={2}
                                   fill={`url(#gradient-${index})`}
-                                  dot={{ r: 4, fill: COLORS[index % COLORS.length], strokeWidth: 0 }}
-                                  activeDot={{ r: 6, strokeWidth: 0 }}
+                                  dot={{ r: 3, fill: COLORS[index % COLORS.length], strokeWidth: 0 }}
+                                  activeDot={{ 
+                                    r: 5, 
+                                    fill: COLORS[index % COLORS.length], 
+                                    stroke: '#fff', 
+                                    strokeWidth: 2 
+                                  }}
+                                  animationDuration={1500}
                                 />
                               ) : null
                             )}
                           </AreaChart>
                         </ResponsiveContainer>
+                        
+                        {/* Legend in image style */}
+                        <div className="absolute -bottom-2 left-0 flex gap-6 px-4">
+                           {activeApis.slice(0, 3).map((api, index) => (
+                              <div key={api} className="flex items-center gap-2">
+                                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                 <span className="text-[8px] font-mono text-white/20 uppercase tracking-widest">{api.replace('-', ' ')}</span>
+                              </div>
+                           ))}
+                        </div>
                       </div>
 
                       {/* FILTRES API — ICÔNES COMPACTES */}
-                      <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'center' }}>
+                      <div className="flex flex-wrap gap-3 mt-8 pb-4 border-b border-white/5">
                         {(apiMonitor?.apiKeys || []).map((api: string, index: number) => (
                           <button
                             key={api}
