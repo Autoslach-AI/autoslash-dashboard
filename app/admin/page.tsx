@@ -234,6 +234,8 @@ export default function NeuralCommandCenterV31() {
   const [apiMonitor, setApiMonitor] = useState<any>(null);
   const [activeApis, setActiveApis] = useState<string[]>([]);
   const [monitorDays, setMonitorDays] = useState('30');
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [activeSection3Tab, setActiveSection3Tab] = useState('API_MONITOR');
   const [growthIntel, setGrowthIntel] = useState<any>(null);
   const [lastFetch, setLastFetch] = useState<Date>(new Date());
 
@@ -344,7 +346,7 @@ export default function NeuralCommandCenterV31() {
         }
 
         // 11. API Monitor
-        const apiRes = await fetch(`/api/admin/api-monitor?days=${monitorDays}`);
+        const apiRes = await fetch(`/api/admin/api-monitor?days=${monitorDays}${selectedPlan ? `&plan=${selectedPlan}` : ''}`);
         const apiData = await apiRes.json();
         setApiMonitor(apiData);
         if (apiData.apiKeys && activeApis.length === 0) {
@@ -371,7 +373,7 @@ export default function NeuralCommandCenterV31() {
   useEffect(() => {
     async function refreshApiMonitor() {
       try {
-        const apiRes = await fetch(`/api/admin/api-monitor?days=${monitorDays}`);
+        const apiRes = await fetch(`/api/admin/api-monitor?days=${monitorDays}${selectedPlan ? `&plan=${selectedPlan}` : ''}`);
         const apiData = await apiRes.json();
         setApiMonitor(apiData);
         if (apiData.apiKeys && activeApis.length === 0) {
@@ -382,7 +384,7 @@ export default function NeuralCommandCenterV31() {
       }
     }
     if (!booting) refreshApiMonitor();
-  }, [monitorDays]);
+  }, [monitorDays, selectedPlan]);
 
   const [activeSubTab, setActiveSubTab] = useState('Outline');
   const [booting, setBooting] = useState(true);
@@ -772,213 +774,282 @@ export default function NeuralCommandCenterV31() {
                 </div>
               </div>
 
-
              {/* SECTION 3: API MONITOR & GROWTH INTELLIGENCE */}
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               {/* API MONITOR PANEL */}
-               <div className="p-8 bg-[#111111] border border-white/5 rounded-xl flex flex-col space-y-6 min-h-[500px]">
-                 <div className="flex justify-between items-center">
-                   <div className="space-y-1">
-                     <h3 className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">API MONITOR</h3>
-                     <p className="text-[8px] font-mono text-white/20 uppercase">Autonomous Neural Traffic Control</p>
-                   </div>
-                   <div className="flex items-center gap-4">
-                     <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
-                        {['7', '30', '90'].map(d => (
-                          <button
-                            key={d}
-                            onClick={() => setMonitorDays(d)}
-                            className={`px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all ${
-                              monitorDays === d 
-                              ? 'bg-white/10 text-white' 
-                              : 'text-white/20 hover:text-white/40'
-                            }`}
-                          >
-                            {d}J
-                          </button>
-                        ))}
-                     </div>
-                     {apiMonitor?.mostUsed && (
-                       <div className="px-2 py-1 bg-violet-500/10 border border-violet-500/20 rounded flex items-center gap-2">
-                         <span className="text-[8px] font-bold text-violet-400 uppercase tracking-widest">MOST USED:</span>
-                         <span className="text-[8px] font-mono text-white/80 uppercase">{apiMonitor.mostUsed}</span>
-                       </div>
+             <div className="space-y-4">
+                {/* TABS HEADERS */}
+                <div className="flex items-center gap-2">
+                   <button 
+                     onClick={() => setActiveSection3Tab('API_MONITOR')}
+                     className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center gap-3 border ${
+                       activeSection3Tab === 'API_MONITOR' 
+                       ? 'bg-[#111111] border-white/10 text-white shadow-[0_0_20px_rgba(0,0,0,0.5)]' 
+                       : 'bg-transparent border-transparent text-white/20 hover:text-white/40'
+                     }`}
+                   >
+                     <div className={`w-1.5 h-1.5 rounded-full ${activeSection3Tab === 'API_MONITOR' ? 'bg-[#4ade80] animate-pulse' : 'bg-white/10'}`} />
+                     API MONITOR
+                   </button>
+                   
+                   <button 
+                     onClick={() => setActiveSection3Tab('GROWTH_INTEL')}
+                     className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center gap-3 border ${
+                       activeSection3Tab === 'GROWTH_INTEL' 
+                       ? 'bg-[#111111] border-white/10 text-white shadow-[0_0_20px_rgba(0,0,0,0.5)]' 
+                       : 'bg-transparent border-transparent text-white/20 hover:text-white/40'
+                     }`}
+                   >
+                     GROWTH INTELLIGENCE
+                     {growthIntel?.totalOpportunities > 0 && (
+                        <span className="px-1.5 py-0.5 bg-[#4ade80] text-black text-[8px] font-black rounded-sm flex items-center gap-1">
+                           {growthIntel.totalOpportunities} <ChevronRight className="w-2 h-2" />
+                        </span>
                      )}
-                   </div>
-                 </div>
+                   </button>
+                </div>
 
-                 <div className="flex-1 min-h-[300px] w-full relative">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={apiMonitor?.dailyData || []} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
-                        <XAxis 
-                          dataKey="date" 
-                          stroke="#ffffff10" 
-                          fontSize={8} 
-                          tickLine={false} 
-                          axisLine={false}
-                          dy={10}
-                          fontFamily="monospace"
-                        />
-                        <YAxis 
-                          stroke="#ffffff10" 
-                          fontSize={8} 
-                          tickLine={false} 
-                          axisLine={false}
-                          dx={-5}
-                          fontFamily="monospace"
-                        />
-                        <Tooltip 
-                          content={({ active, payload, label }) => {
-                            if (active && payload && payload.length) {
-                              return (
-                                <div className="bg-[#0a0a0a] border border-white/10 p-3 rounded-lg shadow-2xl backdrop-blur-xl space-y-2">
-                                  <p className="text-[9px] font-mono text-white/40 uppercase tracking-widest border-b border-white/5 pb-1">{label}</p>
-                                  {payload.map((p: any) => (
-                                    <div key={p.dataKey} className="flex items-center justify-between gap-6">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.stroke }} />
-                                        <span className="text-[10px] font-bold text-white/80 uppercase">{p.dataKey}</span>
-                                      </div>
-                                      <span className="text-[10px] font-mono text-white/40">{p.value} calls</span>
+                <div className="min-h-[500px]">
+                   {activeSection3Tab === 'API_MONITOR' ? (
+                     <div className="p-8 bg-[#111111] border border-white/5 rounded-xl flex flex-col space-y-8 animate-in fade-in duration-500">
+                        {/* N1: HEADER & PERIOD */}
+                        <div className="flex justify-between items-start">
+                           <div className="space-y-1">
+                              <h3 className="text-xs font-bold text-white uppercase tracking-widest">API MONITORING SYSTEM</h3>
+                              <div className="flex items-center gap-3">
+                                 <p className="text-[9px] font-mono text-white/20 uppercase">Neural Traffic Control</p>
+                                 {apiMonitor?.mostUsed && (
+                                    <div className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 rounded flex items-center gap-1.5">
+                                       <span className="text-[7px] font-bold text-violet-400 uppercase tracking-widest">MOST USED:</span>
+                                       <span className="text-[7px] font-mono text-white/80 uppercase">{apiMonitor.mostUsed}</span>
                                     </div>
-                                  ))}
+                                 )}
+                              </div>
+                           </div>
+                           
+                           <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
+                              {['7', '30', '90'].map(d => (
+                                <button
+                                  key={d}
+                                  onClick={() => setMonitorDays(d)}
+                                  className={`px-4 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all ${
+                                    monitorDays === d 
+                                    ? 'bg-white/10 text-white' 
+                                    : 'text-white/20 hover:text-white/40'
+                                  }`}
+                                >
+                                  {d} DAYS
+                                </button>
+                              ))}
+                           </div>
+                        </div>
+
+                        {/* CHART */}
+                        <div className="flex-1 min-h-[300px] w-full relative">
+                           <ResponsiveContainer width="100%" height="100%">
+                              <LineChart data={apiMonitor?.dailyData || []} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
+                                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                                 <XAxis 
+                                   dataKey="date" 
+                                   stroke="#ffffff10" 
+                                   fontSize={8} 
+                                   tickLine={false} 
+                                   axisLine={false}
+                                   dy={10}
+                                   fontFamily="monospace"
+                                 />
+                                 <YAxis 
+                                   stroke="#ffffff10" 
+                                   fontSize={8} 
+                                   tickLine={false} 
+                                   axisLine={false}
+                                   dx={-5}
+                                   fontFamily="monospace"
+                                 />
+                                 <Tooltip 
+                                   content={({ active, payload, label }) => {
+                                     if (active && payload && payload.length) {
+                                       return (
+                                         <div className="bg-[#0a0a0a] border border-white/10 p-3 rounded-lg shadow-2xl backdrop-blur-xl space-y-2">
+                                           <p className="text-[9px] font-mono text-white/40 uppercase tracking-widest border-b border-white/5 pb-1">{label}</p>
+                                           <div className="space-y-1">
+                                              {payload.map((p: any) => (
+                                                <div key={p.dataKey} className="flex items-center justify-between gap-6">
+                                                   <div className="flex items-center gap-2">
+                                                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.stroke }} />
+                                                      <span className="text-[10px] font-bold text-white/80 uppercase">{p.dataKey}</span>
+                                                   </div>
+                                                   <span className="text-[10px] font-mono text-white/40 tabular-nums">{p.value} calls</span>
+                                                </div>
+                                              ))}
+                                           </div>
+                                         </div>
+                                       );
+                                     }
+                                     return null;
+                                   }}
+                                 />
+                                 {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
+                                    const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
+                                    if (!activeApis.includes(apiKey)) return null;
+                                    return (
+                                       <Line 
+                                         key={apiKey}
+                                         type="monotone"
+                                         dataKey={apiKey}
+                                         stroke={COLORS[index % COLORS.length]}
+                                         strokeWidth={2}
+                                         dot={{ r: 2, strokeWidth: 1 }}
+                                         activeDot={{ r: 4, strokeWidth: 0 }}
+                                       />
+                                    );
+                                 })}
+                              </LineChart>
+                           </ResponsiveContainer>
+                        </div>
+
+                        {/* N2: FILTERS */}
+                        <div className="flex flex-col space-y-6 pt-6 border-t border-white/[0.03]">
+                           {/* API FILTERS */}
+                           <div className="flex flex-wrap gap-2">
+                              {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
+                                 const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
+                                 const isActive = activeApis.includes(apiKey);
+                                 return (
+                                    <button 
+                                      key={apiKey} 
+                                      onClick={() => {
+                                        if (isActive) {
+                                          setActiveApis(activeApis.filter(a => a !== apiKey));
+                                        } else {
+                                          setActiveApis([...activeApis, apiKey]);
+                                        }
+                                      }}
+                                      className={`flex items-center gap-2 px-3 py-1.5 bg-black/40 border border-white/5 rounded-lg group hover:border-white/20 transition-all ${!isActive ? 'opacity-40' : 'opacity-100'}`}
+                                    >
+                                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                       <span className="text-[9px] font-bold text-white/60 uppercase tracking-tight">{apiKey}</span>
+                                       <span className="text-[9px] font-mono text-white/20">({apiMonitor.totals[apiKey] || 0})</span>
+                                    </button>
+                                 );
+                              })}
+                           </div>
+
+                           {/* PLAN FILTERS */}
+                           <div className="flex items-center gap-4">
+                              <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">PLAN FILTER:</span>
+                              <div className="flex gap-2">
+                                 <button 
+                                   onClick={() => setSelectedPlan(null)}
+                                   className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all border ${
+                                     selectedPlan === null 
+                                     ? 'bg-white/10 border-white/20 text-white' 
+                                     : 'bg-black/40 border-white/5 text-white/10 hover:text-white/20'
+                                   }`}
+                                 >
+                                   ALL
+                                 </button>
+                                 {apiMonitor?.availablePlans?.map((plan: string) => (
+                                    <button 
+                                      key={plan}
+                                      onClick={() => setSelectedPlan(plan)}
+                                      className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all border ${
+                                        selectedPlan === plan 
+                                        ? 'bg-white/10 border-white/20 text-white' 
+                                        : 'bg-black/40 border-white/5 text-white/10 hover:text-white/20'
+                                      }`}
+                                    >
+                                      {plan}
+                                    </button>
+                                 ))}
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                   ) : (
+                     <div className="p-8 bg-[#111111] border border-white/5 rounded-xl flex flex-col space-y-8 h-full animate-in fade-in duration-500">
+                        <div className="flex justify-between items-center">
+                          <div className="space-y-1">
+                            <h3 className="text-xs font-bold text-white uppercase tracking-widest">GROWTH INTELLIGENCE</h3>
+                            <p className="text-[9px] font-mono text-white/20 uppercase">Neural Ecosystem Optimization</p>
+                          </div>
+                          {growthIntel?.totalOpportunities > 0 && (
+                            <div className="px-3 py-1 bg-[#4ade80]/10 border border-[#4ade80]/20 rounded-full flex items-center gap-2 animate-pulse">
+                              <TrendingUp className="w-2.5 h-2.5 text-[#4ade80]" />
+                              <span className="text-[10px] font-black text-[#4ade80] tracking-tighter">{growthIntel.totalOpportunities} OPPORTUNITIES DETECTION</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-8">
+                          {/* UPSELL SECTION */}
+                          <div className="space-y-4">
+                            <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">Revenue Opportunities</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {growthIntel?.upsellOpportunities?.map((item: any) => (
+                                <div 
+                                  key={item.enterprise_id}
+                                  className="p-5 bg-black/20 border border-white/5 rounded-xl group hover:border-white/10 transition-all flex items-center justify-between cursor-pointer"
+                                  onClick={() => router.push(`/admin/system/${item.enterprise_id}/settings`)}
+                                >
+                                  <div className="space-y-1">
+                                    <p className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</p>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[9px] font-mono text-white/30 uppercase">{item.package_type}</span>
+                                      <span className="text-white/10">•</span>
+                                      <span className="text-[9px] font-mono text-orange-500/60">{item.usage_percent}% USAGE</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div className="text-right">
+                                      <p className="text-[9px] font-bold text-[#4ade80] uppercase tracking-tighter">UPSELL</p>
+                                      <p className="text-[8px] font-mono text-white/20 uppercase">{item.recommendation}</p>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-all" />
+                                  </div>
                                 </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
-                          const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
-                          if (!activeApis.includes(apiKey)) return null;
-                          return (
-                            <Line 
-                              key={apiKey}
-                              type="monotone"
-                              dataKey={apiKey}
-                              stroke={COLORS[index % COLORS.length]}
-                              strokeWidth={2}
-                              dot={{ r: 2, strokeWidth: 1 }}
-                              activeDot={{ r: 4, strokeWidth: 0 }}
-                            />
-                          );
-                        })}
-                      </LineChart>
-                    </ResponsiveContainer>
-                 </div>
-
-                 {/* API FILTERS & TOTALS */}
-                 <div className="pt-6 border-t border-white/[0.03] space-y-4">
-                    <div className="flex flex-wrap gap-2">
-                      {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
-                        const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
-                        const isActive = activeApis.includes(apiKey);
-                        return (
-                          <button 
-                            key={apiKey} 
-                            onClick={() => {
-                              if (isActive) {
-                                setActiveApis(activeApis.filter(a => a !== apiKey));
-                              } else {
-                                setActiveApis([...activeApis, apiKey]);
-                              }
-                            }}
-                            className={`flex items-center gap-2 px-3 py-1.5 bg-black/40 border border-white/5 rounded-lg group hover:border-white/20 transition-all ${!isActive ? 'opacity-40' : 'opacity-100'}`}
-                          >
-                             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                             <span className="text-[9px] font-bold text-white/60 uppercase tracking-tight">{apiKey}</span>
-                             <span className="text-[9px] font-mono text-white/20">({apiMonitor.totals[apiKey] || 0})</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                 </div>
-               </div>
-
-               {/* GROWTH INTELLIGENCE PANEL */}
-               <div className="p-8 bg-[#111111] border border-white/5 rounded-xl flex flex-col space-y-6 h-full">
-                  <div className="flex justify-between items-center">
-                    <div className="space-y-1">
-                      <h3 className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">GROWTH INTELLIGENCE</h3>
-                      <p className="text-[8px] font-mono text-white/20 uppercase">Neural Ecosystem Optimization</p>
-                    </div>
-                    {growthIntel?.totalOpportunities > 0 && (
-                      <div className="px-3 py-1 bg-[#4ade80]/10 border border-[#4ade80]/20 rounded-full flex items-center gap-2 animate-pulse">
-                        <TrendingUp className="w-2.5 h-2.5 text-[#4ade80]" />
-                        <span className="text-[10px] font-black text-[#4ade80] tracking-tighter">{growthIntel.totalOpportunities} OPPORTUNITIES</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 space-y-8">
-                    {/* UPSELL SECTION */}
-                    <div className="space-y-4">
-                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">Revenue Opportunities</p>
-                      <div className="space-y-2">
-                        {growthIntel?.upsellOpportunities?.map((item: any) => (
-                          <div 
-                            key={item.enterprise_id}
-                            className="p-4 bg-black/20 border border-white/5 rounded-xl group hover:border-white/10 transition-all flex items-center justify-between cursor-pointer"
-                            onClick={() => router.push(`/admin/system/${item.enterprise_id}/settings`)}
-                          >
-                            <div className="space-y-1">
-                              <p className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</p>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-mono text-white/30 uppercase">{item.package_type}</span>
-                                <span className="text-white/10">•</span>
-                                <span className="text-[9px] font-mono text-orange-500/60">{item.usage_percent}% USAGE</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <p className="text-[9px] font-bold text-[#4ade80] uppercase tracking-tighter">UPSELL</p>
-                                <p className="text-[8px] font-mono text-white/20 uppercase">{item.recommendation}</p>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-all" />
+                              ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    {/* CHURN RISK SECTION */}
-                    <div className="space-y-4">
-                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">Retention Risks</p>
-                      <div className="space-y-2">
-                        {growthIntel?.churnRisks?.map((item: any) => (
-                          <div 
-                            key={item.enterprise_id}
-                            className="p-4 bg-black/20 border border-red-500/10 rounded-xl group hover:border-red-500/20 transition-all flex items-center justify-between cursor-pointer"
-                            onClick={() => router.push(`/admin/system/${item.enterprise_id}`)}
-                          >
-                            <div className="space-y-1">
-                              <p className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</p>
-                              <p className="text-[9px] font-mono text-red-500/40 uppercase">{item.status} DETECTION ACTIVE</p>
-                            </div>
-                            <div className="flex items-center gap-4">
-                              <div className="text-right">
-                                <p className="text-[9px] font-bold text-red-500 uppercase tracking-tighter">CHURN RISK</p>
-                                <p className="text-[8px] font-mono text-white/20 uppercase">Action Required</p>
-                              </div>
-                              <ChevronRight className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-all" />
+                          {/* CHURN RISK SECTION */}
+                          <div className="space-y-4">
+                            <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">Retention Risks</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {growthIntel?.churnRisks?.map((item: any) => (
+                                <div 
+                                  key={item.enterprise_id}
+                                  className="p-5 bg-black/20 border border-red-500/10 rounded-xl group hover:border-red-500/20 transition-all flex items-center justify-between cursor-pointer"
+                                  onClick={() => router.push(`/admin/system/${item.enterprise_id}`)}
+                                >
+                                  <div className="space-y-1">
+                                    <p className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</p>
+                                    <p className="text-[9px] font-mono text-red-500/40 uppercase">{item.status} DETECTION ACTIVE</p>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div className="text-right">
+                                      <p className="text-[9px] font-bold text-red-500 uppercase tracking-tighter">CHURN RISK</p>
+                                      <p className="text-[8px] font-mono text-white/20 uppercase">Action Required</p>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-all" />
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
 
-                    {growthIntel?.totalOpportunities === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-20 py-12">
-                         <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center">
-                            <Check className="w-6 h-6" />
-                         </div>
-                         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-center max-w-[200px]">
-                           ÉCOSYSTÈME OPTIMAL — AUCUNE ACTION REQUISE
-                         </p>
-                      </div>
-                    )}
-                  </div>
-               </div>
+                          {growthIntel?.totalOpportunities === 0 && (
+                            <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-20 py-24">
+                               <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center">
+                                  <Check className="w-8 h-8" />
+                                </div>
+                                <p className="text-xs font-black uppercase tracking-[0.5em] text-center max-w-[300px]">
+                                  ÉCOSYSTÈME OPTIMAL — AUCUNE ACTION REQUISE
+                                </p>
+                            </div>
+                          )}
+                        </div>
+                     </div>
+                   )}
+                </div>
              </div>
 
              {/* SECTION 4: THE ORACLE COMMAND CENTER (EVOLUTION: NEURAL NAVIGATOR) */}

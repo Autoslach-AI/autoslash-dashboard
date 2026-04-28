@@ -6,6 +6,7 @@ export const revalidate = 30;
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const days = parseInt(searchParams.get('days') || '30')
+  const plan = searchParams.get('plan')
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,20 +16,39 @@ export async function GET(request: Request) {
   const rangeStart = new Date()
   rangeStart.setDate(rangeStart.getDate() - days)
 
-  // Fetch all tasks from last X days
-  const { data: tasks, error } = await supabase
+  // 1. Get available plans (excluding STARTUP)
+  const { data: entPlans } = await supabase
+    .from('enterprises')
+    .select('package_type')
+  
+  const availablePlans = Array.from(new Set(entPlans?.map(e => e.package_type).filter(p => p && p !== 'STARTUP'))) as string[]
+
+  // 2. Fetch tasks
+  let query = supabase
     .from('agent_tasks')
-    .select('api_used, started_at')
+    .select('api_used, started_at, enterprise_id')
     .gte('started_at', rangeStart.toISOString())
+
+  if (plan) {
+    const { data: entIds } = await supabase
+      .from('enterprises')
+      .select('id')
+      .eq('package_type', plan)
+    
+    const ids = entIds?.map(e => e.id) || []
+    query = query.in('enterprise_id', ids)
+  }
+
+  const { data: tasks, error } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // 1. Get dynamic API keys
+  // 3. Get dynamic API keys
   const apiKeys = Array.from(new Set(tasks.map(t => t.api_used).filter(Boolean))) as string[]
 
-  // 2. Prepare daily data
+  // 4. Prepare daily data
   const dailyMap: { [date: string]: any } = {}
   const totals: { [api: string]: number } = {}
 
@@ -63,6 +83,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     apiKeys,
+    availablePlans,
     dailyData,
     totals,
     mostUsed
