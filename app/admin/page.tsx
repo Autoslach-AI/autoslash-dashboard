@@ -25,7 +25,7 @@ import {
   FileText,
   Terminal
 } from 'lucide-react';
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useConfig } from '@/lib/contexts/config-context';
 import { useUser } from '@/lib/contexts/user-context';
 import { useRouter } from 'next/navigation';
@@ -468,6 +468,19 @@ export default function NeuralCommandCenterV31() {
     { id: 'DEV_AGENT', label: 'Dev Agent', icon: Brain, path: '/admin/system/C_001/agent/DEV_AGENT' }
   ];
 
+  const getUpsellMessage = (pkg: string, usage: number) => {
+    if (pkg === 'BUSINESS' && usage > 80) return `Usage critique ${usage}% — Migration ENTERPRISE recommandée`
+    if (pkg === 'ENTERPRISE' && usage > 80) return `Usage critique ${usage}% — Augmentation budget tokens recommandée`
+    if (pkg === 'ELITE') return `Usage ${usage}% — Révision plan sur mesure recommandée`
+    return `Usage ${usage}% — Surveiller consommation`
+  }
+
+  const getChurnMessage = (status: string, name: string) => {
+    if (status === 'CRITICAL') return `${name} — Intervention immédiate requise`
+    if (status === 'WARNING') return `${name} — Surveillance renforcée activée`
+    return `${name} — Statut à surveiller`
+  }
+
   const brandName = isAdminOracle ? 'THE ORACLE' : (clients[0]?.name || 'NEURAL_SYSTEM');
   return (
     <>
@@ -837,48 +850,87 @@ export default function NeuralCommandCenterV31() {
                                   }`}
                                 >
                                   {d} DAYS
-                                </button>
-                              ))}
-                           </div>
-                        </div>
+                               </button>
+                            ))}
+                         </div>
+                      </div>
 
-                        {/* CHART */}
-                        <div className="flex-1 min-h-[300px] w-full relative">
+                      {/* CHART */}
+                      <div className="flex-1 min-h-[300px] w-full relative">
                            {(() => {
                              const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
                              return (
                                <ResponsiveContainer width="100%" height={300}>
-                                 <LineChart data={apiMonitor?.dailyData || []}>
-                                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                                 <AreaChart data={apiMonitor?.dailyData || []}>
+                                   <defs>
+                                      {apiMonitor?.apiKeys?.map((api: string, index: number) => (
+                                        <linearGradient key={`gradient-${api}`} id={`colorArea-${index}`} x1="0" y1="0" x2="0" y2="1">
+                                          <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.15}/>
+                                          <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0}/>
+                                        </linearGradient>
+                                      ))}
+                                   </defs>
+                                   <CartesianGrid strokeDasharray="1 10" stroke="#ffffff10" vertical={false} />
                                    <XAxis 
                                      dataKey="date" 
-                                     tick={{ fill: '#6b7280', fontSize: 11 }}
+                                     tick={{ fill: '#6b7280', fontSize: 11, fontFamily: 'monospace' }}
                                      tickFormatter={(val) => val.slice(5)}
+                                     axisLine={false}
+                                     tickLine={false}
+                                     dy={10}
                                    />
                                    <YAxis 
-                                     tick={{ fill: '#6b7280', fontSize: 11 }}
+                                     tick={{ fill: '#6b7280', fontSize: 11, fontFamily: 'monospace' }}
                                      allowDecimals={false}
+                                     axisLine={false}
+                                     tickLine={false}
                                    />
                                    <Tooltip
-                                     contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: '8px' }}
-                                     labelStyle={{ color: '#9ca3af' }}
-                                     itemStyle={{ color: '#e5e7eb' }}
-                                     formatter={(value, name) => [`${value} calls`, name]}
+                                     content={({ active, payload, label }) => {
+                                       if (active && payload && payload.length) {
+                                         return (
+                                           <div className="bg-[#0a0a0a] border border-white/10 p-5 rounded-2xl shadow-2xl backdrop-blur-2xl space-y-4 min-w-[240px]">
+                                             <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.4em] border-b border-white/5 pb-2">{label} UTC</p>
+                                             <div className="space-y-3">
+                                                {payload.map((p: any) => (
+                                                  <div key={p.dataKey} className="flex items-center justify-between gap-8">
+                                                     <div className="flex items-center gap-3">
+                                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.stroke }} />
+                                                        <span className="text-[11px] font-black text-white/80 uppercase tracking-tighter">{p.dataKey}</span>
+                                                     </div>
+                                                     <span className="text-[11px] font-mono text-white/40 tabular-nums">{p.value} calls</span>
+                                                  </div>
+                                                ))}
+                                             </div>
+                                             {payload.some((p: any) => p.value > 100) && (
+                                                <div className="pt-2 border-t border-white/5">
+                                                   <p className="text-[9px] font-mono text-red-500 uppercase tracking-widest animate-pulse">
+                                                      CRITICAL: HIGH_TRAFFIC_DETECTED
+                                                   </p>
+                                                </div>
+                                             )}
+                                           </div>
+                                         );
+                                       }
+                                       return null;
+                                     }}
                                    />
                                    {(apiMonitor?.apiKeys || []).map((api: string, index: number) => (
                                      activeApis.includes(api) && (
-                                       <Line
+                                       <Area
                                          key={api}
                                          type="monotone"
                                          dataKey={api}
                                          stroke={COLORS[index % COLORS.length]}
                                          strokeWidth={2}
-                                         dot={{ r: 4, fill: COLORS[index % COLORS.length] }}
-                                         activeDot={{ r: 6 }}
+                                         fillOpacity={1}
+                                         fill={`url(#colorArea-${index})`}
+                                         dot={{ r: 4, fill: COLORS[index % COLORS.length], strokeWidth: 0 }}
+                                         activeDot={{ r: 6, strokeWidth: 0 }}
                                        />
                                      )
                                    ))}
-                                 </LineChart>
+                                 </AreaChart>
                                </ResponsiveContainer>
                              );
                            })()}
@@ -887,25 +939,38 @@ export default function NeuralCommandCenterV31() {
                         {/* N2: FILTERS */}
                         <div className="flex flex-col space-y-6 pt-6 border-t border-white/[0.03]">
                            {/* API FILTERS */}
-                           <div className="flex flex-wrap gap-2">
-                              {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
+                           <div className="flex flex-wrap gap-4">
+                              {(apiMonitor?.apiKeys || []).map((api: string, index: number) => {
                                  const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
-                                 const isActive = activeApis.includes(apiKey);
+                                 const isActive = activeApis.includes(api);
                                  return (
-                                    <button 
-                                      key={apiKey} 
+                                    <button
+                                      key={api}
                                       onClick={() => {
-                                        if (isActive) {
-                                          setActiveApis(activeApis.filter(a => a !== apiKey));
-                                        } else {
-                                          setActiveApis([...activeApis, apiKey]);
-                                        }
+                                         if (isActive) {
+                                            setActiveApis(activeApis.filter(a => a !== api));
+                                         } else {
+                                            setActiveApis([...activeApis, api]);
+                                         }
                                       }}
-                                      className={`flex items-center gap-2 px-3 py-1.5 bg-black/40 border border-white/5 rounded-lg group hover:border-white/20 transition-all ${!isActive ? 'opacity-40' : 'opacity-100'}`}
+                                      style={{ opacity: isActive ? 1 : 0.3 }}
+                                      className="flex items-center group transition-all"
+                                      title={`${api} — ${apiMonitor?.totals[api] || 0} calls`}
                                     >
-                                       <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                                       <span className="text-[9px] font-bold text-white/60 uppercase tracking-tight">{apiKey}</span>
-                                       <span className="text-[9px] font-mono text-white/20">({apiMonitor.totals[apiKey] || 0})</span>
+                                      <div className="relative">
+                                         <span className="inline-block w-3 h-3 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.1)] transition-all group-hover:scale-125" style={{
+                                            background: COLORS[index % COLORS.length]
+                                         }} />
+                                         {isActive && (
+                                            <span className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: COLORS[index % COLORS.length] }} />
+                                         )}
+                                      </div>
+                                      <span className="text-[10px] font-black ml-3 text-white/60 tracking-wider uppercase group-hover:text-white transition-colors">
+                                        {api.split('-')[0].toUpperCase()}
+                                      </span>
+                                      <span className="ml-2 text-[10px] font-mono text-white/10 group-hover:text-white/20 transition-colors">
+                                         [{apiMonitor?.totals[api] || 0}]
+                                      </span>
                                     </button>
                                  );
                               })}
@@ -979,7 +1044,7 @@ export default function NeuralCommandCenterV31() {
                                   <div className="flex items-center gap-4">
                                     <div className="text-right">
                                       <p className="text-[9px] font-bold text-[#4ade80] uppercase tracking-tighter">UPSELL</p>
-                                      <p className="text-[8px] font-mono text-white/20 uppercase">{item.recommendation}</p>
+                                      <p className="text-[8px] font-mono text-white/20 uppercase">{getUpsellMessage(item.package_type, item.usage_percent)}</p>
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-all" />
                                   </div>
@@ -1000,7 +1065,7 @@ export default function NeuralCommandCenterV31() {
                                 >
                                   <div className="space-y-1">
                                     <p className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</p>
-                                    <p className="text-[9px] font-mono text-red-500/40 uppercase">{item.status} DETECTION ACTIVE</p>
+                                    <p className="text-[9px] font-mono text-red-500/40 uppercase tracking-widest">{getChurnMessage(item.status, item.name)}</p>
                                   </div>
                                   <div className="flex items-center gap-4">
                                     <div className="text-right">
