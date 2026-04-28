@@ -481,6 +481,8 @@ export default function NeuralCommandCenterV31() {
     return `${name} — Statut à surveiller`
   }
 
+  const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
+
   const brandName = isAdminOracle ? 'THE ORACLE' : (clients[0]?.name || 'NEURAL_SYSTEM');
   return (
     <>
@@ -855,126 +857,114 @@ export default function NeuralCommandCenterV31() {
                          </div>
                       </div>
 
-                      {/* CHART */}
-                      <div className="flex-1 min-h-[300px] w-full relative">
-                           {(() => {
-                             const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
-                             return (
-                               <ResponsiveContainer width="100%" height={300}>
-                                 <AreaChart data={apiMonitor?.dailyData || []}>
-                                   <defs>
-                                      {apiMonitor?.apiKeys?.map((api: string, index: number) => (
-                                        <linearGradient key={`gradient-${api}`} id={`colorArea-${index}`} x1="0" y1="0" x2="0" y2="1">
-                                          <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.15}/>
-                                          <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0}/>
-                                        </linearGradient>
-                                      ))}
-                                   </defs>
-                                   <CartesianGrid strokeDasharray="1 10" stroke="#ffffff10" vertical={false} />
-                                   <XAxis 
-                                     dataKey="date" 
-                                     tick={{ fill: '#6b7280', fontSize: 11, fontFamily: 'monospace' }}
-                                     tickFormatter={(val) => val.slice(5)}
-                                     axisLine={false}
-                                     tickLine={false}
-                                     dy={10}
-                                   />
-                                   <YAxis 
-                                     tick={{ fill: '#6b7280', fontSize: 11, fontFamily: 'monospace' }}
-                                     allowDecimals={false}
-                                     axisLine={false}
-                                     tickLine={false}
-                                   />
-                                   <Tooltip
-                                     content={({ active, payload, label }) => {
-                                       if (active && payload && payload.length) {
-                                         return (
-                                           <div className="bg-[#0a0a0a] border border-white/10 p-5 rounded-2xl shadow-2xl backdrop-blur-2xl space-y-4 min-w-[240px]">
-                                             <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.4em] border-b border-white/5 pb-2">{label} UTC</p>
-                                             <div className="space-y-3">
-                                                {payload.map((p: any) => (
-                                                  <div key={p.dataKey} className="flex items-center justify-between gap-8">
-                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: p.stroke }} />
-                                                        <span className="text-[11px] font-black text-white/80 uppercase tracking-tighter">{p.dataKey}</span>
-                                                     </div>
-                                                     <span className="text-[11px] font-mono text-white/40 tabular-nums">{p.value} calls</span>
-                                                  </div>
-                                                ))}
-                                             </div>
-                                             {payload.some((p: any) => p.value > 100) && (
-                                                <div className="pt-2 border-t border-white/5">
-                                                   <p className="text-[9px] font-mono text-red-500 uppercase tracking-widest animate-pulse">
-                                                      CRITICAL: HIGH_TRAFFIC_DETECTED
-                                                   </p>
-                                                </div>
-                                             )}
-                                           </div>
-                                         );
-                                       }
-                                       return null;
-                                     }}
-                                   />
-                                   {(apiMonitor?.apiKeys || []).map((api: string, index: number) => (
-                                     activeApis.includes(api) && (
-                                       <Area
-                                         key={api}
-                                         type="monotone"
-                                         dataKey={api}
-                                         stroke={COLORS[index % COLORS.length]}
-                                         strokeWidth={2}
-                                         fillOpacity={1}
-                                         fill={`url(#colorArea-${index})`}
-                                         dot={{ r: 4, fill: COLORS[index % COLORS.length], strokeWidth: 0 }}
-                                         activeDot={{ r: 6, strokeWidth: 0 }}
-                                       />
-                                     )
-                                   ))}
-                                 </AreaChart>
-                               </ResponsiveContainer>
-                             );
-                           })()}
-                        </div>
+                      {/* GRAPH AREA */}
+                      <div style={{ width: '100%', height: 300, marginTop: 16 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={apiMonitor?.dailyData || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              {(apiMonitor?.apiKeys || []).map((api: string, index: number) => (
+                                <linearGradient key={api} id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.3} />
+                                  <stop offset="95%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0} />
+                                </linearGradient>
+                              ))}
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
+                            <XAxis
+                              dataKey="date"
+                              tick={{ fill: '#4b5563', fontSize: 10, fontFamily: 'monospace' }}
+                              axisLine={false}
+                              tickLine={false}
+                              tickFormatter={(val) => val.slice(5)}
+                            />
+                            <YAxis
+                              tick={{ fill: '#4b5563', fontSize: 10 }}
+                              axisLine={false}
+                              tickLine={false}
+                              allowDecimals={false}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                background: '#0a0a0a',
+                                border: '1px solid #1f2937',
+                                borderRadius: '8px',
+                                fontFamily: 'monospace',
+                                fontSize: 12
+                              }}
+                              labelStyle={{ color: '#6b7280', marginBottom: 8, letterSpacing: 2 }}
+                              itemStyle={{ color: '#e5e7eb' }}
+                              formatter={(value: any, name: any) => [`${value} calls`, String(name || '').toUpperCase()]}
+                              labelFormatter={(label) => `${label} UTC`}
+                            />
+                            {(apiMonitor?.apiKeys || []).map((api: string, index: number) =>
+                              activeApis.includes(api) ? (
+                                <Area
+                                  key={api}
+                                  type="monotone"
+                                  dataKey={api}
+                                  stroke={COLORS[index % COLORS.length]}
+                                  strokeWidth={2}
+                                  fill={`url(#gradient-${index})`}
+                                  dot={{ r: 4, fill: COLORS[index % COLORS.length], strokeWidth: 0 }}
+                                  activeDot={{ r: 6, strokeWidth: 0 }}
+                                />
+                              ) : null
+                            )}
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
 
-                        {/* N2: FILTERS */}
-                        <div className="flex flex-col space-y-6 pt-6 border-t border-white/[0.03]">
-                           {/* API FILTERS */}
-                           <div className="flex flex-wrap gap-4">
-                              {(apiMonitor?.apiKeys || []).map((api: string, index: number) => {
-                                 const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
-                                 const isActive = activeApis.includes(api);
-                                 return (
-                                    <button
-                                      key={api}
-                                      onClick={() => {
-                                         if (isActive) {
-                                            setActiveApis(activeApis.filter(a => a !== api));
-                                         } else {
-                                            setActiveApis([...activeApis, api]);
-                                         }
-                                      }}
-                                      style={{ opacity: isActive ? 1 : 0.3 }}
-                                      className="flex items-center group transition-all"
-                                      title={`${api} — ${apiMonitor?.totals[api] || 0} calls`}
-                                    >
-                                      <div className="relative">
-                                         <span className="inline-block w-3 h-3 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.1)] transition-all group-hover:scale-125" style={{
-                                            background: COLORS[index % COLORS.length]
-                                         }} />
-                                         {isActive && (
-                                            <span className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: COLORS[index % COLORS.length] }} />
-                                         )}
-                                      </div>
-                                      <span className="text-[10px] font-black ml-3 text-white/60 tracking-wider uppercase group-hover:text-white transition-colors">
-                                        {api.split('-')[0].toUpperCase()}
-                                      </span>
-                                      <span className="ml-2 text-[10px] font-mono text-white/10 group-hover:text-white/20 transition-colors">
-                                         [{apiMonitor?.totals[api] || 0}]
-                                      </span>
-                                    </button>
-                                 );
-                              })}
-                           </div>
+                      {/* FILTRES API — ICÔNES COMPACTES */}
+                      <div style={{ display: 'flex', gap: 12, marginTop: 16, alignItems: 'center' }}>
+                        {(apiMonitor?.apiKeys || []).map((api: string, index: number) => (
+                          <button
+                            key={api}
+                            onClick={() => {
+                              setActiveApis((prev: string[]) =>
+                                prev.includes(api)
+                                  ? prev.filter((a: string) => a !== api)
+                                  : [...prev, api]
+                              )
+                            }}
+                            title={`${api} — ${apiMonitor?.totals?.[api] || 0} calls ce mois`}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              background: 'transparent',
+                              border: `1px solid ${activeApis.includes(api) ? COLORS[index % COLORS.length] : '#374151'}`,
+                              borderRadius: 20,
+                              padding: '4px 10px',
+                              cursor: 'pointer',
+                              opacity: activeApis.includes(api) ? 1 : 0.35,
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <span style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              background: COLORS[index % COLORS.length],
+                              display: 'inline-block',
+                              boxShadow: activeApis.includes(api)
+                                ? `0 0 6px ${COLORS[index % COLORS.length]}`
+                                : 'none'
+                            }} />
+                            <span style={{
+                              fontSize: 10,
+                              fontFamily: 'monospace',
+                              color: activeApis.includes(api) ? COLORS[index % COLORS.length] : '#6b7280',
+                              letterSpacing: 1
+                            }}>
+                              {api.split('-')[0].toUpperCase()}
+                            </span>
+                            <span style={{ fontSize: 9, color: '#4b5563' }}>
+                              [{apiMonitor?.totals?.[api] || 0}]
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex flex-col space-y-6 pt-6 border-t border-white/[0.03]">
 
                            {/* PLAN FILTERS */}
                            <div className="flex items-center gap-4">
