@@ -25,7 +25,7 @@ import {
   FileText,
   Terminal
 } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useConfig } from '@/lib/contexts/config-context';
 import { useUser } from '@/lib/contexts/user-context';
 import { useRouter } from 'next/navigation';
@@ -231,6 +231,8 @@ export default function NeuralCommandCenterV31() {
   });
   const [neuralPulse, setNeuralPulse] = useState<any>(null);
   const [thoughtStream, setThoughtStream] = useState<any[]>([]);
+  const [apiMonitor, setApiMonitor] = useState<any>(null);
+  const [growthIntel, setGrowthIntel] = useState<any>(null);
   const [lastFetch, setLastFetch] = useState<Date>(new Date());
 
   // New states for dynamization
@@ -338,6 +340,16 @@ export default function NeuralCommandCenterV31() {
         if (tsData.thoughts) {
           setThoughtStream(tsData.thoughts);
         }
+
+        // 11. API Monitor
+        const apiRes = await fetch('/api/admin/api-monitor');
+        const apiData = await apiRes.json();
+        setApiMonitor(apiData);
+
+        // 12. Growth Intelligence
+        const growthRes = await fetch('/api/admin/growth-intelligence');
+        const growthData = await growthRes.json();
+        setGrowthIntel(growthData);
 
         setLastFetch(new Date());
       } catch (err) {
@@ -748,228 +760,183 @@ export default function NeuralCommandCenterV31() {
               </div>
 
 
-             {/* NEURAL EVENT MONITOR (STEP 3) */}
-             <div className="p-8 bg-[#111111] border border-white/5 rounded-xl space-y-10 group/monitor">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                   <div className="flex flex-wrap items-center gap-6">
-                      <div className="flex items-center gap-3 pr-2 border-r border-white/5">
-                         <Activity className="w-3.5 h-3.5 text-[#4ade80] animate-pulse" />
-                         <h3 className="text-[11px] font-bold text-white/90 uppercase tracking-[0.2em]">Neural Event Monitor</h3>
-                      </div>
-
-                      {/* SYSTEM MENU - Repositioned to Left */}
-                      <div className="flex bg-black/40 p-1 rounded-lg border border-white/10 h-fit">
-                         <button 
-                           onClick={() => setMonitorCategory('SYSTEM_HEALTH')}
-                           className={`px-3 py-1.5 rounded-md text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 ${
-                             monitorCategory === 'SYSTEM_HEALTH' 
-                             ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]' 
-                             : 'text-white/20 hover:text-white/40'
-                           }`}
-                         >
-                           SYSTEM HEALTH
-                           {monitorCategory === 'SYSTEM_HEALTH' && <ChevronDown className="w-2.5 h-2.5 opacity-50" />}
-                         </button>
-                      </div>
-
-                      {/* AGENTS MENU - Single Dropdown Menu on Left */}
-                      <div className="relative">
-                         <button 
-                           onClick={() => setShowAgentsDropdown(!showAgentsDropdown)}
-                           className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10 ${
-                             ['ORCHESTRATOR', 'DEV_AGENT', 'SUPPORT_AGENT'].includes(monitorCategory)
-                             ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)] border-white/20' 
-                             : 'bg-black/40 text-white/20 hover:text-white/40'
-                           }`}
-                         >
-                           {['ORCHESTRATOR', 'DEV_AGENT', 'SUPPORT_AGENT'].includes(monitorCategory) 
-                             ? monitorCategory.replace('_', ' ') 
-                             : 'AGENTS'
-                           }
-                           <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-300 ${showAgentsDropdown ? 'rotate-180' : ''}`} />
-                         </button>
-
-                         <AnimatePresence>
-                            {showAgentsDropdown && (
-                               <motion.div 
-                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                 className="absolute top-full left-0 mt-2 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 p-1.5 backdrop-blur-xl"
-                               >
-                                  {(['ORCHESTRATOR', 'DEV_AGENT', 'SUPPORT_AGENT'] as MonitorCategory[]).map((cat) => (
-                                    <button 
-                                      key={cat} 
-                                      onClick={() => {
-                                        setMonitorCategory(cat);
-                                        setShowAgentsDropdown(false);
-                                      }}
-                                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-tighter transition-all ${
-                                        monitorCategory === cat 
-                                        ? 'bg-white/10 text-white' 
-                                        : 'text-white/40 hover:bg-white/5 hover:text-white/80'
-                                      }`}
-                                    >
-                                      <span>{cat.replace('_', ' ')}</span>
-                                      {monitorCategory === cat && <Check className="w-3 h-3 text-[#4ade80]" />}
-                                    </button>
-                                  ))}
-                               </motion.div>
-                            )}
-                         </AnimatePresence>
-                      </div>
+             {/* SECTION 3: API MONITOR & GROWTH INTELLIGENCE */}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               {/* API MONITOR PANEL */}
+               <div className="p-8 bg-[#111111] border border-white/5 rounded-xl flex flex-col space-y-6 min-h-[500px]">
+                 <div className="flex justify-between items-center">
+                   <div className="space-y-1">
+                     <h3 className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">API MONITOR</h3>
+                     <p className="text-[8px] font-mono text-white/20 uppercase">Autonomous Neural Traffic Control</p>
                    </div>
+                   {apiMonitor?.mostUsed && (
+                     <div className="px-2 py-1 bg-violet-500/10 border border-violet-500/20 rounded flex items-center gap-2">
+                       <span className="text-[8px] font-bold text-violet-400 uppercase tracking-widest">MOST USED:</span>
+                       <span className="text-[8px] font-mono text-white/80 uppercase">{apiMonitor.mostUsed}</span>
+                     </div>
+                   )}
+                 </div>
 
-                   <div className="flex items-center gap-3 self-end lg:self-center">
-                      {/* Time Filter - Single Dropdown Menu on Right */}
-                      <div className="relative">
-                         <button 
-                           onClick={() => setShowTimeDropdown(!showTimeDropdown)}
-                           className="px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10 bg-black/40 text-white"
-                         >
-                           {monitorTime}
-                           <ChevronDown className={`w-2.5 h-2.5 transition-transform duration-300 ${showTimeDropdown ? 'rotate-180' : ''}`} />
-                         </button>
-
-                         <AnimatePresence>
-                            {showTimeDropdown && (
-                               <motion.div 
-                                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                 className="absolute top-full right-0 mt-2 w-32 bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 p-1.5 backdrop-blur-xl"
-                               >
-                                  {['7 DAYS', '30 DAYS', '3 MONTHS'].map((p) => (
-                                    <button 
-                                      key={p} 
-                                      onClick={() => {
-                                        setMonitorTime(p);
-                                        setShowTimeDropdown(false);
-                                      }}
-                                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-tighter transition-all ${
-                                        monitorTime === p 
-                                        ? 'bg-white/10 text-white' 
-                                        : 'text-white/40 hover:bg-white/5 hover:text-white/80'
-                                      }`}
-                                    >
-                                      <span>{p}</span>
-                                      {monitorTime === p && <Check className="w-3 h-3 text-[#4ade80]" />}
-                                    </button>
+                 <div className="flex-1 min-h-[300px] w-full relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={apiMonitor?.dailyData || []} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
+                        <XAxis 
+                          dataKey="date" 
+                          stroke="#ffffff10" 
+                          fontSize={8} 
+                          tickLine={false} 
+                          axisLine={false}
+                          dy={10}
+                          fontFamily="monospace"
+                        />
+                        <YAxis 
+                          stroke="#ffffff10" 
+                          fontSize={8} 
+                          tickLine={false} 
+                          axisLine={false}
+                          dx={-5}
+                          fontFamily="monospace"
+                        />
+                        <Tooltip 
+                          content={({ active, payload, label }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-[#0a0a0a] border border-white/10 p-3 rounded-lg shadow-2xl backdrop-blur-xl space-y-2">
+                                  <p className="text-[9px] font-mono text-white/40 uppercase tracking-widest border-b border-white/5 pb-1">{label}</p>
+                                  {payload.map((p: any) => (
+                                    <div key={p.dataKey} className="flex items-center justify-between gap-6">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.stroke }} />
+                                        <span className="text-[10px] font-bold text-white/80 uppercase">{p.dataKey}</span>
+                                      </div>
+                                      <span className="text-[10px] font-mono text-white/40">{p.value} calls</span>
+                                    </div>
                                   ))}
-                               </motion.div>
-                            )}
-                         </AnimatePresence>
-                      </div>
-
-                      {/* View Indicator (Decorative mimicry from image) */}
-                      <div className="hidden sm:flex bg-black p-1 rounded-md border border-white/5 h-fit gap-1">
-                         <div className="p-1.5 bg-white/5 rounded"><LayoutDashboard className="w-3 h-3 text-white/60" /></div>
-                         <div className="p-1.5"><Search className="w-3 h-3 text-white/20" /></div>
-                      </div>
-                   </div>
-                </div>
-                
-                <div className="h-[280px] w-full relative">
-                  {/* Neural Grid Overlay */}
-                  <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
-                       style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-                  
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={systemLogs.slice().reverse().map(l => ({
-                        name: new Date(l.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                        value: l.event_type === 'DEPLOYMENT' ? 100 : l.event_type === 'WARNING' ? 40 : l.event_type === 'CRITICAL' ? 10 : 60,
-                        status: l.event_type === 'CRITICAL' ? 'CRITICAL' : l.event_type === 'WARNING' ? 'WARNING' : 'OPTIMAL',
-                        alertLabel: l.event_type
-                    }))} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="monitorGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={'#4ade80'} stopOpacity={0.08}/>
-                          <stop offset="95%" stopColor="#ffffff" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
-                      <XAxis 
-                        dataKey="name" 
-                        stroke="#ffffff10" 
-                        fontSize={8} 
-                        tickLine={false} 
-                        axisLine={false}
-                        dy={10}
-                        fontFamily="monospace"
-                      />
-                      <YAxis 
-                        stroke="#ffffff10" 
-                        fontSize={8} 
-                        tickLine={false} 
-                        axisLine={false}
-                        dx={-5}
-                        fontFamily="monospace"
-                      />
-                      <Tooltip 
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="bg-[#0a0a0a] border border-white/10 p-3 rounded-lg shadow-2xl backdrop-blur-xl">
-                                <p className="text-[9px] font-mono text-white/40 mb-2 uppercase tracking-widest">{data.name} UTC</p>
-                                <div className="flex items-center gap-2">
-                                  <div className={`w-1.5 h-1.5 rounded-full`} style={{ backgroundColor: GET_STATUS_COLOR(data.status) }} />
-                                  <p className="text-[11px] font-bold text-white uppercase tracking-tighter">
-                                    {monitorCategory === 'SYSTEM_HEALTH' ? `UPTIME: ${data.value}%` : `FREQUENCY: ${data.value} OPS`}
-                                  </p>
                                 </div>
-                                <p className={`text-[8px] font-mono mt-1 uppercase`} style={{ color: GET_STATUS_COLOR(data.status), opacity: 0.8 }}>
-                                  {data.status}: {data.alertLabel}
-                                </p>
-                                {(data.status === 'CRITICAL' || data.status === 'WARNING') && (
-                                  <p className="text-[7px] font-mono mt-2 text-white/30 uppercase">
-                                    DURATION: {calculateElapsed(new Date(Date.now() - 3600000))} {/* Mocking an hour ago */}
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Area 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke={monitorCategory === 'SYSTEM_HEALTH' ? '#4ade8040' : '#ffffff20'} 
-                        strokeWidth={1.5} 
-                        fillOpacity={1} 
-                        fill="url(#monitorGradient)" 
-                        animationDuration={1000}
-                        dot={(props: any) => {
-                          const { cx, cy, payload } = props;
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
+                          const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
                           return (
-                            <circle
-                              key={cx}
-                              cx={cx}
-                              cy={cy}
-                              r={3}
-                              fill={GET_STATUS_COLOR(payload.status)}
-                              className="filter drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]"
+                            <Line 
+                              key={apiKey}
+                              type="monotone"
+                              dataKey={apiKey}
+                              stroke={COLORS[index % COLORS.length]}
+                              strokeWidth={2}
+                              dot={{ r: 2, strokeWidth: 1 }}
+                              activeDot={{ r: 4, strokeWidth: 0 }}
                             />
                           );
-                        }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                        })}
+                      </LineChart>
+                    </ResponsiveContainer>
+                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-white/[0.02]">
-                   <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-2">
-                         <div className="w-1.5 h-1.5 rounded-full bg-[#4ade80]" />
-                         <span className="text-[8px] font-mono text-white/30 uppercase tracking-[0.2em]">Deployment Success</span>
+                 {/* API FILTERS & TOTALS */}
+                 <div className="pt-6 border-t border-white/[0.03] space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
+                        const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
+                        return (
+                          <div key={apiKey} className="flex items-center gap-2 px-3 py-1.5 bg-black/40 border border-white/5 rounded-lg group hover:border-white/20 transition-all">
+                             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                             <span className="text-[9px] font-bold text-white/60 uppercase tracking-tight">{apiKey}</span>
+                             <span className="text-[9px] font-mono text-white/20">({apiMonitor.totals[apiKey] || 0})</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                 </div>
+               </div>
+
+               {/* GROWTH INTELLIGENCE PANEL */}
+               <div className="p-8 bg-[#111111] border border-white/5 rounded-xl flex flex-col space-y-6 h-full">
+                  <div className="flex justify-between items-center">
+                    <div className="space-y-1">
+                      <h3 className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">GROWTH INTELLIGENCE</h3>
+                      <p className="text-[8px] font-mono text-white/20 uppercase">Neural Ecosystem Optimization</p>
+                    </div>
+                    {growthIntel?.totalOpportunities > 0 && (
+                      <div className="px-3 py-1 bg-[#4ade80]/10 border border-[#4ade80]/20 rounded-full flex items-center gap-2 animate-pulse">
+                        <TrendingUp className="w-2.5 h-2.5 text-[#4ade80]" />
+                        <span className="text-[10px] font-black text-[#4ade80] tracking-tighter">{growthIntel.totalOpportunities} OPPORTUNITIES</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                         <div className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
-                         <span className="text-[8px] font-mono text-white/30 uppercase tracking-[0.2em]">Critical Conflicts</span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-8">
+                    {/* UPSELL SECTION */}
+                    <div className="space-y-4">
+                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">Revenue Opportunities</p>
+                      <div className="space-y-2">
+                        {growthIntel?.upsellOpportunities?.map((item: any) => (
+                          <div 
+                            key={item.enterprise_id}
+                            className="p-4 bg-black/20 border border-white/5 rounded-xl group hover:border-white/10 transition-all flex items-center justify-between cursor-pointer"
+                            onClick={() => router.push(`/admin/system/${item.enterprise_id}/settings`)}
+                          >
+                            <div className="space-y-1">
+                              <p className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</p>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-mono text-white/30 uppercase">{item.package_type}</span>
+                                <span className="text-white/10">•</span>
+                                <span className="text-[9px] font-mono text-orange-500/60">{item.usage_percent}% USAGE</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="text-[9px] font-bold text-[#4ade80] uppercase tracking-tighter">UPSELL</p>
+                                <p className="text-[8px] font-mono text-white/20 uppercase">{item.recommendation}</p>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-all" />
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                   </div>
-                   <p className="text-[8px] font-mono text-white/10 uppercase tracking-[0.5em]">Neural Stream Analytics v3.2</p>
-                </div>
+                    </div>
+
+                    {/* CHURN RISK SECTION */}
+                    <div className="space-y-4">
+                      <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">Retention Risks</p>
+                      <div className="space-y-2">
+                        {growthIntel?.churnRisks?.map((item: any) => (
+                          <div 
+                            key={item.enterprise_id}
+                            className="p-4 bg-black/20 border border-red-500/10 rounded-xl group hover:border-red-500/20 transition-all flex items-center justify-between cursor-pointer"
+                            onClick={() => router.push(`/admin/system/${item.enterprise_id}`)}
+                          >
+                            <div className="space-y-1">
+                              <p className="text-[11px] font-bold text-white uppercase tracking-tight">{item.name}</p>
+                              <p className="text-[9px] font-mono text-red-500/40 uppercase">Critical Status Detected</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="text-[9px] font-bold text-red-500 uppercase tracking-tighter">CHURN RISK</p>
+                                <p className="text-[8px] font-mono text-white/20 uppercase">Action Required</p>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-white/20 group-hover:translate-x-1 transition-all" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {growthIntel?.totalOpportunities === 0 && (
+                      <div className="h-full flex flex-col items-center justify-center space-y-4 opacity-20 py-12">
+                         <div className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center">
+                            <Check className="w-6 h-6" />
+                         </div>
+                         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-center max-w-[200px]">
+                           ÉCOSYSTÈME OPTIMAL — AUCUNE ACTION REQUISE
+                         </p>
+                      </div>
+                    )}
+                  </div>
+               </div>
              </div>
 
              {/* SECTION 4: THE ORACLE COMMAND CENTER (EVOLUTION: NEURAL NAVIGATOR) */}
