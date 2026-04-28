@@ -844,66 +844,44 @@ export default function NeuralCommandCenterV31() {
 
                         {/* CHART */}
                         <div className="flex-1 min-h-[300px] w-full relative">
-                           <ResponsiveContainer width="100%" height="100%">
-                              <LineChart data={apiMonitor?.dailyData || []} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
-                                 <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
-                                 <XAxis 
-                                   dataKey="date" 
-                                   stroke="#ffffff10" 
-                                   fontSize={8} 
-                                   tickLine={false} 
-                                   axisLine={false}
-                                   dy={10}
-                                   fontFamily="monospace"
-                                 />
-                                 <YAxis 
-                                   stroke="#ffffff10" 
-                                   fontSize={8} 
-                                   tickLine={false} 
-                                   axisLine={false}
-                                   dx={-5}
-                                   fontFamily="monospace"
-                                 />
-                                 <Tooltip 
-                                   content={({ active, payload, label }) => {
-                                     if (active && payload && payload.length) {
-                                       return (
-                                         <div className="bg-[#0a0a0a] border border-white/10 p-3 rounded-lg shadow-2xl backdrop-blur-xl space-y-2">
-                                           <p className="text-[9px] font-mono text-white/40 uppercase tracking-widest border-b border-white/5 pb-1">{label}</p>
-                                           <div className="space-y-1">
-                                              {payload.map((p: any) => (
-                                                <div key={p.dataKey} className="flex items-center justify-between gap-6">
-                                                   <div className="flex items-center gap-2">
-                                                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: p.stroke }} />
-                                                      <span className="text-[10px] font-bold text-white/80 uppercase">{p.dataKey}</span>
-                                                   </div>
-                                                   <span className="text-[10px] font-mono text-white/40 tabular-nums">{p.value} calls</span>
-                                                </div>
-                                              ))}
-                                           </div>
-                                         </div>
-                                       );
-                                     }
-                                     return null;
-                                   }}
-                                 />
-                                 {apiMonitor?.apiKeys?.map((apiKey: string, index: number) => {
-                                    const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
-                                    if (!activeApis.includes(apiKey)) return null;
-                                    return (
-                                       <Line 
-                                         key={apiKey}
+                           {(() => {
+                             const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
+                             return (
+                               <ResponsiveContainer width="100%" height={300}>
+                                 <LineChart data={apiMonitor?.dailyData || []}>
+                                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                                   <XAxis 
+                                     dataKey="date" 
+                                     tick={{ fill: '#6b7280', fontSize: 11 }}
+                                     tickFormatter={(val) => val.slice(5)}
+                                   />
+                                   <YAxis 
+                                     tick={{ fill: '#6b7280', fontSize: 11 }}
+                                     allowDecimals={false}
+                                   />
+                                   <Tooltip
+                                     contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: '8px' }}
+                                     labelStyle={{ color: '#9ca3af' }}
+                                     itemStyle={{ color: '#e5e7eb' }}
+                                     formatter={(value, name) => [`${value} calls`, name]}
+                                   />
+                                   {(apiMonitor?.apiKeys || []).map((api: string, index: number) => (
+                                     activeApis.includes(api) && (
+                                       <Line
+                                         key={api}
                                          type="monotone"
-                                         dataKey={apiKey}
+                                         dataKey={api}
                                          stroke={COLORS[index % COLORS.length]}
                                          strokeWidth={2}
-                                         dot={{ r: 2, strokeWidth: 1 }}
-                                         activeDot={{ r: 4, strokeWidth: 0 }}
+                                         dot={{ r: 4, fill: COLORS[index % COLORS.length] }}
+                                         activeDot={{ r: 6 }}
                                        />
-                                    );
-                                 })}
-                              </LineChart>
-                           </ResponsiveContainer>
+                                     )
+                                   ))}
+                                 </LineChart>
+                               </ResponsiveContainer>
+                             );
+                           })()}
                         </div>
 
                         {/* N2: FILTERS */}
