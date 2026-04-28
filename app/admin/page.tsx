@@ -664,7 +664,7 @@ export default function NeuralCommandCenterV31() {
                             </div>
                           </div>
                           <div className="space-y-1">
-                            <p className="text-[11px] font-bold text-white uppercase tracking-tighter">{agent.name}</p>
+                            <p className="text-[11px] font-bold text-white uppercase tracking-tighter">{agent.agent_id}</p>
                             <p className="text-[8px] font-mono text-white/30 truncate uppercase tracking-tighter">
                               {agent.primary_api}
                             </p>
