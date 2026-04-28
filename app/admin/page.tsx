@@ -230,6 +230,7 @@ export default function NeuralCommandCenterV31() {
     isUpsell: false
   });
   const [neuralPulse, setNeuralPulse] = useState<any>(null);
+  const [thoughtStream, setThoughtStream] = useState<any[]>([]);
   const [lastFetch, setLastFetch] = useState<Date>(new Date());
 
   // New states for dynamization
@@ -323,6 +324,20 @@ export default function NeuralCommandCenterV31() {
         const npRes = await fetch('/api/admin/neural-pulse')
         const npData = await npRes.json()
         setNeuralPulse(npData)
+
+        // 9. Agent Task Force
+        const tfRes = await fetch('/api/admin/agent-taskforce');
+        const tfData = await tfRes.json();
+        if (tfData.agents) {
+          setAgentTaskForce(tfData.agents);
+        }
+
+        // 10. Thought Stream
+        const tsRes = await fetch('/api/admin/thought-stream');
+        const tsData = await tsRes.json();
+        if (tsData.thoughts) {
+          setThoughtStream(tsData.thoughts);
+        }
 
         setLastFetch(new Date());
       } catch (err) {
@@ -618,91 +633,120 @@ export default function NeuralCommandCenterV31() {
               <div className="grid grid-cols-10 gap-4">
                 {/* COLUMN A: AGENT TASK FORCE (60%) */}
                 <div className="col-span-10 lg:col-span-6 space-y-4">
-                   <div className="p-8 bg-[#111111] border border-white/5 rounded-xl space-y-6 h-full flex flex-col justify-center">
-                      <div className="flex justify-between items-center mb-2">
-                         <h3 className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">Agent Task Force</h3>
-                         <div className="flex items-center gap-2">
-                            <span className="relative flex h-2 w-2">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#4ade80] opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#4ade80]"></span>
-                            </span>
-                            <span className="text-[9px] font-bold text-[#4ade80] uppercase tracking-widest">Units Active</span>
-                         </div>
+                  <div className="p-8 bg-[#111111] border border-white/5 rounded-xl space-y-6 h-full flex flex-col">
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">AGENT TASK FORCE</h3>
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#4ade80] opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#4ade80]"></span>
+                        </span>
+                        <span className="text-[9px] font-bold text-[#4ade80] uppercase tracking-widest">Units Active</span>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                         {agentTaskForce.map(agent => (
-                           <div key={agent.agent_id} className="p-5 bg-black/20 border border-white/5 rounded-lg space-y-4 group hover:border-white/10 transition-all">
-                              <div className="flex justify-between items-center text-[10px] font-mono font-bold tracking-tight">
-                                 <span className="text-white/40">[{agent.agent_id}]</span>
-                                 <div className="flex items-center gap-1.5">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${
-                                      agent.status === 'PROCESSING' ? 'bg-[#4ade80] animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.4)]' :
-                                      agent.status === 'BLOCKED' ? 'bg-[#ef4444]' :
-                                      'bg-white/20'
-                                    }`} />
-                                    <span className={
-                                      agent.status === 'PROCESSING' ? 'text-[#4ade80]' :
-                                      agent.status === 'BLOCKED' ? 'text-[#ef4444]' :
-                                      'text-white/40'
-                                    }>{agent.status}</span>
-                                 </div>
-                              </div>
-                              <div className="space-y-1">
-                                <p className="text-[11px] font-bold text-white uppercase tracking-tighter">{agent.name}</p>
-                                <p className="text-[10px] font-mono text-white/50 truncate uppercase tracking-tighter">
-                                   {agent.current_task || 'En attente de mission'}
-                                </p>
-                              </div>
-                              <div className="space-y-2">
-                                 <div className="flex justify-between text-[9px] font-mono text-white/20 uppercase tracking-tighter">
-                                    <span>Neural_Load</span>
-                                    <span className="text-white/40">{agent.neural_load}%</span>
-                                 </div>
-                                 <div className="h-0.5 w-full bg-white/5 rounded-full overflow-hidden">
-                                    <motion.div 
-                                       initial={{ width: 0 }}
-                                       animate={{ width: `${agent.neural_load}%` }}
-                                       className={`h-full ${
-                                         agent.neural_load > 80 ? 'bg-[#ef4444]' :
-                                         agent.neural_load > 50 ? 'bg-[#fbbf24]' :
-                                         'bg-[#4ade80]'
-                                       }`}
-                                    />
-                                 </div>
-                              </div>
-                           </div>
-                         ))}
-                      </div>
-                   </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {agentTaskForce.map((agent: any) => (
+                        <div key={agent.agent_id} className="p-5 bg-black/20 border border-white/5 rounded-lg space-y-4 group hover:border-white/10 transition-all">
+                          <div className="flex justify-between items-center text-[10px] font-mono font-bold tracking-tight">
+                            <span className="text-white/40">[{agent.agent_id}]</span>
+                            <div className="flex items-center gap-1.5">
+                              <div className={`w-1.5 h-1.5 rounded-full ${
+                                agent.status === 'PROCESSING' ? 'bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.4)]' :
+                                agent.status === 'BLOCKED' ? 'bg-[#ef4444]' :
+                                'bg-white/20'
+                              }`} />
+                              <span className={
+                                agent.status === 'PROCESSING' ? 'text-orange-500' :
+                                agent.status === 'BLOCKED' ? 'text-[#ef4444]' :
+                                'text-white/40'
+                              }>{agent.status}</span>
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[11px] font-bold text-white uppercase tracking-tighter">{agent.name}</p>
+                            <p className="text-[8px] font-mono text-white/30 truncate uppercase tracking-tighter">
+                              {agent.primary_api}
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-[9px] font-mono text-white/20 uppercase tracking-tighter">
+                              <span>Neural_Load</span>
+                              <span className="text-white/40">{(agent.avg_neural_load * 100).toFixed(0)}%</span>
+                            </div>
+                            <div className="h-0.5 w-full bg-white/5 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${agent.avg_neural_load * 100}%` }}
+                                className={`h-full ${
+                                  agent.avg_neural_load > 0.8 ? 'bg-[#ef4444]' :
+                                  agent.avg_neural_load > 0.5 ? 'bg-orange-500' :
+                                  'bg-[#4ade80]'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                          <div className="pt-2 border-t border-white/[0.02]">
+                            <p className="text-[9px] font-mono text-white/50 truncate uppercase tracking-tighter">
+                              {agent.current_task || 'EN ATTENTE DE MISSION'}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* COLUMN B: LIVE THOUGHT STREAM (40%) */}
                 <div className="col-span-10 lg:col-span-4">
-                   <div className="p-8 bg-[#111111] border border-white/5 rounded-xl flex flex-col space-y-6 h-full max-h-[300px] lg:max-h-full">
-                      <div className="flex justify-between items-center">
-                         <h3 className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">Live Thought Stream</h3>
-                         <Terminal className="w-3.5 h-3.5 text-white/20" />
-                      </div>
-                      
-                      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 font-mono text-[10px]">
-                         {systemLogs.slice(0, 10).map((log, i) => (
-                           <div key={log.id} className="flex gap-3 text-white/40 leading-relaxed border-l border-white/5 pl-4 py-1 hover:border-[#4ade80]/40 transition-colors cursor-default group">
-                              <span className="text-white/10 shrink-0 tabular-nums">[{new Date(log.created_at).getHours()}:{new Date(log.created_at).getMinutes().toString().padStart(2, '0')}]</span>
-                              <span className="text-white/60 lowercase">
-                                 <span className="text-[#4ade80]/60 uppercase group-hover:text-[#4ade80] transition-colors">{log.event_type}</span> {'->'} {JSON.stringify(log.raw_data).substring(0, 60)}
-                              </span>
-                           </div>
-                         ))}
-                         {systemLogs.length === 0 && (
-                           <div className="h-full flex items-center justify-center text-white/10 uppercase tracking-widest italic">
-                              Waiting for neural activity...
-                           </div>
-                         )}
-                      </div>
-                   </div>
+                  <div className="p-8 bg-[#0a0a0a] border border-white/5 rounded-xl flex flex-col space-y-6 h-full max-h-[500px] overflow-hidden">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-[10px] font-bold text-white/80 uppercase tracking-[0.2em]">LIVE THOUGHT STREAM</h3>
+                      <Terminal className="w-3.5 h-3.5 text-white/20" />
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 font-mono text-[10px] pr-2">
+                      {thoughtStream.length > 0 ? (
+                        thoughtStream.map((thought, i) => (
+                          <div key={i} className="space-y-1 border-l border-white/5 pl-4 py-1 hover:border-[#4ade80]/40 transition-colors group">
+                            <div className="flex gap-2 items-center">
+                              <span className="text-white/10 tabular-nums">[{new Date(thought.started_at).getHours().toString().padStart(2, '0')}:{new Date(thought.started_at).getMinutes().toString().padStart(2, '0')}]</span>
+                              <div className={`w-1.5 h-1.5 rounded-full ${
+                                thought.status === 'COMPLETED' ? 'bg-[#4ade80]' :
+                                thought.status === 'PROCESSING' ? 'bg-orange-500 animate-pulse' :
+                                thought.status === 'BLOCKED' ? 'bg-[#ef4444]' :
+                                'bg-white/20'
+                              }`} />
+                              <span className="text-white/60 font-bold uppercase tracking-tighter">{thought.agent_id}</span>
+                              <span className="text-white/20">{'->'}</span>
+                              <span className="text-white/80 lowercase line-clamp-1">{thought.output_summary || "..."}</span>
+                            </div>
+                            <div className="flex gap-2 text-[8px] text-white/20 uppercase tracking-widest pl-4">
+                              <span>{thought.task_type}</span>
+                              <span>|</span>
+                              <span>{thought.complexity}</span>
+                              <span>|</span>
+                              <span>{thought.api_used}</span>
+                              <span>|</span>
+                              <span className={
+                                thought.status === 'COMPLETED' ? 'text-[#4ade80]/40' :
+                                thought.status === 'PROCESSING' ? 'text-orange-500/40' :
+                                thought.status === 'BLOCKED' ? 'text-[#ef4444]/40' :
+                                ''
+                              }>{thought.status}</span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-white/10 uppercase tracking-[0.3em] font-black italic">
+                          WAITING FOR NEURAL ACTIVITY...
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-             </div>
+              </div>
+
 
              {/* NEURAL EVENT MONITOR (STEP 3) */}
              <div className="p-8 bg-[#111111] border border-white/5 rounded-xl space-y-10 group/monitor">
