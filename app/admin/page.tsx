@@ -249,7 +249,7 @@ export default function NeuralCommandCenterV31() {
   });
   const [plansMetadata, setPlansMetadata] = useState<any[]>([]);
 
-  const downloadCSV = () => {
+  const exportLogsCSV = () => {
     if (!fleetData?.clients) return;
     const headers = "ID,Name,Sector,Package,Region,Status,Tokens,Cost\n";
     const rows = fleetData.clients.map((c: any) => 
@@ -1159,38 +1159,35 @@ export default function NeuralCommandCenterV31() {
 
              {/* SECTION 4: THE ORACLE COMMAND CENTER */}
              <div className="space-y-6">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/5 pb-6">
-                   <div className="space-y-1">
-                      <h3 className="text-[14px] font-bold text-white uppercase tracking-[0.4em]">ORACLE COMMAND CENTER</h3>
-                      <p className="text-[10px] text-white/20 font-mono uppercase tracking-widest">Fleet Management & Multi-Tenant Neural Routing</p>
-                   </div>
-                   
-                   <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => router.push('/admin/fleet')}
-                        className="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-lg text-[9px] font-bold text-white/40 hover:bg-white/5 transition-all uppercase tracking-[0.2em]"
-                      >
-                         SEE MORE
-                      </button>
-
-                      <div className="flex gap-3">
-                         <button 
-                           onClick={downloadCSV}
-                           className="flex items-center gap-2 px-4 py-2 border border-white/5 rounded-lg text-[9px] font-bold text-white/40 hover:bg-white/5 transition-all uppercase tracking-widest"
-                         >
-                           <Download className="w-3.5 h-3.5" /> EXPORT LOGS
-                         </button>
-                         <button 
-                           onClick={() => {
-                             setModalStep(1);
-                             setShowNewCustomerModal(true);
-                           }}
-                           className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-[9px] font-black hover:bg-white/90 transition-all uppercase tracking-widest"
-                         >
-                           <Plus className="w-3.5 h-3.5" /> NEW CUSTOMER
-                         </button>
-                      </div>
-                   </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                  <div>
+                    <h2 style={{ fontFamily: 'monospace', letterSpacing: 3, fontSize: 18 }}>
+                      ORACLE COMMAND CENTER
+                    </h2>
+                    <p style={{ color: '#4b5563', fontSize: 11, fontFamily: 'monospace', letterSpacing: 2 }}>
+                      Fleet Management & Multi-Tenant Neural Routing
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button 
+                      onClick={() => router.push('/admin/fleet')}
+                      className="px-4 py-2 border border-white/10 rounded-lg text-[9px] font-bold text-white/40 hover:bg-white/5 transition-all uppercase tracking-widest"
+                    >
+                      SEE MORE
+                    </button>
+                    <button 
+                      onClick={() => exportLogsCSV()}
+                      className="px-4 py-2 border border-white/5 rounded-lg text-[9px] font-bold text-white/40 hover:bg-white/5 transition-all uppercase tracking-widest"
+                    >
+                      EXPORT LOGS
+                    </button>
+                    <button 
+                      onClick={() => setShowNewCustomerModal(true)}
+                      className="px-4 py-2 bg-white text-black rounded-lg text-[9px] font-black hover:bg-white/90 transition-all uppercase tracking-widest"
+                    >
+                      + NEW CUSTOMER
+                    </button>
+                  </div>
                 </div>
 
                 {/* SEARCH & FILTERS LAYER */}
@@ -1318,7 +1315,14 @@ export default function NeuralCommandCenterV31() {
                                <tr 
                                  key={client.id} 
                                  onClick={() => router.push(`/admin/system/${client.id}`)}
-                                 className="group cursor-pointer hover:bg-white/[0.02] transition-colors border-l-2 border-transparent hover:border-[#4ade80]/40"
+                                 onMouseEnter={(e) => {
+                                   (e.currentTarget as HTMLElement).style.background = '#111827'
+                                 }}
+                                 onMouseLeave={(e) => {
+                                   (e.currentTarget as HTMLElement).style.background = 'transparent'
+                                 }}
+                                 style={{ cursor: 'pointer', transition: 'background 0.2s ease' }}
+                                 className="group border-l-2 border-transparent hover:border-[#4ade80]/40 transition-colors"
                                >
                                   <td className="p-6">
                                      <div className="flex items-center gap-4">
@@ -1409,7 +1413,12 @@ export default function NeuralCommandCenterV31() {
                                      <span className="text-[10px] font-mono font-bold text-white/40 uppercase tracking-[0.2em]">{client.region || 'GLOBAL'}</span>
                                   </td>
                                   <td className="p-6">
-                                     <p className="text-[12px] font-mono font-black text-white">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(client.monthly_cost || 0)}</p>
+                                     <p className="text-[12px] font-mono font-black text-white">
+                                       {client.monthly_cost
+                                         ? `${client.monthly_cost.toLocaleString('fr-FR')} FCFA`
+                                         : '—'
+                                       }
+                                     </p>
                                   </td>
                                   <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
                                      <div className="relative group/menu">
