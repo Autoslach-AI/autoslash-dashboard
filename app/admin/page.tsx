@@ -1314,6 +1314,7 @@ export default function NeuralCommandCenterV31() {
                             filteredClients.map((client: any) => (
                                <tr 
                                  key={client.id} 
+                                 className="group"
                                  onClick={() => router.push(`/admin/system/${client.id}`)}
                                  onMouseEnter={(e) => {
                                    (e.currentTarget as HTMLElement).style.background = '#111827'
