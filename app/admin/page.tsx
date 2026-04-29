@@ -237,7 +237,59 @@ export default function NeuralCommandCenterV31() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [activeSection3Tab, setActiveSection3Tab] = useState('API_MONITOR');
   const [growthIntel, setGrowthIntel] = useState<any>(null);
-  const [lastFetch, setLastFetch] = useState<Date>(new Date());
+  const [modalStep, setModalStep] = useState(1);
+  const [newCustomer, setNewCustomer] = useState({
+    name: '',
+    sector: '',
+    region: '',
+    plan: 'BUSINESS'
+  });
+  const [plansMetadata, setPlansMetadata] = useState<any[]>([]);
+
+  const downloadCSV = () => {
+    if (!fleetData?.clients) return;
+    const headers = "ID,Name,Sector,Package,Region,Status,Tokens,Cost\n";
+    const rows = fleetData.clients.map((c: any) => 
+      `${c.id},${c.name},${c.sector},${c.package_type},${c.region},${c.status},${c.total_tokens_consumed},${c.monthly_cost}`
+    ).join("\n");
+    const blob = new Blob([headers + rows], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.setAttribute('hidden', '');
+    a.setAttribute('href', url);
+    a.setAttribute('download', 'fleet_logs.csv');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // Debounced search function
+  const debounceSearch = (fn: Function, ms: number) => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    return (...args: any[]) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => fn(...args), ms);
+    };
+  };
+
+  const handleSearch = debounceSearch(async (q: string) => {
+    setIsScanning(true);
+    try {
+      if (!q) {
+        const res = await fetch('/api/admin/fleet');
+        const data = await res.json();
+        setFleetData(data);
+      } else {
+        const res = await fetch(`/api/admin/fleet/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        setFleetData(data);
+      }
+    } catch (err) {
+      console.error("Search error:", err);
+    } finally {
+      setIsScanning(false);
+    }
+  }, 300);
 
   // New states for dynamization
   const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
@@ -358,7 +410,16 @@ export default function NeuralCommandCenterV31() {
         const growthData = await growthRes.json();
         setGrowthIntel(growthData);
 
-        setLastFetch(new Date());
+         // 13. Fleet Data
+         const fleetRes = await fetch('/api/admin/fleet');
+         const fleetJson = await fleetRes.json();
+         setFleetData(fleetJson);
+
+         // 14. Plan Definitions for Modal
+         const { data: plans } = await supabase.from('plan_definitions').select('*');
+         if (plans) setPlansMetadata(plans);
+
+         setLastFetch(new Date());
       } catch (err) {
         console.error("FETCH_ERROR:", err);
       }
@@ -1085,107 +1146,121 @@ export default function NeuralCommandCenterV31() {
                 </div>
              </div>
 
-             {/* SECTION 4: THE ORACLE COMMAND CENTER (EVOLUTION: NEURAL NAVIGATOR) */}
+             {/* SECTION 4: THE ORACLE COMMAND CENTER */}
              <div className="space-y-6">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/5 pb-6">
                    <div className="space-y-1">
-                      <h3 className="text-[12px] font-bold text-white uppercase tracking-[0.3em]">Oracle Command Center</h3>
-                      <p className="text-[9px] text-white/20 font-mono">Fleet Management & Multi-Tenant Neural Routing</p>
+                      <h3 className="text-[14px] font-bold text-white uppercase tracking-[0.4em]">ORACLE COMMAND CENTER</h3>
+                      <p className="text-[10px] text-white/20 font-mono uppercase tracking-widest">Fleet Management & Multi-Tenant Neural Routing</p>
                    </div>
                    
                    <div className="flex items-center gap-3">
-                      {/* SEE MORE BUTTON - top-right of section */}
                       <button 
-                        onClick={() => router.push('/admin/reports')}
-                        className="flex items-center gap-2 px-3 py-1.5 border border-white/10 rounded-lg text-[8px] font-bold text-white/40 hover:bg-white/5 transition-all uppercase tracking-widest"
+                        onClick={() => router.push('/admin/fleet')}
+                        className="flex items-center gap-2 px-4 py-2 border border-white/10 rounded-lg text-[9px] font-bold text-white/40 hover:bg-white/5 transition-all uppercase tracking-[0.2em]"
                       >
-                        <FileText className="w-2.5 h-2.5" /> See More
+                         SEE MORE
                       </button>
 
                       <div className="flex gap-3">
-                         <button className="flex items-center gap-2 px-4 py-2 border border-white/5 rounded-lg text-[9px] font-bold text-white/40 hover:bg-white/5 transition-all uppercase tracking-widest">
-                           <Download className="w-3 h-3" /> Export Logs
+                         <button 
+                           onClick={downloadCSV}
+                           className="flex items-center gap-2 px-4 py-2 border border-white/5 rounded-lg text-[9px] font-bold text-white/40 hover:bg-white/5 transition-all uppercase tracking-widest"
+                         >
+                           <Download className="w-3.5 h-3.5" /> EXPORT LOGS
                          </button>
                          <button 
-                           onClick={() => router.push('/admin/onboarding')}
-                           className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-[9px] font-bold hover:bg-white/90 transition-all uppercase tracking-widest"
+                           onClick={() => {
+                             setModalStep(1);
+                             setShowNewCustomerModal(true);
+                           }}
+                           className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-lg text-[9px] font-black hover:bg-white/90 transition-all uppercase tracking-widest"
                          >
-                           <Plus className="w-3 h-3" /> New Customer
+                           <Plus className="w-3.5 h-3.5" /> NEW CUSTOMER
                          </button>
                       </div>
                    </div>
                 </div>
 
-                {/* Requirement 1: NEW CONTROL LAYER (JUST BELOW TITLE) */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-4 px-6 bg-white/[0.02] border border-white/5 rounded-2xl relative overflow-hidden">
+                {/* SEARCH & FILTERS LAYER */}
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-4 px-6 bg-white/[0.01] border border-white/5 rounded-2xl relative overflow-hidden">
                    {/* Scanning Beam Animation */}
                    <AnimatePresence>
                       {isScanning && (
                          <motion.div 
                            initial={{ x: '-100%' }}
                            animate={{ x: '100%' }}
-                           transition={{ duration: 0.6, ease: "linear" }}
+                           transition={{ duration: 0.6, ease: "linear", repeat: Infinity }}
                            className="absolute inset-0 bg-gradient-to-r from-transparent via-[#4ade80]/10 to-transparent pointer-events-none z-0"
                          />
                       )}
                    </AnimatePresence>
 
-                   {/* Project Level Filters */}
-                   <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 z-10">
-                      {([
-                         { id: 'ALL', label: 'ALL NODES' },
-                         { id: 'STARTUP', label: 'PROJET STARTUP' },
-                         { id: 'BUSINESS', label: 'PROJET BUSINESS' },
-                         { id: 'ENTERPRISE', label: 'PROJET ENTREPRISE' },
-                         { id: 'ELITE', label: 'PROJET ELITE' }
-                      ] as const).map((p) => (
+                   {/* PLAN FILTERS - DYNAMIC */}
+                   <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 z-10 overflow-x-auto no-scrollbar">
+                      <button 
+                        onClick={() => setPlanFilter('ALL')}
+                        className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${
+                          planFilter === 'ALL' 
+                          ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]' 
+                          : 'text-white/20 hover:text-white/40'
+                        }`}
+                      >
+                        ALL NODES
+                      </button>
+                      {fleetData?.availablePlans?.map((plan: string) => (
                          <button 
-                           key={p.id}
-                           onClick={() => setPlanFilter(p.id)}
-                           className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${
-                             planFilter === p.id 
+                           key={plan}
+                           onClick={() => setPlanFilter(plan as any)}
+                           className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${
+                             planFilter === plan 
                              ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]' 
                              : 'text-white/20 hover:text-white/40'
                            }`}
                          >
-                           {p.label} <span className="opacity-40 ml-1">[{p.id === 'ALL' ? clients.length : clients.filter(c => c.package_type === p.id).length}]</span>
+                           {plan}
                          </button>
                       ))}
                    </div>
 
-                   {/* Neural Search Bar */}
-                   <div className="flex-1 max-w-2xl relative z-10 mx-auto">
+                   {/* SEARCH BAR */}
+                   <div className="flex-1 max-w-2xl relative z-10">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20">
-                         <Search className="w-3.5 h-3.5" />
+                         <Search className="w-4 h-4" />
                       </div>
                       <input 
                         type="text"
-                        placeholder="Search by Company Name or Price..."
+                        placeholder="Rechercher par nom, statut, plan, région, secteur..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-black/60 border border-white/5 rounded-xl py-3 pl-12 pr-4 text-[10px] font-mono text-white placeholder:text-white/10 focus:border-[#4ade80]/40 transition-all outline-none"
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          handleSearch(e.target.value);
+                        }}
+                        className="w-full bg-black/60 border border-white/5 rounded-xl py-3.5 pl-12 pr-4 text-[11px] font-mono text-white placeholder:text-white/10 focus:border-[#4ade80]/40 transition-all outline-none"
                       />
                    </div>
                 </div>
 
-                {/* Requirement 1: PRIORITY FILTER SYSTEM (TAB STYLE) */}
+                {/* STATUS TABS */}
                 <div className="flex flex-wrap gap-2">
                    {([
                       { id: 'ALL', label: 'ALL', color: 'white' },
                       { id: 'CRITICAL', label: 'CRITICAL', color: '#ef4444' },
                       { id: 'WARNING', label: 'WARNING', color: '#fbbf24' },
-                      { id: 'MESSAGE', label: 'MESSAGES', color: '#3b82f6' },
-                      { id: 'OPTIMAL', label: 'STABLE', color: '#4ade80' }
+                      { id: 'STABLE', label: 'STABLE', color: '#4ade80' },
+                      { id: 'MESSAGES', label: 'MESSAGES', color: '#3b82f6' }
                    ] as const).map((f) => {
                       const count = f.id === 'ALL' 
-                          ? clients.length 
-                          : clients.filter(c => c.status === (f.id === 'OPTIMAL' ? 'STABLE' : f.id)).length;
+                          ? fleetData?.clients?.length 
+                          : f.id === 'MESSAGES'
+                            ? fleetData?.clients?.filter((c: any) => c.unread_messages > 0).length
+                            : fleetData?.clients?.filter((c: any) => c.status === f.id).length;
                       
                       return (
                          <button 
                            key={f.id}
-                           onClick={() => setOracleFilter(f.id)}
-                           className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 border ${
+                           onClick={() => setOracleFilter(f.id as any)}
+                           className={`px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2.5 border ${
                              oracleFilter === f.id 
                              ? 'bg-white/10 text-white border-white/20' 
                              : 'bg-black/40 text-white/20 border-white/5 hover:border-white/10'
@@ -1193,36 +1268,33 @@ export default function NeuralCommandCenterV31() {
                          >
                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: f.color }} />
                            {f.label} 
-                           {count > 0 && <span className="opacity-40 tabular-nums">[{count}]</span>}
+                           {count > 0 && <span className="opacity-40 tabular-nums font-mono text-[9px]">[{count}]</span>}
                          </button>
                       );
                    })}
                 </div>
 
-                <div className="bg-[#0a0a0a] border border-white/5 rounded-xl overflow-hidden shadow-2xl">
+                <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative">
                    <table className="w-full text-left border-collapse">
                       <thead>
                          <tr className="border-b border-white/5 bg-[#111111]/30">
-                            <th className="p-5 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Client Cluster</th>
-                            <th className="p-5 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Fleet Status</th>
-                            <th className="p-5 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Last Event</th>
-                            <th className="p-5 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Comm Mode</th>
-                            <th className="p-5 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">Region</th>
-                            <th className="p-5 w-12 text-right"></th>
+                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">CLIENT CLUSTER</th>
+                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">FLEET STATUS</th>
+                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">TOKEN USAGE</th>
+                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">INTELLIGENCE MODE</th>
+                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">REGION</th>
+                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">MONTHLY COST</th>
+                            <th className="p-6 w-12 text-right"></th>
                          </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.02]">
                          {(() => {
-                           const filtered = clients
-                             .filter(c => {
-                                const matchesStatus = oracleFilter === 'ALL' || c.status === oracleFilter || (oracleFilter === 'STABLE' && c.status === 'STABLE');
+                           const filtered = (fleetData?.clients || [])
+                             .filter((c: any) => {
+                                const matchesStatus = oracleFilter === 'ALL' 
+                                  || (oracleFilter === 'MESSAGES' ? c.unread_messages > 0 : c.status === oracleFilter);
                                 const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
-                                
-                                const cleanSearch = searchQuery.toLowerCase().trim();
-                                const matchesName = c.name.toLowerCase().includes(cleanSearch);
-                                const matchesId = c.id.toLowerCase().includes(cleanSearch);
-                                
-                                return matchesStatus && matchesPlan && (matchesName || matchesId);
+                                return matchesStatus && matchesPlan;
                              });
 
                            if (filtered.length === 0) {
@@ -1240,123 +1312,331 @@ export default function NeuralCommandCenterV31() {
                                        </div>
                                     </td>
                                  </tr>
-                              );
-                           }
-
-                           return filtered.map((client) => (
-                           <tr 
-                             key={client.id} 
-                             onClick={() => {
-                                console.log(`[SYSTEM_DIVE] Initializing redirect to Dashboard 2 for ${client.id}`);
-                                setClickedRowId(client.id);
-                                
-                                // Store context for Dashboard 2
-                                localStorage.setItem('AUTOSLASH_CURRENT_ENTERPRISE', client.id);
-                                
-                                // Visual feedback delay before transition
-                                setTimeout(() => {
-                                  router.push(`/admin/system/${client.id}`);
-                                  setClickedRowId(null);
-                                }, 300);
-                             }}
-                             className={`group cursor-pointer transition-all border-l-2 ${
-                               clickedRowId === client.id 
-                               ? 'bg-white/10 border-[#4ade80] shadow-[inset_10px_0_30px_rgba(74,222,128,0.05)]' 
-                               : 'hover:bg-white/[0.02] border-transparent'
-                             }`}
-                           >
-                              <td className="p-5">
-                                 <div className="flex items-center gap-4">
-                                    <div className="w-8 h-8 rounded-lg bg-black border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/20 group-hover:border-[#4ade80]/40 transition-colors">
-                                       {client.name.substring(0, 2)}
-                                    </div>
-                                    <div className="space-y-1">
-                                       <p className="text-[11px] font-bold text-white group-hover:text-[#4ade80] transition-colors">{client.name}</p>
-                                       <div className="flex items-center gap-2">
-                                          <p className="text-[9px] text-white/20 font-mono tracking-tighter uppercase">{client.id.substring(0, 8)} | {client.package_type}</p>
-                                          <div className="w-1 h-1 rounded-full bg-white/10" />
-                                          <p className="text-[9px] text-[#4ade80]/60 font-mono tabular-nums">Status: {client.status}</p>
+                                 return filtered.map((client: any) => (
+                            <tr 
+                              key={client.id} 
+                              onClick={() => router.push(`/admin/system/${client.id}`)}
+                              className="group cursor-pointer hover:bg-white/[0.02] transition-colors border-l-2 border-transparent hover:border-[#4ade80]/40"
+                            >
+                               <td className="p-6">
+                                  <div className="flex items-center gap-4">
+                                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/5 flex items-center justify-center text-[12px] font-black text-white/40 group-hover:text-white group-hover:border-[#4ade80]/50 transition-all">
+                                        {client.name.substring(0, 2).toUpperCase()}
+                                     </div>
+                                     <div className="space-y-1">
+                                        <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors">{client.name}</p>
+                                        <p className="text-[9px] text-white/20 font-mono tracking-tighter uppercase">{client.id.substring(0, 8)} • {client.package_type}</p>
+                                     </div>
+                                  </div>
+                               </td>
+                               <td className="p-6">
+                                  <div className={`px-3 py-1.5 rounded-full border w-fit flex items-center gap-2 ${
+                                    client.status === 'CRITICAL' ? 'bg-red-500/10 border-red-500/20 text-red-500' :
+                                    client.status === 'WARNING' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                                    'bg-green-500/10 border-green-500/20 text-green-500'
+                                  }`}>
+                                     <div className={`w-1.5 h-1.5 rounded-full ${client.status === 'CRITICAL' ? 'animate-pulse bg-red-500' : client.status === 'WARNING' ? 'bg-amber-500' : 'bg-green-500'}`} />
+                                     <span className="text-[9px] font-black uppercase tracking-[0.2em]">{client.status}</span>
+                                  </div>
+                               </td>
+                               <td className="p-6 min-w-[150px]">
+                                  <div className="space-y-2">
+                                     <div className="flex justify-between text-[9px] font-mono text-white/30">
+                                        <span className="uppercase tracking-widest">{client.token_usage_percent}% LOAD</span>
+                                        <span className="font-bold">{(client.total_tokens_consumed / 1000).toFixed(0)}k / {(client.token_budget / 1000).toFixed(0)}k</span>
+                                     </div>
+                                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <motion.div 
+                                          initial={{ width: 0 }}
+                                          animate={{ width: `${Math.min(client.token_usage_percent, 100)}%` }}
+                                          className={`h-full ${
+                                            client.token_usage_percent > 80 ? 'bg-red-500' :
+                                            client.token_usage_percent > 60 ? 'bg-orange-500' :
+                                            'bg-green-500'
+                                          }`}
+                                        />
+                                     </div>
+                                  </div>
+                               </td>
+                               <td className="p-6" onClick={(e) => {
+                                 e.stopPropagation();
+                                 router.push(client.intelligence.source_url);
+                               }}>
+                                  {client.intelligence.severity ? (
+                                    <div className="flex items-center gap-3 group/intel hover:bg-white/5 p-2 -m-2 rounded-lg transition-all">
+                                       <div className={`p-2 rounded-lg ${
+                                         client.intelligence.severity === 'CRITICAL' ? 'bg-red-500/20' :
+                                         client.intelligence.severity === 'WARNING' ? 'bg-amber-500/20' :
+                                         'bg-blue-500/20'
+                                       }`}>
+                                          {client.intelligence.type === 'SYSTEM_ERROR' && <Shield className="w-3.5 h-3.5 text-red-500" />}
+                                          {client.intelligence.type === 'TOKEN_WARNING' && <Activity className="w-3.5 h-3.5 text-amber-500" />}
+                                          {client.intelligence.type === 'MESSAGE' && <Users className="w-3.5 h-3.5 text-blue-500" />}
+                                       </div>
+                                       <div className="space-y-0.5">
+                                          <p className={`text-[10px] font-bold uppercase tracking-tight ${
+                                            client.intelligence.severity === 'CRITICAL' ? 'text-red-400' :
+                                            client.intelligence.severity === 'WARNING' ? 'text-amber-400' :
+                                            'text-blue-400'
+                                          }`}>
+                                            {client.intelligence.message}
+                                          </p>
+                                          <p className="text-[8px] font-mono text-white/20 uppercase tracking-widest italic">
+                                            {(() => {
+                                              const date = new Date(client.intelligence.created_at);
+                                              const diffMs = new Date().getTime() - date.getTime();
+                                              const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                                              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                              if (diffDays > 0) return `Il y a ${diffDays} jours`;
+                                              if (diffHrs > 0) return `Il y a ${diffHrs}h`;
+                                              return "À l'instant";
+                                            })()}
+                                          </p>
                                        </div>
                                     </div>
-                                 </div>
-                              </td>
-                              <td className="p-5 relative group/status">
-                                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.02] border border-white/5 w-fit group-hover:border-white/20 transition-all">
-                                    <div className="w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_8px_rgba(255,255,255,0.2)]" style={{ backgroundColor: GET_STATUS_COLOR(client.status) }} />
-                                    <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: GET_STATUS_COLOR(client.status) }}>
-                                       {client.status}
-                                    </span>
-                                 </div>
-
-                                 {/* Tooltip mapping */}
-                                 <div className="absolute left-1/2 -top-12 -translate-x-1/2 opacity-0 group-hover/status:opacity-100 pointer-events-none transition-all duration-300 z-[100]">
-                                    <div className="bg-[#0f0f0f] border border-white/10 px-4 py-3 rounded-lg shadow-2xl backdrop-blur-2xl whitespace-nowrap min-w-[200px]">
-                                       <div className="flex items-center justify-between mb-2">
-                                          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: GET_STATUS_COLOR(client.status) }}>{client.lastEvent?.type || 'CORE'}</span>
-                                          <span className="text-[8px] font-mono text-white/20 tabular-nums">{client.lastEvent ? formatNeuralTime(client.lastEvent.timestamp) : 'N/A'}</span>
-                                       </div>
-                                       <p className="text-[10px] text-white/60 font-mono mb-2 lowercase leading-tight">{client.lastEvent?.description || 'system status monitoring active'}</p>
-                                       <div className="pt-2 border-t border-white/5 flex justify-between items-center">
-                                          <span className="text-[8px] font-mono text-white/20 uppercase tracking-tighter">Status Longevity</span>
-                                          <span className="text-[8px] font-bold text-[#4ade80] tabular-nums">ACTIVE FOR {client.lastEvent ? calculateElapsed(client.lastEvent.timestamp) : '0h'}</span>
-                                       </div>
+                                  ) : (
+                                    <div className="flex items-center gap-3 opacity-20 group-hover:opacity-100 transition-all">
+                                       <Check className="w-3.5 h-3.5 text-green-500" />
+                                       <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Système optimal</span>
                                     </div>
-                                    <div className="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-white/10 mx-auto" />
-                                 </div>
-                              </td>
-                              <td className="p-5">
-                                 <div className="space-y-1">
-                                    <p className="text-[10px] font-mono text-white/40 truncate max-w-[180px]">{client.lastEvent?.description?.toLowerCase() || 'monitoring...'}</p>
-                                    <p className="text-[8px] text-white/10 font-mono">{client.lastEvent ? formatNeuralTime(client.lastEvent.timestamp) : ''}</p>
-                                 </div>
-                              </td>
-                              <td className="p-5">
-                                 <div className="flex items-center gap-2">
-                                    <div className={`px-2 py-1 rounded text-[8px] font-bold tracking-[0.2em] uppercase border ${client.comm_mode === 'AUTONOMOUS' ? 'text-white/40 border-white/5' : 'text-[#3b82f6] border-[#3b82f6]/20 bg-[#3b82f6]/5'}`}>
-                                       {client.comm_mode || 'AUTONOMOUS'}
-                                    </div>
-                                 </div>
-                              </td>
-                              <td className="p-5">
-                                 <span className="text-[10px] font-mono text-white/20 tracking-widest">{client.region}</span>
-                              </td>
-                              <td className="p-5 text-right">
-                                 <MoreHorizontal className="w-4 h-4 text-white/10 group-hover:text-white/40 transition-all inline-block" />
-                              </td>
-                           </tr>
-                         ));
-                       })()}
+                                  )}
+                               </td>
+                               <td className="p-6">
+                                  <span className="text-[10px] font-mono font-bold text-white/40 uppercase tracking-[0.2em]">{client.region || 'GLOBAL'}</span>
+                               </td>
+                               <td className="p-6">
+                                  <p className="text-[12px] font-mono font-black text-white">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(client.monthly_cost || 0)}</p>
+                               </td>
+                               <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
+                                  <div className="relative group/menu">
+                                     <button className="p-2 hover:bg-white/10 rounded-lg transition-all text-white/20 hover:text-white">
+                                        <MoreHorizontal className="w-4 h-4" />
+                                     </button>
+                                     <div className="absolute right-0 top-full mt-2 w-48 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 overflow-hidden">
+                                        <button onClick={() => router.push(`/admin/system/${client.id}`)} className="w-full text-left px-5 py-3 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all border-b border-white/5 uppercase tracking-widest">Voir Dashboard</button>
+                                        <button onClick={() => router.push(`/admin/system/${client.id}/messages`)} className="w-full text-left px-5 py-3 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all border-b border-white/5 uppercase tracking-widest">Envoyer message</button>
+                                        <button onClick={() => router.push(`/admin/system/${client.id}/settings`)} className="w-full text-left px-5 py-3 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all uppercase tracking-widest">Voir settings</button>
+                                     </div>
+                                  </div>
+                               </td>
+                            </tr>
+                           ));
+                         })()}
                       </tbody>
                    </table>
                 </div>
 
-                <div className="flex items-center justify-between">
-                   <p className="text-[9px] font-mono text-white/10 uppercase tracking-[0.3em]">
-                      Showing {(() => {
-                         const filtered = clients.filter(c => {
-                            const matchesStatus = oracleFilter === 'ALL' || c.status === oracleFilter || (oracleFilter === 'STABLE' && c.status === 'STABLE');
-                            const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
-                            const cleanSearch = searchQuery.toLowerCase().trim();
-                            const matchesName = c.name.toLowerCase().includes(cleanSearch);
-                            const matchesId = c.id.toLowerCase().includes(cleanSearch);
-                            return matchesStatus && matchesPlan && (matchesName || matchesId);
-                         });
-                         return filtered.length;
-                      })()} active neural nodes
+                <div className="flex items-center justify-between py-4">
+                   <p className="text-[10px] font-mono text-white/10 uppercase tracking-[0.4em]">
+                      SHOWING <span className="text-white/40">{(fleetData?.clients || []).filter((c: any) => {
+                                const matchesStatus = oracleFilter === 'ALL' 
+                                  || (oracleFilter === 'MESSAGES' ? c.unread_messages > 0 : c.status === oracleFilter);
+                                const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
+                                return matchesStatus && matchesPlan;
+                             }).length}</span> OF <span className="text-white/40">{fleetData?.total || 0}</span> ACTIVE NEURAL NODES
                    </p>
                    <div className="flex gap-2">
-                      <button className="w-8 h-8 flex items-center justify-center border border-white/5 rounded-lg text-white/20 bg-white/[0.02] cursor-not-allowed">
-                         <ChevronRight className="w-4 h-4 rotate-180" />
-                      </button>
-                      <button className="w-8 h-8 flex items-center justify-center border border-white/5 rounded-lg text-white/40 bg-white/5 hover:bg-white/10 transition-all">
-                         <ChevronRight className="w-4 h-4" />
-                      </button>
+                      <button className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white/20 uppercase tracking-[0.2em] cursor-not-allowed">PREV</button>
+                      <button className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white/40 hover:text-white hover:bg-white/10 transition-all uppercase tracking-[0.2em]">NEXT</button>
                    </div>
                 </div>
              </div>
 
           </div>
       
+      {/* NEW CUSTOMER MODAL */}
+      <AnimatePresence>
+        {showNewCustomerModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowNewCustomerModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)]"
+            >
+              {/* Modal Header */}
+              <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                <div className="space-y-1">
+                  <h2 className="text-[12px] font-black uppercase tracking-[0.4em] text-white">Créer Nouveau Node</h2>
+                  <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest">Étape {modalStep} sur 3</p>
+                </div>
+                <button 
+                  onClick={() => setShowNewCustomerModal(false)}
+                  className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center hover:bg-white/5 transition-all"
+                >
+                  <Plus className="w-4 h-4 rotate-45 text-white/40" />
+                </button>
+              </div>
+
+              <div className="p-8">
+                {modalStep === 1 && (
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Nom de l'entreprise</label>
+                      <input 
+                        type="text" 
+                        value={newCustomer.name}
+                        onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
+                        placeholder="ex: Neural Dynamics"
+                        className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white placeholder:text-white/10 focus:border-[#4ade80]/40 transition-all outline-none"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                       <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Secteur d'activité</label>
+                        <input 
+                          type="text" 
+                          value={newCustomer.sector}
+                          onChange={(e) => setNewCustomer({...newCustomer, sector: e.target.value})}
+                          placeholder="ex: Fintech"
+                          className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Région</label>
+                        <input 
+                          type="text" 
+                          value={newCustomer.region}
+                          onChange={(e) => setNewCustomer({...newCustomer, region: e.target.value})}
+                          placeholder="ex: AF-WEST-1"
+                          className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {modalStep === 2 && (
+                  <div className="space-y-6">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Sélection du plan neural</label>
+                    <div className="space-y-3">
+                      {plansMetadata.filter(p => p.name !== 'STARTUP').map((plan) => (
+                        <button 
+                          key={plan.id}
+                          onClick={() => setNewCustomer({...newCustomer, plan: plan.name})}
+                          className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                            newCustomer.plan === plan.name 
+                            ? 'bg-white/5 border-[#4ade80]/40 shadow-[0_0_30px_rgba(74,222,128,0.05)]' 
+                            : 'bg-black border-white/5 hover:border-white/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-4 text-left">
+                            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${
+                               newCustomer.plan === plan.name ? 'border-[#4ade80]/20 text-[#4ade80]' : 'border-white/5 text-white/20'
+                            }`}>
+                              <Zap className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className={`text-[12px] font-black uppercase tracking-widest ${newCustomer.plan === plan.name ? 'text-white' : 'text-white/40'}`}>{plan.name}</p>
+                              <p className="text-[9px] font-mono text-white/20 uppercase">Intelligence Avancée Incluse</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                             <p className="text-[14px] font-black font-mono text-white">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(plan.monthly_price)}</p>
+                             <p className="text-[8px] font-mono text-white/20 uppercase tracking-tighter">Par mois</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {modalStep === 3 && (
+                  <div className="space-y-8 py-4">
+                    <div className="flex flex-col items-center text-center space-y-4">
+                       <div className="w-20 h-20 rounded-full border-2 border-[#4ade80]/20 bg-[#4ade80]/5 flex items-center justify-center">
+                          <Shield className="w-10 h-10 text-[#4ade80] animate-pulse" />
+                       </div>
+                       <div className="space-y-1">
+                          <h3 className="text-[14px] font-black uppercase tracking-[0.4em] text-white">Confirmation du Node</h3>
+                          <p className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Prêt pour initialisation neurale</p>
+                       </div>
+                    </div>
+
+                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 space-y-4">
+                       <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                          <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Entreprise</span>
+                          <span className="text-[11px] font-mono font-bold text-white">{newCustomer.name}</span>
+                       </div>
+                       <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                          <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Secteur / Région</span>
+                          <span className="text-[11px] font-mono font-bold text-white/60">{newCustomer.sector} • {newCustomer.region}</span>
+                       </div>
+                       <div className="flex justify-between items-center border-b border-white/5 pb-4">
+                          <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Plan de Routing</span>
+                          <span className="text-[11px] font-black text-[#4ade80] uppercase tracking-widest">{newCustomer.plan}</span>
+                       </div>
+                       <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Tarification</span>
+                          <span className="text-[14px] font-black font-mono text-white">
+                             {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(plansMetadata.find(p => p.name === newCustomer.plan)?.monthly_price || 0)}
+                          </span>
+                       </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-8 pt-0 flex gap-4">
+                 {modalStep > 1 && (
+                    <button 
+                      onClick={() => setModalStep(s => s - 1)}
+                      className="flex-1 py-4 border border-white/10 rounded-xl text-[10px] font-black text-white/40 uppercase tracking-[0.4em] hover:bg-white/5 transition-all"
+                    >
+                      Précédent
+                    </button>
+                 )}
+                 <button 
+                   onClick={async () => {
+                     if (modalStep < 3) {
+                       setModalStep(s => s + 1);
+                     } else {
+                       // Handle Create Customer
+                       setSaving(true);
+                       try {
+                         const res = await fetch('/api/admin/fleet/create', {
+                           method: 'POST',
+                           headers: { 'Content-Type': 'application/json' },
+                           body: JSON.stringify(newCustomer)
+                         });
+                         const result = await res.json();
+                         if (result.success) {
+                           showToast('success', 'NODE_INITIALIZED: SUCCESS');
+                           setShowNewCustomerModal(false);
+                           // Refresh fleet
+                           const fleetRes = await fetch('/api/admin/fleet');
+                           const fleetJson = await fleetRes.json();
+                           setFleetData(fleetJson);
+                         } else {
+                           showToast('error', 'INIT_FAIL: ' + result.error);
+                         }
+                       } catch (err) {
+                         showToast('error', 'CONNECTION_TIMEOUT');
+                       } finally {
+                         setSaving(false);
+                       }
+                     }
+                   }}
+                   disabled={saving || (modalStep === 1 && !newCustomer.name)}
+                   className="flex-[2] py-4 bg-[#4ade80] text-black rounded-xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#22c55e] transition-all disabled:opacity-50"
+                 >
+                   {saving ? 'INITIALIZING...' : modalStep === 3 ? 'CRÉER LE CLIENT' : 'Suivant'}
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* TOAST SYSTEM */}
       <AnimatePresence>
         {toast && (
