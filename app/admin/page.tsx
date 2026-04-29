@@ -206,7 +206,7 @@ export default function NeuralCommandCenterV31() {
   const [isAdminOracle, setIsAdminOracle] = useState(true); 
   const [clients, setClients] = useState<FleetNode[]>([]);
   const [commMode, setCommMode] = useState<CommMode>('APPROVAL');
-  const [oracleFilter, setOracleFilter] = useState<'ALL' | 'CRITICAL' | 'WARNING' | 'MESSAGE' | 'STABLE' | 'OPTIMAL'>('ALL');
+  const [oracleFilter, setOracleFilter] = useState<'ALL' | 'CRITICAL' | 'WARNING' | 'MESSAGE' | 'MESSAGES' | 'STABLE' | 'OPTIMAL'>('ALL');
   const [clickedRowId, setClickedRowId] = useState<string | null>(null);
   const [planFilter, setPlanFilter] = useState<'ALL' | 'ENTERPRISE' | 'BUSINESS' | 'STARTUP' | 'ELITE'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -238,6 +238,9 @@ export default function NeuralCommandCenterV31() {
   const [activeSection3Tab, setActiveSection3Tab] = useState('API_MONITOR');
   const [growthIntel, setGrowthIntel] = useState<any>(null);
   const [modalStep, setModalStep] = useState(1);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+  const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const [fleetData, setFleetData] = useState<any>(null);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
     sector: '',
@@ -308,11 +311,11 @@ export default function NeuralCommandCenterV31() {
       try {
         // 1. Fleet via route API (bypass RLS)
         const fleetResponse = await fetch('/api/test-fleet');
-        const fleetJson = await fleetResponse.json();
-        const fleetData = fleetJson.data;
+        const initialFleetJson = await fleetResponse.json();
+        const fleetNodes = initialFleetJson.data;
 
-        if (fleetData) {
-          setClients(fleetData.map((node: any) => ({
+        if (fleetNodes) {
+          setClients(fleetNodes.map((node: any) => ({
             ...node,
             systemHealth: node.status === 'STABLE' ? 'OPTIMAL' : node.status,
             commMode: node.comm_mode || 'AUTONOMOUS',
@@ -412,8 +415,8 @@ export default function NeuralCommandCenterV31() {
 
          // 13. Fleet Data
          const fleetRes = await fetch('/api/admin/fleet');
-         const fleetJson = await fleetRes.json();
-         setFleetData(fleetJson);
+         const fleetAdminJson = await fleetRes.json();
+         setFleetData(fleetAdminJson);
 
          // 14. Plan Definitions for Modal
          const { data: plans } = await supabase.from('plan_definitions').select('*');
@@ -537,10 +540,18 @@ export default function NeuralCommandCenterV31() {
   }
 
   const getChurnMessage = (status: string, name: string) => {
-    if (status === 'CRITICAL') return `${name} — Intervention immédiate requise`
-    if (status === 'WARNING') return `${name} — Surveillance renforcée activée`
-    return `${name} — Statut à surveiller`
+    if (status === 'CRITICAL') return `${name} — Intervention immédiate requise`;
+    if (status === 'WARNING') return `${name} — Surveillance renforcée activée`;
+    return `${name} — Statut à surveiller`;
   }
+
+  const filteredClients = (fleetData?.clients || [])
+    .filter((c: any) => {
+       const matchesStatus = oracleFilter === 'ALL' 
+         || (oracleFilter === 'MESSAGES' ? c.unread_messages > 0 : c.status === oracleFilter);
+       const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
+       return matchesStatus && matchesPlan;
+    });
 
   const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
 
@@ -1288,140 +1299,133 @@ export default function NeuralCommandCenterV31() {
                          </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.02]">
-                         {(() => {
-                           const filtered = (fleetData?.clients || [])
-                             .filter((c: any) => {
-                                const matchesStatus = oracleFilter === 'ALL' 
-                                  || (oracleFilter === 'MESSAGES' ? c.unread_messages > 0 : c.status === oracleFilter);
-                                const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
-                                return matchesStatus && matchesPlan;
-                             });
-
-                           if (filtered.length === 0) {
-                              return (
-                                 <tr>
-                                    <td colSpan={6} className="p-20 text-center">
-                                       <div className="space-y-4">
-                                          <div className="w-12 h-12 rounded-full border border-white/5 bg-white/[0.02] flex items-center justify-center mx-auto opacity-20">
-                                             <Shield className="w-6 h-6 text-[#ef4444]" />
-                                          </div>
-                                          <div className="space-y-1">
-                                             <p className="text-[11px] font-black text-[#ef4444] uppercase tracking-[0.4em]">ERROR: No Neural Node Detected</p>
-                                             <p className="text-[9px] text-white/20 font-mono uppercase tracking-[0.2em]">Check cluster parameters or search queries</p>
-                                          </div>
-                                       </div>
-                                    </td>
-                                 </tr>
-                                 return filtered.map((client: any) => (
-                            <tr 
-                              key={client.id} 
-                              onClick={() => router.push(`/admin/system/${client.id}`)}
-                              className="group cursor-pointer hover:bg-white/[0.02] transition-colors border-l-2 border-transparent hover:border-[#4ade80]/40"
-                            >
-                               <td className="p-6">
-                                  <div className="flex items-center gap-4">
-                                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/5 flex items-center justify-center text-[12px] font-black text-white/40 group-hover:text-white group-hover:border-[#4ade80]/50 transition-all">
-                                        {client.name.substring(0, 2).toUpperCase()}
+                         {filteredClients.length === 0 ? (
+                            <tr>
+                               <td colSpan={7} className="p-20 text-center">
+                                  <div className="space-y-4">
+                                     <div className="w-12 h-12 rounded-full border border-white/5 bg-white/[0.02] flex items-center justify-center mx-auto opacity-20">
+                                        <Shield className="w-6 h-6 text-[#ef4444]" />
                                      </div>
                                      <div className="space-y-1">
-                                        <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors">{client.name}</p>
-                                        <p className="text-[9px] text-white/20 font-mono tracking-tighter uppercase">{client.id.substring(0, 8)} • {client.package_type}</p>
-                                     </div>
-                                  </div>
-                               </td>
-                               <td className="p-6">
-                                  <div className={`px-3 py-1.5 rounded-full border w-fit flex items-center gap-2 ${
-                                    client.status === 'CRITICAL' ? 'bg-red-500/10 border-red-500/20 text-red-500' :
-                                    client.status === 'WARNING' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
-                                    'bg-green-500/10 border-green-500/20 text-green-500'
-                                  }`}>
-                                     <div className={`w-1.5 h-1.5 rounded-full ${client.status === 'CRITICAL' ? 'animate-pulse bg-red-500' : client.status === 'WARNING' ? 'bg-amber-500' : 'bg-green-500'}`} />
-                                     <span className="text-[9px] font-black uppercase tracking-[0.2em]">{client.status}</span>
-                                  </div>
-                               </td>
-                               <td className="p-6 min-w-[150px]">
-                                  <div className="space-y-2">
-                                     <div className="flex justify-between text-[9px] font-mono text-white/30">
-                                        <span className="uppercase tracking-widest">{client.token_usage_percent}% LOAD</span>
-                                        <span className="font-bold">{(client.total_tokens_consumed / 1000).toFixed(0)}k / {(client.token_budget / 1000).toFixed(0)}k</span>
-                                     </div>
-                                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                                        <motion.div 
-                                          initial={{ width: 0 }}
-                                          animate={{ width: `${Math.min(client.token_usage_percent, 100)}%` }}
-                                          className={`h-full ${
-                                            client.token_usage_percent > 80 ? 'bg-red-500' :
-                                            client.token_usage_percent > 60 ? 'bg-orange-500' :
-                                            'bg-green-500'
-                                          }`}
-                                        />
-                                     </div>
-                                  </div>
-                               </td>
-                               <td className="p-6" onClick={(e) => {
-                                 e.stopPropagation();
-                                 router.push(client.intelligence.source_url);
-                               }}>
-                                  {client.intelligence.severity ? (
-                                    <div className="flex items-center gap-3 group/intel hover:bg-white/5 p-2 -m-2 rounded-lg transition-all">
-                                       <div className={`p-2 rounded-lg ${
-                                         client.intelligence.severity === 'CRITICAL' ? 'bg-red-500/20' :
-                                         client.intelligence.severity === 'WARNING' ? 'bg-amber-500/20' :
-                                         'bg-blue-500/20'
-                                       }`}>
-                                          {client.intelligence.type === 'SYSTEM_ERROR' && <Shield className="w-3.5 h-3.5 text-red-500" />}
-                                          {client.intelligence.type === 'TOKEN_WARNING' && <Activity className="w-3.5 h-3.5 text-amber-500" />}
-                                          {client.intelligence.type === 'MESSAGE' && <Users className="w-3.5 h-3.5 text-blue-500" />}
-                                       </div>
-                                       <div className="space-y-0.5">
-                                          <p className={`text-[10px] font-bold uppercase tracking-tight ${
-                                            client.intelligence.severity === 'CRITICAL' ? 'text-red-400' :
-                                            client.intelligence.severity === 'WARNING' ? 'text-amber-400' :
-                                            'text-blue-400'
-                                          }`}>
-                                            {client.intelligence.message}
-                                          </p>
-                                          <p className="text-[8px] font-mono text-white/20 uppercase tracking-widest italic">
-                                            {(() => {
-                                              const date = new Date(client.intelligence.created_at);
-                                              const diffMs = new Date().getTime() - date.getTime();
-                                              const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                                              const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                                              if (diffDays > 0) return `Il y a ${diffDays} jours`;
-                                              if (diffHrs > 0) return `Il y a ${diffHrs}h`;
-                                              return "À l'instant";
-                                            })()}
-                                          </p>
-                                       </div>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-3 opacity-20 group-hover:opacity-100 transition-all">
-                                       <Check className="w-3.5 h-3.5 text-green-500" />
-                                       <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Système optimal</span>
-                                    </div>
-                                  )}
-                               </td>
-                               <td className="p-6">
-                                  <span className="text-[10px] font-mono font-bold text-white/40 uppercase tracking-[0.2em]">{client.region || 'GLOBAL'}</span>
-                               </td>
-                               <td className="p-6">
-                                  <p className="text-[12px] font-mono font-black text-white">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(client.monthly_cost || 0)}</p>
-                               </td>
-                               <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
-                                  <div className="relative group/menu">
-                                     <button className="p-2 hover:bg-white/10 rounded-lg transition-all text-white/20 hover:text-white">
-                                        <MoreHorizontal className="w-4 h-4" />
-                                     </button>
-                                     <div className="absolute right-0 top-full mt-2 w-48 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 overflow-hidden">
-                                        <button onClick={() => router.push(`/admin/system/${client.id}`)} className="w-full text-left px-5 py-3 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all border-b border-white/5 uppercase tracking-widest">Voir Dashboard</button>
-                                        <button onClick={() => router.push(`/admin/system/${client.id}/messages`)} className="w-full text-left px-5 py-3 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all border-b border-white/5 uppercase tracking-widest">Envoyer message</button>
-                                        <button onClick={() => router.push(`/admin/system/${client.id}/settings`)} className="w-full text-left px-5 py-3 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all uppercase tracking-widest">Voir settings</button>
+                                        <p className="text-[11px] font-black text-[#ef4444] uppercase tracking-[0.4em]">ERROR: No Neural Node Detected</p>
+                                        <p className="text-[9px] text-white/20 font-mono uppercase tracking-[0.2em]">Check cluster parameters or search queries</p>
                                      </div>
                                   </div>
                                </td>
                             </tr>
-                           ));
-                         })()}
+                         ) : (
+                            filteredClients.map((client: any) => (
+                               <tr 
+                                 key={client.id} 
+                                 onClick={() => router.push(`/admin/system/${client.id}`)}
+                                 className="group cursor-pointer hover:bg-white/[0.02] transition-colors border-l-2 border-transparent hover:border-[#4ade80]/40"
+                               >
+                                  <td className="p-6">
+                                     <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/5 flex items-center justify-center text-[12px] font-black text-white/40 group-hover:text-white group-hover:border-[#4ade80]/50 transition-all">
+                                           {client.name.substring(0, 2).toUpperCase()}
+                                        </div>
+                                        <div className="space-y-1">
+                                           <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors">{client.name}</p>
+                                           <p className="text-[9px] text-white/20 font-mono tracking-tighter uppercase">{client.id.substring(0, 8)} • {client.package_type}</p>
+                                        </div>
+                                     </div>
+                                  </td>
+                                  <td className="p-6">
+                                     <div className={`px-3 py-1.5 rounded-full border w-fit flex items-center gap-2 ${
+                                       client.status === 'CRITICAL' ? 'bg-red-500/10 border-red-500/20 text-red-500' :
+                                       client.status === 'WARNING' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                                       'bg-green-500/10 border-green-500/20 text-green-500'
+                                     }`}>
+                                        <div className={`w-1.5 h-1.5 rounded-full ${client.status === 'CRITICAL' ? 'animate-pulse bg-red-500' : client.status === 'WARNING' ? 'bg-amber-500' : 'bg-green-500'}`} />
+                                        <span className="text-[9px] font-black uppercase tracking-[0.2em]">{client.status}</span>
+                                     </div>
+                                  </td>
+                                  <td className="p-6 min-w-[150px]">
+                                     <div className="space-y-2">
+                                        <div className="flex justify-between text-[9px] font-mono text-white/30">
+                                           <span className="uppercase tracking-widest">{client.token_usage_percent}% LOAD</span>
+                                           <span className="font-bold">{(client.total_tokens_consumed / 1000).toFixed(0)}k / {(client.token_budget / 1000).toFixed(0)}k</span>
+                                        </div>
+                                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                           <motion.div 
+                                             initial={{ width: 0 }}
+                                             animate={{ width: `${Math.min(client.token_usage_percent, 100)}%` }}
+                                             className={`h-full ${
+                                               client.token_usage_percent > 80 ? 'bg-red-500' :
+                                               client.token_usage_percent > 60 ? 'bg-orange-500' :
+                                               'bg-green-500'
+                                             }`}
+                                           />
+                                        </div>
+                                     </div>
+                                  </td>
+                                  <td className="p-6" onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (client.intelligence?.source_url) {
+                                      router.push(client.intelligence.source_url);
+                                    }
+                                  }}>
+                                     {client.intelligence?.severity ? (
+                                       <div className="flex items-center gap-3 group/intel hover:bg-white/5 p-2 -m-2 rounded-lg transition-all">
+                                          <div className={`p-2 rounded-lg ${
+                                            client.intelligence.severity === 'CRITICAL' ? 'bg-red-500/20' :
+                                            client.intelligence.severity === 'WARNING' ? 'bg-amber-500/20' :
+                                            'bg-blue-500/20'
+                                          }`}>
+                                             {client.intelligence.type === 'SYSTEM_ERROR' && <Shield className="w-3.5 h-3.5 text-red-500" />}
+                                             {client.intelligence.type === 'TOKEN_WARNING' && <Activity className="w-3.5 h-3.5 text-amber-500" />}
+                                             {client.intelligence.type === 'MESSAGE' && <Users className="w-3.5 h-3.5 text-blue-500" />}
+                                          </div>
+                                          <div className="space-y-0.5">
+                                             <p className={`text-[10px] font-bold uppercase tracking-tight ${
+                                               client.intelligence.severity === 'CRITICAL' ? 'text-red-400' :
+                                               client.intelligence.severity === 'WARNING' ? 'text-amber-400' :
+                                               'text-blue-400'
+                                             }`}>
+                                               {client.intelligence.message}
+                                             </p>
+                                             <p className="text-[8px] font-mono text-white/20 uppercase tracking-widest italic">
+                                               {(() => {
+                                                 const date = new Date(client.intelligence.created_at);
+                                                 const diffMs = new Date().getTime() - date.getTime();
+                                                 const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                                                 const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                                                 if (diffDays > 0) return `Il y a ${diffDays} jours`;
+                                                 if (diffHrs > 0) return `Il y a ${diffHrs}h`;
+                                                 return "À l'instant";
+                                               })()}
+                                             </p>
+                                          </div>
+                                       </div>
+                                     ) : (
+                                       <div className="flex items-center gap-3 opacity-20 group-hover:opacity-100 transition-all">
+                                          <Check className="w-3.5 h-3.5 text-green-500" />
+                                          <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Système optimal</span>
+                                       </div>
+                                     )}
+                                  </td>
+                                  <td className="p-6">
+                                     <span className="text-[10px] font-mono font-bold text-white/40 uppercase tracking-[0.2em]">{client.region || 'GLOBAL'}</span>
+                                  </td>
+                                  <td className="p-6">
+                                     <p className="text-[12px] font-mono font-black text-white">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(client.monthly_cost || 0)}</p>
+                                  </td>
+                                  <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
+                                     <div className="relative group/menu">
+                                        <button className="p-2 hover:bg-white/10 rounded-lg transition-all text-white/20 hover:text-white">
+                                           <MoreHorizontal className="w-4 h-4" />
+                                        </button>
+                                        <div className="absolute right-0 top-full mt-2 w-48 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 overflow-hidden">
+                                           <button onClick={() => router.push(`/admin/system/${client.id}`)} className="w-full text-left px-5 py-3 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all border-b border-white/5 uppercase tracking-widest">Voir Dashboard</button>
+                                           <button onClick={() => router.push(`/admin/system/${client.id}/messages`)} className="w-full text-left px-5 py-3 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all border-b border-white/5 uppercase tracking-widest">Envoyer message</button>
+                                           <button onClick={() => router.push(`/admin/system/${client.id}/settings`)} className="w-full text-left px-5 py-3 text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all uppercase tracking-widest">Voir settings</button>
+                                        </div>
+                                     </div>
+                                  </td>
+                               </tr>
+                            ))
+                         )}
                       </tbody>
                    </table>
                 </div>
