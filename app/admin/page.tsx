@@ -1317,12 +1317,11 @@ export default function NeuralCommandCenterV31() {
                                  onClick={() => router.push(`/admin/system/${client.id}`)}
                                  onMouseEnter={(e) => {
                                    (e.currentTarget as HTMLElement).style.background = '#111827'
+                                   ;(e.currentTarget as HTMLElement).style.cursor = 'pointer'
                                  }}
                                  onMouseLeave={(e) => {
                                    (e.currentTarget as HTMLElement).style.background = 'transparent'
                                  }}
-                                 style={{ cursor: 'pointer', transition: 'background 0.2s ease', borderBottom: '1px solid #1f2937' }}
-                                 className="group border-l-2 border-transparent hover:border-[#4ade80]/40 transition-colors"
                                >
                                   <td className="p-6">
                                      <div className="flex items-center gap-4">
