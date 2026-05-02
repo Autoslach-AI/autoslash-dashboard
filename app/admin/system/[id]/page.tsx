@@ -60,43 +60,57 @@ export default function ClientIsolatedSystemPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#000000] text-[#e0e0e0] font-sans selection:bg-[#4ade80]/30 p-6 lg:p-8 pb-32 overflow-y-auto custom-scrollbar">
+    <div className="min-h-screen bg-[#000000] text-[#e0e0e0] font-sans selection:bg-[#10B981]/30 p-6 lg:p-8 pb-32 overflow-y-auto custom-scrollbar">
       {/* HEADER NAVIGATION */}
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex items-center justify-between border-b border-white/5 pb-8">
-           <div className="flex items-center gap-6">
-              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center relative shadow-2xl">
-                 <Brain className="w-7 h-7 text-[#4ade80]" />
-                 <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#4ade80] rounded-full border-2 border-black" />
+        <div className="flex items-start justify-between border-b border-white/5 pb-12">
+           {/* LEFT: BACK BUTTON */}
+           <div className="flex-1">
+              <button 
+                onClick={() => router.back()}
+                className="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center hover:bg-white/10 transition-all text-white/40 hover:text-white group"
+              >
+                <ArrowLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
+              </button>
+           </div>
+
+           {/* CENTER: NEURAL BRANDING */}
+           <div className="flex-[2] flex flex-col items-center text-center px-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(16,185,129,0.1)] relative">
+                 <Brain className="w-7 h-7 text-[#10B981]" />
+                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#10B981] rounded-full border-2 border-black" />
               </div>
-              <div className="space-y-1">
-                 <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black text-white/20 uppercase tracking-[0.4em]">Integrated_Lattice</span>
-                    <ChevronRight className="w-2.5 h-2.5 text-white/10" />
-                    <span className="text-[9px] font-black text-[#4ade80] uppercase tracking-[0.4em]">{clientData?.level || 'Projet Entreprise'}</span>
-                 </div>
-                 <h1 className="text-3xl font-serif font-bold text-white tracking-tight">{clientData?.name || 'Lattice Active'}</h1>
-                 <div className="flex items-center gap-3 pt-1">
-                    <div className="flex items-center gap-2 px-2.5 py-0.5 bg-white/[0.03] border border-white/10 rounded-full">
-                       <Zap className="w-2.5 h-2.5 text-[#4ade80]" />
-                       <span className="text-[7.5px] font-black font-mono text-white/40 uppercase tracking-widest">Active_Domain: {clientData?.industry || 'ELECTRONICS'}</span>
-                    </div>
-                    <span className="text-[7.5px] font-mono text-white/10 uppercase tracking-widest lowercase opacity-30">chameleon engine active</span>
+              <div className="flex items-center gap-3 mb-2">
+                 <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">Integrated_Lattice</span>
+                 <ChevronRight className="w-3 h-3 text-white/10" />
+                 <span className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.4em]">Projet Entreprise</span>
+              </div>
+              <h1 className="text-5xl font-black text-white uppercase tracking-tighter mb-4 italic leading-none">
+                {clientData?.name || 'Neural Dynamics'}
+              </h1>
+              <div className="flex items-center gap-3">
+                 <div className="px-3 py-1 bg-[#10B981]/5 border border-[#10B981]/20 rounded-full flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                    <span className="text-[9px] font-black text-[#10B981] uppercase tracking-[0.3em]">
+                      ACTIVE_DOMAIN: {clientData?.industry || 'UNSPECIFIED'}
+                    </span>
                  </div>
               </div>
            </div>
 
-           <div className="flex items-center gap-3">
-              <div className="flex bg-black/40 p-1 rounded-lg border border-white/5 h-fit">
-                 <button className="px-4 py-2 bg-white/10 text-white rounded-md text-[9px] font-black uppercase tracking-widest">Neural Hub</button>
-                 <button className="px-4 py-2 text-white/20 hover:text-white/40 rounded-md text-[9px] font-black uppercase tracking-widest transition-all">Telemetry</button>
-                 <button className="px-4 py-2 text-white/20 hover:text-white/40 rounded-md text-[9px] font-black uppercase tracking-widest transition-all">Security</button>
+           {/* RIGHT: TABS & ACTION */}
+           <div className="flex-1 flex flex-col items-end gap-4">
+              <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-sm">
+                 <button className="px-6 py-2.5 bg-white/10 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-xl">Neural Hub</button>
+                 <button className="px-6 py-2.5 text-white/20 hover:text-white/50 text-[10px] font-black uppercase tracking-widest transition-all">Telemetry</button>
+                 <button className="px-6 py-2.5 text-white/20 hover:text-white/50 text-[10px] font-black uppercase tracking-widest transition-all">Security</button>
               </div>
               <button 
                 onClick={() => router.push('/admin')}
-                className="px-6 py-2 border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white hover:border-white/20 transition-all"
+                className="px-10 py-2.5 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-white/40 hover:text-[#10B981] hover:border-[#10B981]/40 transition-all group flex items-center gap-2"
               >
                 Exit
+                <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
               </button>
            </div>
         </div>
