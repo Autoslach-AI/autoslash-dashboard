@@ -21,17 +21,16 @@ export default function ClientIsolatedSystemPage() {
   const id = params?.id as string;
   const [booting, setBooting] = useState(true);
   const [clientData, setClientData] = useState<any>(null);
-  const [lastTask, setLastTask] = useState<any>(null);
   const [agents, setAgents] = useState<any[]>([]);
   const [tasksStream, setTasksStream] = useState<any[]>([]);
   const [maxAgents, setMaxAgents] = useState<number>(0);
 
   const fetchTasksStream = async () => {
     const { data } = await supabase
-      .from('agent_tasks')
-      .select('*')
+      .from('client_agent_tasks')
+      .select('agent_id, task_type, task_description, complexity, api_used, status, started_at, output_summary')
       .eq('enterprise_id', id)
-      .order('created_at', { ascending: false })
+      .order('started_at', { ascending: false })
       .limit(10);
     if (data) setTasksStream(data);
   };
@@ -40,7 +39,7 @@ export default function ClientIsolatedSystemPage() {
     async function fetchData() {
       const { data: entData } = await supabase
         .from('enterprises')
-        .select('*')
+        .select('*, token_budget, total_tokens_consumed, last_event_text, last_event_at')
         .eq('id', id)
         .single();
       
@@ -50,30 +49,21 @@ export default function ClientIsolatedSystemPage() {
         // Fetch max agents from plan_definitions
         const { data: planData } = await supabase
           .from('plan_definitions')
-          .select('max_agents')
+          .select('max_agents_allowed')
           .eq('plan_name', entData.package_type)
           .maybeSingle();
         
-        setMaxAgents(planData?.max_agents || 0);
+        setMaxAgents(planData?.max_agents_allowed || 0);
       }
 
       // Fetch agents
       const { data: agentsData } = await supabase
         .from('agents')
-        .select('*')
+        .select('id, name, status, primary_api, neural_load, current_task')
         .eq('enterprise_id', id);
       
       setAgents(agentsData || []);
 
-      const { data: taskData } = await supabase
-        .from('agent_tasks')
-        .select('*')
-        .eq('enterprise_id', id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      setLastTask(taskData);
       setBooting(false);
 
       // Initial stream fetch
@@ -123,7 +113,7 @@ export default function ClientIsolatedSystemPage() {
     );
   }
 
-  const tokenUsage = clientData?.tokens_limit ? (clientData.tokens_used / clientData.tokens_limit) * 100 : 0;
+  const tokenUsage = clientData?.token_budget ? (clientData.total_tokens_consumed / clientData.token_budget) * 100 : 0;
   const tokenColor = tokenUsage >= 90 ? '#EF4444' : tokenUsage >= 75 ? '#F59E0B' : '#10B981';
 
   return (
@@ -222,7 +212,7 @@ export default function ClientIsolatedSystemPage() {
             />
           </div>
           <p className="text-[12px] font-bold text-white/60 mb-8 uppercase tracking-widest">
-            {clientData?.tokens_used?.toLocaleString() || 0} / {clientData?.tokens_limit?.toLocaleString() || '1M'}
+            {clientData?.total_tokens_consumed?.toLocaleString() || 0} / {clientData?.token_budget?.toLocaleString() || '1M'}
           </p>
           <p className="text-[10px] font-mono text-[#4B5563] uppercase tracking-tight">
             {clientData?.package_type === 'STARTUP' ? 'NON APPLICABLE — PLAN STARTUP' : 
@@ -261,14 +251,14 @@ export default function ClientIsolatedSystemPage() {
             </div>
           </div>
           <p className="text-[32px] font-extrabold leading-none mb-2 text-white">
-            {formatDateShort(lastTask?.created_at) || 'N/A'}
+            {formatDateShort(clientData?.last_event_at) || 'N/A'}
           </p>
           <p className="text-[12px] font-bold text-white/60 mb-8 uppercase tracking-widest truncate">
-            {lastTask?.task_name || 'AUCUNE TÂCHE RÉCURRENTE'}
+            {clientData?.last_event_text || 'AUCUNE ACTIVITÉ RÉCENTE'}
           </p>
           <p className="text-[10px] font-mono text-[#4B5563] uppercase tracking-tight">
-            {!lastTask ? 'AUCUNE ACTIVITÉ — AGENTS EN ATTENTE' : 
-             (new Date().getTime() - new Date(lastTask.created_at).getTime()) > 7 * 24 * 60 * 60 * 1000 ? 
+            {!clientData?.last_event_at ? 'AUCUNE ACTIVITÉ — AGENTS EN ATTENTE' : 
+             (new Date().getTime() - new Date(clientData.last_event_at).getTime()) > 7 * 24 * 60 * 60 * 1000 ? 
              'INACTIVITÉ DÉTECTÉE' : 'ACTIVITÉ RÉCENTE'}
           </p>
         </div>
@@ -315,24 +305,24 @@ export default function ClientIsolatedSystemPage() {
               {Array.from({ length: Math.max(agents.length, maxAgents || 2) }).map((_, i) => {
                 const agent = agents[i];
                 if (agent) {
-                  const neuralLoad = Math.floor(Math.random() * 100); // Simulated live load or map from agent if available
+                  const neuralLoad = agent.neural_load || 0;
                   const loadColor = neuralLoad <= 50 ? '#10B981' : neuralLoad <= 80 ? '#F59E0B' : '#EF4444';
                   
                   return (
                     <div key={agent.id} className="bg-[#0A0A0A] p-[28px] hover:bg-[#0c0c0c] transition-all group/agent">
                       <div className="flex justify-between items-start mb-6">
-                        <span className="text-[9px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.agent_type || 'AGENT_UNIT'}]</span>
+                        <span className="text-[9px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.primary_api || 'API_GENERIC'}]</span>
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black border border-white/5">
-                          <div className={`w-1 h-1 rounded-full ${agent.status === 'ACTIVE' ? 'bg-[#10B981]' : agent.status === 'ERROR' ? 'bg-[#EF4444]' : 'bg-[#6B7280]'}`} />
-                          <span className={`text-[8px] font-bold uppercase tracking-widest ${agent.status === 'ACTIVE' ? 'text-[#10B981]' : agent.status === 'ERROR' ? 'text-[#EF4444]' : 'text-[#6B7280]'}`}>
-                            ● {agent.status || 'IDLE'}
+                          <div className={`w-1 body-1 rounded-full ${agent.status?.toLowerCase() === 'active' ? 'bg-[#10B981]' : 'bg-[#6B7280]'}`} />
+                          <span className={`text-[8px] font-bold uppercase tracking-widest ${agent.status?.toLowerCase() === 'active' ? 'text-[#10B981]' : 'text-[#6B7280]'}`}>
+                            ● {agent.status?.toLowerCase() === 'active' ? 'ACTIVE' : 'STANDBY'}
                           </span>
                         </div>
                       </div>
                       
                       <div className="mb-8">
                         <h4 className="text-[18px] font-black text-white uppercase tracking-tighter mb-1">{agent.name}</h4>
-                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em]">{agent.model_config?.model || 'GEMINI-2.0-FLASH'}</p>
+                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em]">{agent.primary_api || 'LLM_UNIT'}</p>
                       </div>
 
                       <div className="space-y-2 mb-8">
@@ -350,7 +340,7 @@ export default function ClientIsolatedSystemPage() {
 
                       <div className="pt-6 border-t border-white/5">
                         <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight line-clamp-1">
-                          {agent.last_task_desc || 'EN ATTENTE DE MISSION'}
+                          {agent.current_task || 'EN ATTENTE DE MISSION'}
                         </p>
                       </div>
                     </div>
@@ -397,25 +387,33 @@ export default function ClientIsolatedSystemPage() {
                 </span>
               </div>
             ) : (
-              tasksStream.map((task, i) => (
-                <div key={task.id} className="p-4 bg-[#0a0a0a] border border-white/5 rounded-lg group/stream-item hover:border-white/10 transition-all">
-                  <div className="flex gap-3 mb-2">
-                    <span className="text-[9px] font-mono text-[#10B981] tabular-nums whitespace-nowrap">
-                      [{new Date(task.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}]
-                    </span>
-                    <p className="text-[11px] text-white/80 font-medium tracking-tight">
-                      <span className="font-black text-[#10B981] mr-1 uppercase">{task.agent_name || 'SYSTEM'}:</span>
-                      {task.task_name}
-                    </p>
+              tasksStream.map((task, i) => {
+                const agentName = agents.find(a => a.id === task.agent_id)?.name || 'SYSTEM';
+                return (
+                  <div key={task.id || i} className="p-4 bg-[#0a0a0a] border border-white/5 rounded-lg group/stream-item hover:border-white/10 transition-all">
+                    <div className="flex gap-3 mb-2">
+                      <span className="text-[9px] font-mono text-[#10B981] tabular-nums whitespace-nowrap">
+                        [{new Date(task.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}]
+                      </span>
+                      <p className="text-[11px] text-white/80 font-medium tracking-tight">
+                        <span className="font-black text-[#10B981] mr-1 uppercase">{agentName}:</span>
+                        {task.task_description}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest bg-black px-1.5 py-0.5 rounded border border-white/5">TYPE: {task.task_type || 'GENERIC'}</span>
+                      <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">COMPLEXITY: {task.complexity || 'LOW'}</span>
+                      <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">API: {task.api_used || 'AUTO'}</span>
+                      <span className={`text-[8px] font-black uppercase tracking-widest ${task.status === 'COMPLETED' ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>{task.status}</span>
+                    </div>
+                    {task.output_summary && (
+                      <p className="mt-2 text-[10px] text-white/40 leading-relaxed italic line-clamp-2">
+                        "{task.output_summary}"
+                      </p>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1">
-                    <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest bg-black px-1.5 py-0.5 rounded border border-white/5">TYPE: {task.task_type || 'GENERIC'}</span>
-                    <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">COMPLEXITY: {task.complexity || 'LOW'}</span>
-                    <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">MODEL: {task.model || 'CLAUDE'}</span>
-                    <span className={`text-[8px] font-black uppercase tracking-widest ${task.status === 'COMPLETED' ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>{task.status}</span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
