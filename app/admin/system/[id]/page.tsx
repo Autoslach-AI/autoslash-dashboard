@@ -6,9 +6,13 @@ import { createClient } from '@/lib/supabase';
 const supabase = createClient();
 import { 
   ChevronRight, 
+  Activity,
   Brain, 
   ArrowLeft,
-  X
+  X,
+  Zap,
+  Lock,
+  LockIcon
 } from 'lucide-react';
 
 export default function ClientIsolatedSystemPage() {
@@ -18,6 +22,19 @@ export default function ClientIsolatedSystemPage() {
   const [booting, setBooting] = useState(true);
   const [clientData, setClientData] = useState<any>(null);
   const [lastTask, setLastTask] = useState<any>(null);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [tasksStream, setTasksStream] = useState<any[]>([]);
+  const [maxAgents, setMaxAgents] = useState<number>(0);
+
+  const fetchTasksStream = async () => {
+    const { data } = await supabase
+      .from('agent_tasks')
+      .select('*')
+      .eq('enterprise_id', id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (data) setTasksStream(data);
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -29,7 +46,24 @@ export default function ClientIsolatedSystemPage() {
       
       if (entData) {
         setClientData(entData);
+
+        // Fetch max agents from plan_definitions
+        const { data: planData } = await supabase
+          .from('plan_definitions')
+          .select('max_agents')
+          .eq('plan_name', entData.package_type)
+          .maybeSingle();
+        
+        setMaxAgents(planData?.max_agents || 0);
       }
+
+      // Fetch agents
+      const { data: agentsData } = await supabase
+        .from('agents')
+        .select('*')
+        .eq('enterprise_id', id);
+      
+      setAgents(agentsData || []);
 
       const { data: taskData } = await supabase
         .from('agent_tasks')
@@ -41,9 +75,15 @@ export default function ClientIsolatedSystemPage() {
       
       setLastTask(taskData);
       setBooting(false);
+
+      // Initial stream fetch
+      fetchTasksStream();
     }
 
     fetchData();
+
+    const interval = setInterval(fetchTasksStream, 5000);
+    return () => clearInterval(interval);
   }, [id]);
 
   const getPlanColor = (plan: string) => {
@@ -234,10 +274,152 @@ export default function ClientIsolatedSystemPage() {
         </div>
       </div>
 
-      {/* CONTENT AREA (EMPTY) */}
-      <main className="flex-1">
-        {/* Reservation for future content */}
-      </main>
+      {/* SECTION 2: AGENT COMMAND CENTER & LIVE THOUGHT STREAM */}
+      <div className="grid grid-cols-[1fr_350px] lg:grid-cols-[1fr_450px] bg-[#080808] min-h-[600px]">
+        {/* LEFT COLUMN: AGENT COMMAND CENTER */}
+        <div className="p-[28px] lg:p-[32px] border-r border-[#1a1a1a]">
+          <div className="flex justify-between items-center mb-10">
+            <div className="flex items-center gap-3">
+              <span className="text-white">⚡</span>
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9CA3AF]">AGENT COMMAND CENTER</h2>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1 bg-black border border-white/5 rounded-full">
+              <div className={`w-1.5 h-1.5 rounded-full ${agents.length > 0 ? 'bg-[#10B981] animate-pulse' : 'bg-[#6B7280]'}`} />
+              <span className={`text-[9px] font-bold uppercase tracking-widest ${agents.length > 0 ? 'text-[#10B981]' : 'text-[#6B7280]'}`}>
+                {agents.length > 0 ? 'UNITS ACTIVE' : 'STANDBY'}
+              </span>
+            </div>
+          </div>
+
+          {clientData?.package_type === 'STARTUP' ? (
+            <div className="grid grid-cols-2 gap-[1px] bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden relative">
+              {[1, 2].map(i => (
+                <div key={i} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#2A2A2A] flex flex-col items-center justify-center p-8 text-center group/lock">
+                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover/lock:scale-110 transition-transform duration-500">
+                    <Lock className="w-5 h-5 text-white/20" />
+                  </div>
+                  <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mb-2">SLOT DISPONIBLE</h4>
+                  <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight max-w-[180px]">
+                    🔒 AUCUN AGENT — PLAN STARTUP
+                  </p>
+                </div>
+              ))}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] z-10">
+                <button className="px-8 py-3 bg-[#10B981] text-black font-black text-[11px] uppercase tracking-[0.2em] rounded-lg hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]">
+                  UPGRADER LE PLAN
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-[1px] bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden">
+              {Array.from({ length: Math.max(agents.length, maxAgents || 2) }).map((_, i) => {
+                const agent = agents[i];
+                if (agent) {
+                  const neuralLoad = Math.floor(Math.random() * 100); // Simulated live load or map from agent if available
+                  const loadColor = neuralLoad <= 50 ? '#10B981' : neuralLoad <= 80 ? '#F59E0B' : '#EF4444';
+                  
+                  return (
+                    <div key={agent.id} className="bg-[#0A0A0A] p-[28px] hover:bg-[#0c0c0c] transition-all group/agent">
+                      <div className="flex justify-between items-start mb-6">
+                        <span className="text-[9px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.agent_type || 'AGENT_UNIT'}]</span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black border border-white/5">
+                          <div className={`w-1 h-1 rounded-full ${agent.status === 'ACTIVE' ? 'bg-[#10B981]' : agent.status === 'ERROR' ? 'bg-[#EF4444]' : 'bg-[#6B7280]'}`} />
+                          <span className={`text-[8px] font-bold uppercase tracking-widest ${agent.status === 'ACTIVE' ? 'text-[#10B981]' : agent.status === 'ERROR' ? 'text-[#EF4444]' : 'text-[#6B7280]'}`}>
+                            ● {agent.status || 'IDLE'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-8">
+                        <h4 className="text-[18px] font-black text-white uppercase tracking-tighter mb-1">{agent.name}</h4>
+                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em]">{agent.model_config?.model || 'GEMINI-2.0-FLASH'}</p>
+                      </div>
+
+                      <div className="space-y-2 mb-8">
+                        <div className="flex justify-between text-[8px] font-bold text-[#6B7280] uppercase tracking-widest font-mono">
+                          <span>NEURAL_LOAD</span>
+                          <span style={{ color: loadColor }}>{neuralLoad}%</span>
+                        </div>
+                        <div className="h-[3px] w-full bg-white/5 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full transition-all duration-1000" 
+                            style={{ width: `${neuralLoad}%`, backgroundColor: loadColor }} 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="pt-6 border-t border-white/5">
+                        <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight line-clamp-1">
+                          {agent.last_task_desc || 'EN ATTENTE DE MISSION'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={`empty-${i}`} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#2A2A2A] flex flex-col items-center justify-center p-8 text-center group/lock">
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 text-white/10 group-hover/lock:text-white/30 transition-all">
+                      <LockIcon className="w-4 h-4" />
+                    </div>
+                    <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">SLOT DISPONIBLE</h4>
+                    <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight">
+                      Upgrade vers {clientData?.package_type === 'BUSINESS' ? 'ENTERPRISE' : 'ELITE'}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT COLUMN: LIVE THOUGHT STREAM */}
+        <div className="p-[28px] lg:p-[32px] flex flex-col h-full bg-[#080808]">
+          <div className="flex justify-between items-center mb-10">
+            <div className="flex items-center gap-2 group/stream cursor-pointer">
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9CA3AF] group-hover/stream:text-white transition-colors">LIVE THOUGHT STREAM</h2>
+              <ChevronRight className="w-3.5 h-3.5 text-[#9CA3AF] group-hover/stream:translate-x-1 transition-all" />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+            {clientData?.package_type === 'STARTUP' ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
+                <Lock className="w-8 h-8 mb-4 text-[#4B5563]" />
+                <span className="text-[10px] font-mono text-[#4B5563] uppercase tracking-widest leading-loose">
+                  🔒 LIVE STREAM NON DISPONIBLE — AUCUN AGENT DÉPLOYÉ
+                </span>
+              </div>
+            ) : tasksStream.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
+                <span className="text-[10px] font-mono text-[#4B5563] uppercase tracking-widest">
+                  FLUX VIDE — EN ATTENTE D'ACTIVITÉ AGENT
+                </span>
+              </div>
+            ) : (
+              tasksStream.map((task, i) => (
+                <div key={task.id} className="p-4 bg-[#0a0a0a] border border-white/5 rounded-lg group/stream-item hover:border-white/10 transition-all">
+                  <div className="flex gap-3 mb-2">
+                    <span className="text-[9px] font-mono text-[#10B981] tabular-nums whitespace-nowrap">
+                      [{new Date(task.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}]
+                    </span>
+                    <p className="text-[11px] text-white/80 font-medium tracking-tight">
+                      <span className="font-black text-[#10B981] mr-1 uppercase">{task.agent_name || 'SYSTEM'}:</span>
+                      {task.task_name}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest bg-black px-1.5 py-0.5 rounded border border-white/5">TYPE: {task.task_type || 'GENERIC'}</span>
+                    <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">COMPLEXITY: {task.complexity || 'LOW'}</span>
+                    <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">MODEL: {task.model || 'CLAUDE'}</span>
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${task.status === 'COMPLETED' ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>{task.status}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
