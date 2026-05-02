@@ -237,19 +237,30 @@ export default function NeuralCommandCenterV31() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [activeSection3Tab, setActiveSection3Tab] = useState('API_MONITOR');
   const [growthIntel, setGrowthIntel] = useState<any>(null);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [form, setForm] = useState({
     name: '',
     sector: '',
     region: '',
     email: '',
+    phone: '',
     description: '',
+    website: '',
     template_id: '',
     package_type: '',
     price_fcfa: 0,
+    price_override: '',
+    agents_override: '',
+    custom_notes: '',
     template_title: ''
   });
+  const [step0Query, setStep0Query] = useState('');
+  const [step0Results, setStep0Results] = useState<any[]>([]);
+  const [isSearchingStep0, setIsSearchingStep0] = useState(false);
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [isCustomizing, setIsCustomizing] = useState(false);
+  const [generatedProjectId, setGeneratedProjectId] = useState('');
   const [templates, setTemplates] = useState<any[]>([]);
   const [templateAgentsCounts, setTemplateAgentsCounts] = useState<Record<string, number>>({});
   const [templateFilter, setTemplateFilter] = useState<'ALL' | 'STARTUP' | 'BUSINESS' | 'ENTERPRISE' | 'ELITE'>('ALL');
@@ -263,6 +274,28 @@ export default function NeuralCommandCenterV31() {
       fetchTemplates();
     }
   }, [showNewCustomerModal, step]);
+
+  // Effect for Step 3 project ID generation
+  useEffect(() => {
+    if (step === 3 && form.package_type && !generatedProjectId) {
+      const getNextId = async () => {
+        const prefixes: Record<string, string> = {
+          STARTUP: 'S', BUSINESS: 'B',
+          ENTERPRISE: 'E', ELITE: 'EL'
+        };
+        const prefix = prefixes[form.package_type] || 'B';
+        const { data } = await supabase
+          .from('enterprises')
+          .select('project_id')
+          .like('project_id', `${prefix}_%`)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        const lastNum = data?.[0] ? parseInt(data[0].project_id.split('_')[1]) : 0;
+        setGeneratedProjectId(`${prefix}_${String(lastNum + 1).padStart(3, '0')}`);
+      };
+      getNextId();
+    }
+  }, [step, form.package_type, generatedProjectId]);
 
   async function fetchTemplates() {
     setIsLoadingTemplates(true);
@@ -297,35 +330,87 @@ export default function NeuralCommandCenterV31() {
     }
   }
 
+  const handleSearchStep0 = async () => {
+    if (!step0Query) return;
+    setIsSearchingStep0(true);
+    try {
+      const { data } = await supabase
+        .from('enterprises')
+        .select('*')
+        .or(`project_id.ilike.%${step0Query}%,name.ilike.%${step0Query}%,email.ilike.%${step0Query}%`)
+        .limit(5);
+      setStep0Results(data || []);
+    } catch (err) {
+      console.error("Step 0 search error:", err);
+    } finally {
+      setIsSearchingStep0(false);
+    }
+  };
+
+  const addTerminalLog = (msg: string) => {
+    setTerminalLogs(prev => [...prev, msg].slice(-8));
+  };
+
   const handleCreateCustomer = async () => {
     setSaving(true);
+    setTerminalLogs([]);
     try {
-      // 1. Générer project_id
-      const prefixes: Record<string, string> = { STARTUP: 'S', BUSINESS: 'B', ENTERPRISE: 'E', ELITE: 'EL' };
-      const prefix = prefixes[form.package_type] || 'G';
+      // ANTI-DOUBLON
+      addTerminalLog("Vérification doublons...");
+      const { data: existing } = await supabase
+        .from('enterprises')
+        .select('id, project_id, name')
+        .ilike('name', form.name)
+        .maybeSingle();
+
+      if (existing) {
+        addTerminalLog(`ALERTE: PROJET EXISTANT DÉTECTÉ — [${existing.project_id}]`);
+        showToast('error', `PROJET EXISTANT DÉTECTÉ — ${existing.project_id}`);
+        setTimeout(() => {
+          router.push(`/admin/system/${existing.id}`);
+        }, 2000);
+        return;
+      }
+
+      await new Promise(r => setTimeout(r, 500));
+      addTerminalLog("Génération enterprise_id...");
+
+      // GÉNÉRER PROJECT_ID
+      const prefixes: Record<string, string> = {
+        STARTUP: 'S', BUSINESS: 'B',
+        ENTERPRISE: 'E', ELITE: 'EL'
+      };
+      const prefix = prefixes[form.package_type] || 'B';
       
-      const { data: lastProject } = await supabase
+      const { data: last } = await supabase
         .from('enterprises')
         .select('project_id')
         .like('project_id', `${prefix}_%`)
-        .order('project_id', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(1);
+      
+      const lastNum = last?.[0]
+        ? parseInt(last[0].project_id.split('_')[1])
+        : 0;
+      const project_id = `${prefix}_${String(lastNum + 1).padStart(3, '0')}`;
+      setGeneratedProjectId(project_id);
+      
+      await new Promise(r => setTimeout(r, 600));
+      addTerminalLog(`Attribution project_id [${project_id}]...`);
 
-      const nextNum = lastProject?.[0]
-        ? parseInt(lastProject[0].project_id.split('_')[1]) + 1
-        : 1;
-      const project_id = `${prefix}_${String(nextNum).padStart(3, '0')}`;
-
-      // 2. Lire plan_definitions
-      const { data: plan, error: planErr } = await supabase
+      // LIRE PLAN_DEFINITIONS
+      const { data: plan } = await supabase
         .from('plan_definitions')
-        .select('monthly_token_quota, maintenance_fcfa, max_agents_allowed')
+        .select('monthly_token_quota, maintenance_fcfa, max_agents_allowed, id')
         .eq('plan_name', form.package_type)
         .single();
-      
-      if (planErr) throw planErr;
 
-      // 3. Créer enterprise
+      if (!plan) throw new Error("Plan non trouvé");
+
+      // CRÉER ENTERPRISE
+      await new Promise(r => setTimeout(r, 700));
+      addTerminalLog("Déploiement configuration lattice...");
+
       const { data: enterprise, error: entErr } = await supabase
         .from('enterprises')
         .insert({
@@ -333,13 +418,18 @@ export default function NeuralCommandCenterV31() {
           sector: form.sector,
           region: form.region,
           email: form.email,
+          phone: form.phone,
           description: form.description,
+          website: form.website,
           package_type: form.package_type,
           status: 'PROSPECT',
-          monthly_cost: form.price_fcfa,
+          monthly_cost: parseInt(form.price_override) || form.price_fcfa,
           token_budget: plan.monthly_token_quota,
           total_tokens_consumed: 0,
-          project_id: project_id,
+          project_id,
+          max_agents_override: parseInt(form.agents_override) || null,
+          is_custom_pricing: !!form.price_override,
+          custom_notes: form.custom_notes || null,
           created_at: new Date().toISOString()
         })
         .select()
@@ -347,65 +437,71 @@ export default function NeuralCommandCenterV31() {
       
       if (entErr) throw entErr;
 
-      // 4. Créer agents depuis template_agents (sauf STARTUP)
+      // CRÉER AGENTS (sauf STARTUP)
       if (form.package_type !== 'STARTUP') {
+        addTerminalLog("Déploiement agents depuis template...");
         const { data: templateAgents } = await supabase
           .from('template_agents')
-          .select('agent_name, agent_role, system_prompt, primary_api, neural_load_default')
+          .select('*')
           .eq('template_id', form.template_id);
 
-        if (templateAgents?.length) {
-          const { error: agentsErr } = await supabase.from('agents').insert(
-            templateAgents.map((ta: any) => ({
-              enterprise_id: enterprise.id,
-              name: ta.agent_name,
-              role_protocol: ta.agent_role,
-              system_prompt: ta.system_prompt,
-              primary_api: ta.primary_api,
-              neural_load: ta.neural_load_default,
-              status: 'standby',
-              complexity: 'MEDIUM'
-            }))
-          );
-          if (agentsErr) throw agentsErr;
+        const agentCount = parseInt(form.agents_override) || plan.max_agents_allowed;
+
+        const agentsToCreate = templateAgents
+          ?.slice(0, agentCount)
+          .map((ta: any) => ({
+            enterprise_id: enterprise.id,
+            name: ta.agent_name,
+            role_protocol: ta.agent_role,
+            system_prompt: ta.system_prompt,
+            primary_api: ta.primary_api,
+            neural_load: ta.neural_load_default,
+            status: 'standby',
+            complexity: 'MEDIUM',
+            fallback_chain: ['gemini-pro', 'openrouter'],
+          }));
+
+        if (agentsToCreate?.length) {
+          await supabase.from('agents').insert(agentsToCreate);
         }
+      } else {
+        addTerminalLog("Site web uniquement — 0 agent déployé.");
       }
 
-      // 5. Créer client_subscriptions
-      const { data: planDef } = await supabase
-        .from('plan_definitions')
-        .select('id')
-        .eq('plan_name', form.package_type)
-        .single();
+      await new Promise(r => setTimeout(r, 400));
+      addTerminalLog("Initialisation base de connaissance...");
+      
+      // CLIENT SUBSCRIPTIONS
+      await supabase.from('client_subscriptions').insert({
+        enterprise_id: enterprise.id,
+        plan_id: plan.id,
+        started_at: new Date().toISOString()
+      });
 
-      if (planDef) {
-        await supabase.from('client_subscriptions').insert({
-          enterprise_id: enterprise.id,
-          plan_id: planDef.id,
-          started_at: new Date().toISOString()
-        });
-      }
-
-      // 6. Log intelligence
+      await new Promise(r => setTimeout(r, 300));
+      addTerminalLog("Log intelligence créé...");
+      
+      // LOG INTELLIGENCE
       await supabase.from('admin_intelligence_logs').insert({
         client_id: enterprise.id,
         issue_type: 'NEW_PROSPECT',
         severity_level: 'INFO',
-        raw_context: `NOUVEAU PROSPECT — ${form.sector} ${form.region} ${form.package_type}`
+        raw_context: `NOUVEAU PROSPECT — ${form.sector} ${form.region} ${form.package_type} ${project_id}`
       });
 
-      // 7. Finalize
-      setShowNewCustomerModal(false);
-      setStep(1);
-      // Fetch fresh data
-      const fleetRes = await fetch('/api/admin/fleet');
-      const fleetJson = await fleetRes.json();
-      setFleetData(fleetJson);
-      
-      showToast('success', `Client créé — ${project_id}`);
+      addTerminalLog("PROJET CRÉÉ AVEC SUCCÈS ✅");
+      showToast('success', `PROJET CRÉÉ: ${project_id}`);
+
+      setTimeout(() => {
+        setShowNewCustomerModal(false);
+        // router.push(`/admin/system/${enterprise.id}`); // User might want to see the dashboard but let's stick to instruction
+        router.push(`/admin/system/${enterprise.id}`);
+      }, 2000);
+
     } catch (err: any) {
-      console.error("Creation error:", err);
-      showToast('error', `Erreur: ${err.message || 'Echec de création'}`);
+      addTerminalLog(`ERREUR CRITIQUE: ${err.message}`);
+      showToast('error', `Erreur: ${err.message}`);
+      console.error(err);
     } finally {
       setSaving(false);
     }
@@ -1643,7 +1739,7 @@ export default function NeuralCommandCenterV31() {
                   
                   {/* Progress Indicator */}
                   <div className="hidden md:flex items-center gap-4 ml-8">
-                    {[1, 2, 3].map((s) => (
+                    {[0, 1, 2, 3].map((s) => (
                       <div key={s} className="flex items-center gap-2">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
                           step === s 
@@ -1655,9 +1751,9 @@ export default function NeuralCommandCenterV31() {
                           {step > s ? <Check className="w-3 h-3" /> : s}
                         </div>
                         <span className={`text-[9px] font-bold uppercase tracking-widest ${step === s ? 'text-white' : 'text-white/20'}`}>
-                          {s === 1 ? 'Identité' : s === 2 ? 'Template' : 'Validation'}
+                          {s === 0 ? 'Search' : s === 1 ? 'Identité' : s === 2 ? 'Template' : 'Validation'}
                         </span>
-                        {s < 3 && <div className="w-8 h-px bg-white/5 mx-2" />}
+                        {s < 3 && <div className="w-4 h-px bg-white/5 mx-1" />}
                       </div>
                     ))}
                   </div>
@@ -1672,7 +1768,83 @@ export default function NeuralCommandCenterV31() {
                 )}
               </div>
 
-              <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar bg-black/50">
+                {step === 0 && (
+                   <div className="space-y-8 animate-in fade-in duration-500">
+                      <div className="max-w-xl mx-auto text-center space-y-4 py-8">
+                         <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                            <Search className="w-8 h-8 text-white/20" />
+                         </div>
+                         <h3 className="text-[18px] font-black uppercase tracking-[0.4em] text-white">DÉTECTER UN PROJET EXISTANT</h3>
+                         <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest leading-relaxed">
+                            Entrez project_id, nom ou email pour synchroniser un lattice déjà déployé
+                         </p>
+                      </div>
+
+                      <div className="max-w-2xl mx-auto space-y-6">
+                         <div className="relative">
+                            <input 
+                               type="text" 
+                               value={step0Query}
+                               onChange={(e) => setStep0Query(e.target.value)}
+                               onKeyDown={(e) => e.key === 'Enter' && handleSearchStep0()}
+                               placeholder="B_001 / Neural Dynamics / email@..."
+                               className="w-full bg-black border border-white/10 rounded-2xl px-8 py-5 text-[12px] font-mono text-white placeholder:text-white/5 focus:border-[#4ade80]/40 transition-all outline-none pr-32"
+                            />
+                            <button 
+                               onClick={handleSearchStep0}
+                               disabled={isSearchingStep0}
+                               className="absolute right-3 top-3 h-10 px-6 bg-[#4ade80] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all active:scale-95 disabled:opacity-50"
+                            >
+                               {isSearchingStep0 ? 'SCAN...' : 'RECHERCHER'}
+                            </button>
+                         </div>
+
+                         {step0Results.length > 0 ? (
+                            <div className="space-y-3 pt-4">
+                               {step0Results.map((res) => (
+                                  <div 
+                                     key={res.id}
+                                     onClick={() => router.push(`/admin/system/${res.id}`)}
+                                     className="group p-5 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-between hover:border-[#4ade80]/40 transition-all cursor-pointer"
+                                  >
+                                     <div className="flex items-center gap-6">
+                                        <div className="w-12 h-12 bg-black border border-white/5 rounded-xl flex items-center justify-center group-hover:border-[#4ade80]/20 transition-all">
+                                           <p className="text-[12px] font-black text-white">{res.project_id}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                           <h4 className="text-[13px] font-black text-white uppercase tracking-wider">{res.name}</h4>
+                                           <p className="text-[9px] font-mono text-white/40 uppercase tracking-widest">{res.package_type} • {res.region} • {res.status}</p>
+                                        </div>
+                                     </div>
+                                     <ChevronRight className="w-5 h-5 text-white/10 group-hover:text-[#4ade80] group-hover:translate-x-1 transition-all" />
+                                  </div>
+                               ))}
+                            </div>
+                         ) : step0Query && !isSearchingStep0 && (
+                            <div className="text-center py-10 space-y-4">
+                               <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest">AUCUN PROJET TROUVÉ — Créer nouveau ?</p>
+                               <button 
+                                  onClick={() => setStep(1)}
+                                  className="text-[10px] font-black text-white hover:text-[#4ade80] underline decoration-[#4ade80]/40 underline-offset-4 transition-all"
+                               >
+                                  + Créer nouveau projet
+                               </button>
+                            </div>
+                         )}
+
+                         <div className="pt-8 text-center">
+                            <button 
+                               onClick={() => setStep(1)}
+                               className="text-[10px] font-bold text-white/20 hover:text-white uppercase tracking-[0.4em] transition-all"
+                            >
+                               + Ignorer et créer un nouveau projet
+                            </button>
+                         </div>
+                      </div>
+                   </div>
+                )}
+
                 {step === 1 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="space-y-6">
@@ -1687,22 +1859,32 @@ export default function NeuralCommandCenterV31() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Secteur / Métier *</label>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[#4ade80] ml-1">Secteur / Métier *</label>
                         <input 
                           type="text" 
                           value={form.sector}
                           onChange={(e) => setForm({...form, sector: e.target.value})}
-                          placeholder="Saisissez le domaine d'activité"
+                          placeholder="ex: Fintech, Logistique..."
                           className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Région *</label>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[#4ade80] ml-1">Région / Pays *</label>
                         <input 
                           type="text" 
                           value={form.region}
                           onChange={(e) => setForm({...form, region: e.target.value})}
-                          placeholder="Zone géographique d'opération"
+                          placeholder="ex: Afrique, Cameroun, Monde..."
+                          className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[#4ade80] ml-1">Email Professionnel *</label>
+                        <input 
+                          type="email" 
+                          value={form.email}
+                          onChange={(e) => setForm({...form, email: e.target.value})}
+                          placeholder="admin@enterprise.com"
                           className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
                         />
                       </div>
@@ -1710,22 +1892,32 @@ export default function NeuralCommandCenterV31() {
                     
                     <div className="space-y-6">
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[#4ade80] ml-1">Email de contact *</label>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[#4ade80] ml-1">Téléphone *</label>
                         <input 
-                          type="email" 
-                          value={form.email}
-                          onChange={(e) => setForm({...form, email: e.target.value})}
-                          placeholder="admin@enterprise.node"
+                          type="text" 
+                          value={form.phone}
+                          onChange={(e) => setForm({...form, phone: e.target.value})}
+                          placeholder="+237 ..."
                           className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Description des besoins</label>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-white/20 ml-1">Site Web Existant (Optionnel)</label>
+                        <input 
+                          type="text" 
+                          value={form.website}
+                          onChange={(e) => setForm({...form, website: e.target.value})}
+                          placeholder="https://..."
+                          className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-white/20 ml-1">Description des besoins</label>
                         <textarea 
-                          rows={5}
+                          rows={4}
                           value={form.description}
                           onChange={(e) => setForm({...form, description: e.target.value})}
-                          placeholder="Détails du projet, objectifs neurales..."
+                          placeholder="Détails du projet..."
                           className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none resize-none"
                         />
                       </div>
@@ -1734,8 +1926,7 @@ export default function NeuralCommandCenterV31() {
                 )}
 
                 {step === 2 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                    {/* Filters */}
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 pb-10">
                     <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-2xl border border-white/5 w-fit overflow-x-auto no-scrollbar">
                       {(['ALL', 'STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE'] as const).map((f) => (
                         <button 
@@ -1758,59 +1949,111 @@ export default function NeuralCommandCenterV31() {
                           <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/20">Accès au Template Vault...</p>
                        </div>
                     ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {templates.filter((t: any) => templateFilter === 'ALL' || t.package_type === templateFilter).map((tmpl: any) => {
-                          const agentsCount = templateAgentsCounts[tmpl.id] || 0;
-                          const isSelected = form.template_id === tmpl.id;
-                          return (
-                            <div 
-                              key={tmpl.id}
-                              onClick={() => setForm({
-                                ...form, 
-                                template_id: tmpl.id, 
-                                package_type: tmpl.package_type, 
-                                price_fcfa: tmpl.price_fcfa,
-                                template_title: tmpl.title
-                              })}
-                              className={`p-6 bg-black border rounded-2xl cursor-pointer transition-all relative group overflow-hidden ${
-                                isSelected 
-                                ? 'border-[#4ade80] bg-[#4ade80]/5 ring-1 ring-[#4ade80]/50' 
-                                : 'border-white/5 hover:border-white/20'
-                              }`}
-                            >
-                              <div className="space-y-4 relative z-10">
-                                <div className="flex justify-between items-start">
-                                  <div className="space-y-1">
-                                    <h4 className="text-[12px] font-black uppercase tracking-widest text-white">{tmpl.title}</h4>
-                                    <p className="text-[9px] font-mono text-white/40 uppercase">{tmpl.sector}</p>
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {templates.filter((t: any) => templateFilter === 'ALL' || t.package_type === templateFilter).map((tmpl: any) => {
+                            const agentsCount = templateAgentsCounts[tmpl.id] || 0;
+                            const isSelected = form.template_id === tmpl.id;
+                            return (
+                              <div 
+                                key={tmpl.id}
+                                onClick={() => setForm({
+                                  ...form, 
+                                  template_id: tmpl.id, 
+                                  package_type: tmpl.package_type, 
+                                  price_fcfa: tmpl.price_fcfa,
+                                  template_title: tmpl.title
+                                })}
+                                className={`p-6 bg-black border rounded-2xl cursor-pointer transition-all relative group overflow-hidden ${
+                                  isSelected 
+                                  ? 'border-[#4ade80] bg-[#4ade80]/5 ring-1 ring-[#4ade80]/50' 
+                                  : 'border-white/5 hover:border-white/20'
+                                }`}
+                              >
+                                <div className="space-y-4 relative z-10">
+                                  <div className="flex justify-between items-start">
+                                    <div className="space-y-1">
+                                      <h4 className="text-[12px] font-black uppercase tracking-widest text-white">{tmpl.title}</h4>
+                                      <p className="text-[9px] font-mono text-white/40 uppercase">{tmpl.sector}</p>
+                                    </div>
+                                    <div className={`px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border ${
+                                      tmpl.package_type === 'STARTUP' 
+                                      ? 'bg-white/5 border-white/10 text-white/40' 
+                                      : 'bg-[#4ade80]/10 border-[#4ade80]/20 text-[#4ade80]'
+                                    }`}>
+                                      {tmpl.package_type === 'STARTUP' ? 'SITE WEB' : `IA + ${agentsCount}`}
+                                    </div>
                                   </div>
-                                  <div className={`px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border ${
-                                    tmpl.package_type === 'STARTUP' ? 'bg-white/5 border-white/10 text-white/40' : 'bg-[#4ade80]/10 border-[#4ade80]/20 text-[#4ade80]'
-                                  }`}>
-                                    {tmpl.package_type === 'STARTUP' ? 'SITE WEB' : 'IA ACTIVATE'}
+                                  
+                                  <p className="text-[10px] text-white/30 line-clamp-2 h-10 leading-relaxed">{tmpl.description}</p>
+                                  
+                                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                     <div className="flex flex-col">
+                                        <span className="text-[14px] font-mono font-black text-white">{tmpl.price_fcfa.toLocaleString('fr-FR')} F</span>
+                                        <span className="text-[8px] font-black text-white/20 uppercase">Initialisation</span>
+                                     </div>
+                                     <div className="flex items-center gap-2">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${agentsCount > 0 ? 'bg-[#4ade80]' : 'bg-white/10'}`} />
+                                        <span className="text-[8px] font-black text-white/60 uppercase">{agentsCount} AGENTS</span>
+                                     </div>
                                   </div>
                                 </div>
-                                
-                                <p className="text-[10px] text-white/30 line-clamp-2 h-10 leading-relaxed">{tmpl.description}</p>
-                                
-                                <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                                   <div className="flex flex-col">
-                                      <span className="text-[14px] font-mono font-black text-white">{tmpl.price_fcfa.toLocaleString('fr-FR')} FCF</span>
-                                      <span className="text-[8px] font-black text-white/20 uppercase">Initialisation</span>
-                                   </div>
-                                   <div className="flex items-center gap-2">
-                                      <div className={`w-2 h-2 rounded-full ${agentsCount > 0 ? 'bg-[#4ade80]' : 'bg-white/10'}`} />
-                                      <span className="text-[9px] font-black text-white/60 uppercase">{agentsCount} AGENTS</span>
-                                   </div>
-                                </div>
+                                {isSelected && (
+                                  <motion.div layoutId="selection" className="absolute inset-0 bg-[#4ade80]/2 pointer-events-none" />
+                                )}
                               </div>
-                              {isSelected && (
-                                <motion.div layoutId="selection" className="absolute inset-0 bg-[#4ade80]/5 pointer-events-none" />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Override Section */}
+                        <div className="mt-8 border border-white/5 bg-white/[0.01] rounded-2xl p-6 space-y-6">
+                           <div className="flex items-center justify-between">
+                              <div className="space-y-1">
+                                 <h5 className="text-[11px] font-black text-white uppercase tracking-widest">Configuration Avancée / Override</h5>
+                                 <p className="text-[9px] font-mono text-white/30 uppercase">Forcer des paramètres personnalisés pour ce client</p>
+                              </div>
+                              <button 
+                                 onClick={() => setIsCustomizing(!isCustomizing)}
+                                 className={`w-12 h-6 rounded-full border border-white/10 transition-all p-1 flex ${isCustomizing ? 'justify-end bg-[#4ade80]/20' : 'justify-start bg-black'}`}
+                              >
+                                 <div className={`w-4 h-4 rounded-full ${isCustomizing ? 'bg-[#4ade80]' : 'bg-white/10'}`} />
+                              </button>
+                           </div>
+
+                           {isCustomizing && (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-4">
+                                 <div className="space-y-2">
+                                    <label className="text-[9px] font-black uppercase text-white/40 ml-1">Prix Personnalisé (FCFA)</label>
+                                    <input 
+                                       type="number"
+                                       value={form.price_override}
+                                       onChange={(e) => setForm({...form, price_override: e.target.value})}
+                                       className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-[11px] font-mono text-white outline-none focus:border-[#4ade80]/40"
+                                    />
+                                 </div>
+                                 <div className="space-y-2">
+                                    <label className="text-[9px] font-black uppercase text-white/40 ml-1">Nombre d'Agents Override</label>
+                                    <input 
+                                       type="number"
+                                       value={form.agents_override}
+                                       onChange={(e) => setForm({...form, agents_override: e.target.value})}
+                                       className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-[11px] font-mono text-white outline-none focus:border-[#4ade80]/40"
+                                    />
+                                 </div>
+                                 <div className="md:col-span-2 space-y-2">
+                                    <label className="text-[9px] font-black uppercase text-white/40 ml-1">Notes de Personnalisation</label>
+                                    <textarea 
+                                       rows={2}
+                                       value={form.custom_notes}
+                                       onChange={(e) => setForm({...form, custom_notes: e.target.value})}
+                                       className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-[11px] font-mono text-white outline-none focus:border-[#4ade80]/40 resize-none"
+                                    />
+                                 </div>
+                              </div>
+                           )}
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
@@ -1819,55 +2062,67 @@ export default function NeuralCommandCenterV31() {
                   <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                     <div className="bg-[#4ade80]/5 border border-[#4ade80]/20 rounded-2xl p-8 flex flex-col md:flex-row items-center gap-8">
                        <div className="w-24 h-24 rounded-full border-4 border-[#4ade80]/20 flex items-center justify-center relative">
-                          <Shield className="w-12 h-12 text-[#4ade80]" />
+                          <Check className="w-12 h-12 text-[#4ade80]" />
                           <div className="absolute inset-0 rounded-full animate-ping opacity-10 bg-[#4ade80]" />
                        </div>
                        <div className="flex-1 space-y-4">
                           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
                              <div className="space-y-1">
-                                <span className="text-[9px] font-black text-[#4ade80] uppercase tracking-widest">Entreprise</span>
+                                <span className="text-[9px] font-black text-[#4ade80] uppercase tracking-widest">Entreprise / Secteur</span>
                                 <p className="text-[12px] font-bold text-white uppercase">{form.name}</p>
+                                <p className="text-[9px] font-mono text-white/40 uppercase">{form.sector}</p>
                              </div>
                              <div className="space-y-1">
-                                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Secteur / Région</span>
-                                <p className="text-[11px] font-mono text-white/60 uppercase">{form.sector} • {form.region}</p>
+                                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Email / Phone</span>
+                                <p className="text-[11px] font-mono text-white/60">{form.email}</p>
+                                <p className="text-[11px] font-mono text-white/40">{form.phone}</p>
                              </div>
                              <div className="space-y-1">
-                                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Plan Selectionné</span>
-                                <p className="text-[12px] font-black text-[#4ade80] uppercase tracking-tighter">{form.package_type}</p>
+                                <span className="text-[9px] font-black text-[#4ade80] uppercase tracking-widest">Plan & Template</span>
+                                <p className="text-[12px] font-black text-white uppercase tracking-tighter">{form.package_type}</p>
+                                <p className="text-[9px] font-mono text-white/40 uppercase">{form.template_title}</p>
                              </div>
                              <div className="space-y-1">
-                                <span className="text-[9px] font-black text-[#4ade80] uppercase tracking-widest">Coût Initial</span>
-                                <p className="text-[14px] font-mono font-black text-white">{form.price_fcfa.toLocaleString('fr-FR')} FCF</p>
+                                <span className="text-[9px] font-black text-[#4ade80] uppercase tracking-widest">Facturation</span>
+                                <p className="text-[14px] font-mono font-black text-white">{(parseInt(form.price_override) || form.price_fcfa).toLocaleString('fr-FR')} F</p>
+                                {form.price_override && <p className="text-[8px] font-black text-amber-500 uppercase">Override Mode</p>}
                              </div>
                           </div>
                           <div className="h-px bg-white/5 w-full" />
-                          <div className="flex items-center gap-6">
+                          <div className="flex flex-wrap items-center gap-6">
                              <div className="flex items-center gap-3">
                                 <div className="w-2 h-2 rounded-full bg-[#4ade80]" />
                                 <span className="text-[10px] font-bold text-white/60 uppercase">
-                                   {form.package_type === 'STARTUP' ? 'AUCUN AGENT — SITE WEB UNIQUEMENT' : `${templateAgentsCounts[form.template_id] || 0} agents seront déployés automatiquement`}
+                                   {form.package_type === 'STARTUP' ? 'Site web uniquement — 0 agent' : `${form.agents_override || templateAgentsCounts[form.template_id] || 0} agents seront déployés automatiquement`}
                                 </span>
                              </div>
                              <div className="flex items-center gap-3">
                                 <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                <span className="text-[10px] font-bold text-white/60 uppercase">MAINTENANCE CLOUD ACTIVE</span>
+                                <span className="text-[10px] font-bold text-white/60 uppercase">Identifiant projet généré : {generatedProjectId || 'SCANNING...'}</span>
                              </div>
                           </div>
                        </div>
                     </div>
 
-                    <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl">
-                       <div className="flex items-start gap-4">
-                          <Terminal className="w-5 h-5 text-white/20 mt-1" />
-                          <div className="space-y-2">
-                             <h5 className="text-[10px] font-black uppercase text-white/60 tracking-widest">Neural Deployment Sequence</h5>
-                             <p className="text-[9px] font-mono text-white/20 leading-relaxed uppercase">
-                                Initializing Project lattice for {form.name}...<br />
-                                Linking {form.package_type} parameters...<br />
-                                Provisioning encrypted storage for {form.email}...<br />
-                                Deploying template: {form.template_title}...
-                             </p>
+                    <div className="p-6 bg-black border border-white/10 rounded-2xl font-mono relative overflow-hidden">
+                       <div className="flex items-start gap-4 h-48 overflow-y-auto custom-scrollbar-thin">
+                          <div className="space-y-1 w-full">
+                             <div className="flex items-center gap-2 text-white/20 mb-4 sticky top-0 bg-black py-1">
+                                <Terminal className="w-3 h-3" />
+                                <span className="text-[8px] font-black uppercase tracking-[0.4em]">NEURAL DEPLOYMENT SEQUENCE — LOG_INTELLIGENCE_SYSTEM</span>
+                             </div>
+                             {terminalLogs.length === 0 ? (
+                                <p className="text-[10px] text-white/10 uppercase tracking-widest animate-pulse">En attente d'initialisation...</p>
+                             ) : (
+                                terminalLogs.map((log, i) => (
+                                   <div key={i} className="flex gap-4">
+                                      <span className="text-white/10 text-[9px]">[{new Date().toLocaleTimeString('fr-FR', { hour12: false })}]</span>
+                                      <p className={`text-[10px] uppercase tracking-widest ${log.includes('SUCCÈS') ? 'text-[#4ade80]' : log.includes('ERREUR') ? 'text-red-500' : 'text-white/60'}`}>
+                                         {log}
+                                      </p>
+                                   </div>
+                                ))
+                             )}
                           </div>
                        </div>
                     </div>
@@ -1876,37 +2131,57 @@ export default function NeuralCommandCenterV31() {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-8 pt-4 border-t border-white/5 flex items-center justify-between bg-white/[0.01]">
-                <div className="flex items-center gap-2">
-                   <div className={`w-2 h-2 rounded-full ${form.name && form.sector && form.region && form.email ? 'bg-[#4ade80]' : 'bg-white/10'}`} />
-                   <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Logic Matrix Status</span>
+              <div className="p-8 pt-6 border-t border-white/5 flex items-center justify-between bg-white/[0.01]">
+                <div className="flex items-center gap-4">
+                   <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${form.name && form.sector && form.region && form.email ? 'bg-[#4ade80]' : 'bg-white/10'}`} />
+                      <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Logic Matrix Status</span>
+                   </div>
+                   {step === 0 && (
+                      <button 
+                        onClick={() => setStep(1)}
+                        className="text-[9px] font-black text-[#4ade80] uppercase tracking-widest hover:underline"
+                      >
+                         + Passer à la création
+                      </button>
+                   )}
                 </div>
                 
                 <div className="flex gap-4">
-                  {step > 1 && !saving && (
+                   {(step > 0) && !saving && (
                     <button 
                       onClick={() => setStep((s: any) => (s - 1) as any)}
                       className="px-8 py-4 border border-white/10 rounded-xl text-[10px] font-black text-white/40 uppercase tracking-[0.4em] hover:bg-white/5 transition-all"
                     >
-                      MODIFIER
+                      RETOUR
                     </button>
                   )}
                   
-                  <button 
-                    onClick={() => {
-                      if (step === 1) {
-                         if (form.name && form.sector && form.region && form.email) setStep(2);
-                      } else if (step === 2) {
-                         if (form.template_id) setStep(3);
-                      } else if (step === 3) {
-                         handleCreateCustomer();
-                      }
-                    }}
-                    disabled={saving || (step === 1 && (!form.name || !form.sector || !form.region || !form.email)) || (step === 2 && !form.template_id)}
-                    className="px-12 py-4 bg-[#4ade80] text-black rounded-xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#34d399] transition-all disabled:opacity-50 shadow-[0_0_30px_rgba(74,222,128,0.2)] hover:shadow-[0_0_50px_rgba(74,222,128,0.3)] active:scale-95"
-                  >
-                    {saving ? 'SEQUENCE ACTIVE...' : step === 3 ? 'CRÉER LE CLIENT' : 'SUIVANT'}
-                  </button>
+                  {step < 3 ? (
+                    <button 
+                       onClick={() => {
+                          if (step === 1) {
+                             if (form.name && form.sector && form.region && form.email && form.phone) setStep(2);
+                          } else if (step === 2) {
+                             if (form.template_id) setStep(3);
+                          } else {
+                             setStep((step + 1) as any);
+                          }
+                       }}
+                       disabled={saving || (step === 1 && (!form.name || !form.sector || !form.region || !form.email || !form.phone)) || (step === 2 && !form.template_id)}
+                       className="px-12 py-4 bg-[#4ade80] text-black rounded-xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#34d399] transition-all disabled:opacity-30 shadow-[0_0_30px_rgba(74,222,128,0.1)] active:scale-95"
+                    >
+                       SUIVANT
+                    </button>
+                  ) : (
+                    <button 
+                       onClick={handleCreateCustomer}
+                       disabled={saving}
+                       className="px-12 py-4 bg-[#4ade80] text-black rounded-xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#34d399] transition-all disabled:opacity-50 shadow-[0_0_40px_rgba(74,222,128,0.2)] active:scale-95"
+                    >
+                       {saving ? 'DÉPLOIEMENT EN COURS...' : 'CRÉER LE CLIENT'}
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
