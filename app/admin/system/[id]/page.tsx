@@ -145,7 +145,7 @@ export default function ClientIsolatedSystemPage() {
                 <h1 className="text-xl font-black text-white uppercase tracking-tight">{clientData?.name || 'Neural Dynamics'}</h1>
                 <div className="px-2 py-0.5 bg-[#10B981]/10 border border-[#10B981]/20 rounded-full">
                   <span className="text-[8px] font-black text-[#10B981] uppercase tracking-widest leading-none">
-                    ACTIVE_DOMAIN: {clientData?.industry || 'UNSPECIFIED'}
+                    ACTIVE_DOMAIN: {clientData?.sector || 'NON DÉFINI'}
                   </span>
                 </div>
               </div>
@@ -230,7 +230,7 @@ export default function ClientIsolatedSystemPage() {
             </div>
           </div>
           <p className="text-[32px] font-extrabold leading-none mb-2" style={{ color: getHealthColor(clientData?.status) }}>
-            {clientData?.status === 'PROSPECT' ? 'INACTIVE' : 'STABLE'}
+            {clientData?.status || 'UNKNOWN'}
           </p>
           <p className="text-[12px] font-bold text-white/60 mb-8 uppercase tracking-widest">
             RÉGION: {clientData?.region || 'FRANCE_SOUTH'}
@@ -302,18 +302,18 @@ export default function ClientIsolatedSystemPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-[1px] bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden">
-              {Array.from({ length: Math.max(agents.length, maxAgents || 2) }).map((_, i) => {
+              {Array.from({ length: Math.max(4, maxAgents) }).map((_, i) => {
                 const agent = agents[i];
                 if (agent) {
                   const neuralLoad = agent.neural_load || 0;
                   const loadColor = neuralLoad <= 50 ? '#10B981' : neuralLoad <= 80 ? '#F59E0B' : '#EF4444';
                   
                   return (
-                    <div key={agent.id} className="bg-[#0A0A0A] p-[28px] hover:bg-[#0c0c0c] transition-all group/agent">
+                    <div key={agent.id} className="bg-[#0A0A0A] p-[28px] hover:bg-[#0c0c0c] transition-all group/agent border border-white/5">
                       <div className="flex justify-between items-start mb-6">
                         <span className="text-[9px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.primary_api || 'API_GENERIC'}]</span>
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black border border-white/5">
-                          <div className={`w-1 body-1 rounded-full ${agent.status?.toLowerCase() === 'active' ? 'bg-[#10B981]' : 'bg-[#6B7280]'}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full ${agent.status?.toLowerCase() === 'active' ? 'bg-[#10B981]' : 'bg-[#6B7280]'}`} />
                           <span className={`text-[8px] font-bold uppercase tracking-widest ${agent.status?.toLowerCase() === 'active' ? 'text-[#10B981]' : 'text-[#6B7280]'}`}>
                             ● {agent.status?.toLowerCase() === 'active' ? 'ACTIVE' : 'STANDBY'}
                           </span>
@@ -347,12 +347,27 @@ export default function ClientIsolatedSystemPage() {
                   );
                 }
 
-                return (
-                  <div key={`empty-${i}`} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#2A2A2A] flex flex-col items-center justify-center p-8 text-center group/lock">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 text-white/10 group-hover/lock:text-white/30 transition-all">
-                      <LockIcon className="w-4 h-4" />
+                // If slot authorized but empty
+                if (i < maxAgents) {
+                  return (
+                    <div key={`empty-${i}`} className="bg-[#0A0A0A] h-[280px] border border-dashed border-[#10B981]/30 flex flex-col items-center justify-center p-8 text-center group/config cursor-pointer hover:bg-[#10B981]/5 transition-all">
+                      <div className="w-12 h-12 rounded-full bg-[#10B981]/10 flex items-center justify-center mb-4 group-hover/config:scale-110 transition-transform text-[#10B981]">
+                        <Activity className="w-5 h-5" />
+                      </div>
+                      <button className="text-[11px] font-black text-[#10B981] uppercase tracking-[0.2em] mb-2 px-4 py-2 border border-[#10B981]/20 rounded-lg">
+                        + CONFIGURER CET AGENT
+                      </button>
                     </div>
-                    <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">SLOT DISPONIBLE</h4>
+                  );
+                }
+
+                // Locked slot
+                return (
+                  <div key={`locked-${i}`} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#2A2A2A] flex flex-col items-center justify-center p-8 text-center group/lock opacity-50">
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 text-white/10">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">SLOT VERROUILLÉ</h4>
                     <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight">
                       Upgrade vers {clientData?.package_type === 'BUSINESS' ? 'ENTERPRISE' : 'ELITE'}
                     </p>
