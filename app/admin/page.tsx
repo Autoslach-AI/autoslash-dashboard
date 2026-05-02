@@ -237,18 +237,179 @@ export default function NeuralCommandCenterV31() {
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [activeSection3Tab, setActiveSection3Tab] = useState('API_MONITOR');
   const [growthIntel, setGrowthIntel] = useState<any>(null);
-  const [modalStep, setModalStep] = useState(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
-  const [lastFetch, setLastFetch] = useState<Date | null>(null);
-  const [fleetData, setFleetData] = useState<any>(null);
-  const [newCustomer, setNewCustomer] = useState({
+  const [form, setForm] = useState({
     name: '',
     sector: '',
     region: '',
-    plan: 'BUSINESS'
+    email: '',
+    description: '',
+    template_id: '',
+    package_type: '',
+    price_fcfa: 0,
+    template_title: ''
   });
-  const [plansMetadata, setPlansMetadata] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [templateAgentsCounts, setTemplateAgentsCounts] = useState<Record<string, number>>({});
+  const [templateFilter, setTemplateFilter] = useState<'ALL' | 'STARTUP' | 'BUSINESS' | 'ENTERPRISE' | 'ELITE'>('ALL');
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [fleetData, setFleetData] = useState<any>(null);
+  const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  // Fetch Templates for Modal
+  useEffect(() => {
+    if (showNewCustomerModal && step === 2) {
+      fetchTemplates();
+    }
+  }, [showNewCustomerModal, step]);
 
+  async function fetchTemplates() {
+    setIsLoadingTemplates(true);
+    try {
+      const { data, error } = await supabase
+        .from('templates')
+        .select('id, title, sector, package_type, price_fcfa, description')
+        .eq('is_published', true)
+        .order('price_fcfa', { ascending: true });
+      
+      if (data) {
+        setTemplates(data);
+        
+        // Fetch agents counts for these templates
+        const templateIds = data.map((t: any) => t.id);
+        const { data: agentsData } = await supabase
+          .from('template_agents')
+          .select('template_id');
+        
+        if (agentsData) {
+          const counts: Record<string, number> = {};
+          agentsData.forEach((ad: any) => {
+            counts[ad.template_id] = (counts[ad.template_id] || 0) + 1;
+          });
+          setTemplateAgentsCounts(counts);
+        }
+      }
+    } catch (err) {
+      console.error("Templates fetch error:", err);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  }
+
+  const handleCreateCustomer = async () => {
+    setSaving(true);
+    try {
+      // 1. Générer project_id
+      const prefixes: Record<string, string> = { STARTUP: 'S', BUSINESS: 'B', ENTERPRISE: 'E', ELITE: 'EL' };
+      const prefix = prefixes[form.package_type] || 'G';
+      
+      const { data: lastProject } = await supabase
+        .from('enterprises')
+        .select('project_id')
+        .like('project_id', `${prefix}_%`)
+        .order('project_id', { ascending: false })
+        .limit(1);
+
+      const nextNum = lastProject?.[0]
+        ? parseInt(lastProject[0].project_id.split('_')[1]) + 1
+        : 1;
+      const project_id = `${prefix}_${String(nextNum).padStart(3, '0')}`;
+
+      // 2. Lire plan_definitions
+      const { data: plan, error: planErr } = await supabase
+        .from('plan_definitions')
+        .select('monthly_token_quota, maintenance_fcfa, max_agents_allowed')
+        .eq('plan_name', form.package_type)
+        .single();
+      
+      if (planErr) throw planErr;
+
+      // 3. Créer enterprise
+      const { data: enterprise, error: entErr } = await supabase
+        .from('enterprises')
+        .insert({
+          name: form.name,
+          sector: form.sector,
+          region: form.region,
+          email: form.email,
+          description: form.description,
+          package_type: form.package_type,
+          status: 'PROSPECT',
+          monthly_cost: form.price_fcfa,
+          token_budget: plan.monthly_token_quota,
+          total_tokens_consumed: 0,
+          project_id: project_id,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (entErr) throw entErr;
+
+      // 4. Créer agents depuis template_agents (sauf STARTUP)
+      if (form.package_type !== 'STARTUP') {
+        const { data: templateAgents } = await supabase
+          .from('template_agents')
+          .select('agent_name, agent_role, system_prompt, primary_api, neural_load_default')
+          .eq('template_id', form.template_id);
+
+        if (templateAgents?.length) {
+          const { error: agentsErr } = await supabase.from('agents').insert(
+            templateAgents.map((ta: any) => ({
+              enterprise_id: enterprise.id,
+              name: ta.agent_name,
+              role_protocol: ta.agent_role,
+              system_prompt: ta.system_prompt,
+              primary_api: ta.primary_api,
+              neural_load: ta.neural_load_default,
+              status: 'standby',
+              complexity: 'MEDIUM'
+            }))
+          );
+          if (agentsErr) throw agentsErr;
+        }
+      }
+
+      // 5. Créer client_subscriptions
+      const { data: planDef } = await supabase
+        .from('plan_definitions')
+        .select('id')
+        .eq('plan_name', form.package_type)
+        .single();
+
+      if (planDef) {
+        await supabase.from('client_subscriptions').insert({
+          enterprise_id: enterprise.id,
+          plan_id: planDef.id,
+          started_at: new Date().toISOString()
+        });
+      }
+
+      // 6. Log intelligence
+      await supabase.from('admin_intelligence_logs').insert({
+        client_id: enterprise.id,
+        issue_type: 'NEW_PROSPECT',
+        severity_level: 'INFO',
+        raw_context: `NOUVEAU PROSPECT — ${form.sector} ${form.region} ${form.package_type}`
+      });
+
+      // 7. Finalize
+      setShowNewCustomerModal(false);
+      setStep(1);
+      // Fetch fresh data
+      const fleetRes = await fetch('/api/admin/fleet');
+      const fleetJson = await fleetRes.json();
+      setFleetData(fleetJson);
+      
+      showToast('success', `Client créé — ${project_id}`);
+    } catch (err: any) {
+      console.error("Creation error:", err);
+      showToast('error', `Erreur: ${err.message || 'Echec de création'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
   const exportLogsCSV = () => {
     if (!fleetData?.clients) return;
     const headers = "ID,Name,Sector,Package,Region,Status,Tokens,Cost\n";
@@ -420,7 +581,7 @@ export default function NeuralCommandCenterV31() {
 
          // 14. Plan Definitions for Modal
          const { data: plans } = await supabase.from('plan_definitions').select('*');
-         if (plans) setPlansMetadata(plans);
+
 
          setLastFetch(new Date());
       } catch (err) {
@@ -452,7 +613,6 @@ export default function NeuralCommandCenterV31() {
 
   const [activeSubTab, setActiveSubTab] = useState('Outline');
   const [booting, setBooting] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   // Local state for complex config parts
@@ -1453,11 +1613,9 @@ export default function NeuralCommandCenterV31() {
                       <button className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white/40 hover:text-white hover:bg-white/10 transition-all uppercase tracking-[0.2em]">NEXT</button>
                    </div>
                 </div>
-             </div>
-
-          </div>
-      
-      {/* NEW CUSTOMER MODAL */}
+              </div>
+            </div>
+           {/* NEW CUSTOMER MODAL */}
       <AnimatePresence>
         {showNewCustomerModal && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
@@ -1465,133 +1623,252 @@ export default function NeuralCommandCenterV31() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowNewCustomerModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+              onClick={() => !saving && setShowNewCustomerModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
             />
             
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/10 rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)]"
+              className="relative w-full max-w-4xl bg-[#0a0a0a] border border-[#1a1a1a] rounded-3xl overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)]"
             >
               {/* Modal Header */}
-              <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="space-y-1">
-                  <h2 className="text-[12px] font-black uppercase tracking-[0.4em] text-white">Créer Nouveau Node</h2>
-                  <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest">Étape {modalStep} sur 3</p>
+              <div className="px-8 py-8 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+                <div className="flex items-center gap-8">
+                  <div className="space-y-1">
+                    <h2 className="text-[14px] font-black uppercase tracking-[0.4em] text-white">Créer Nouveau Client</h2>
+                    <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest">Neural Deployment v3.5</p>
+                  </div>
+                  
+                  {/* Progress Indicator */}
+                  <div className="hidden md:flex items-center gap-4 ml-8">
+                    {[1, 2, 3].map((s) => (
+                      <div key={s} className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${
+                          step === s 
+                          ? 'bg-[#4ade80] text-black shadow-[0_0_15px_rgba(74,222,128,0.4)]' 
+                          : step > s 
+                            ? 'bg-[#4ade80]/20 text-[#4ade80]' 
+                            : 'bg-white/5 text-white/20 border border-white/5'
+                        }`}>
+                          {step > s ? <Check className="w-3 h-3" /> : s}
+                        </div>
+                        <span className={`text-[9px] font-bold uppercase tracking-widest ${step === s ? 'text-white' : 'text-white/20'}`}>
+                          {s === 1 ? 'Identité' : s === 2 ? 'Template' : 'Validation'}
+                        </span>
+                        {s < 3 && <div className="w-8 h-px bg-white/5 mx-2" />}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <button 
-                  onClick={() => setShowNewCustomerModal(false)}
-                  className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center hover:bg-white/5 transition-all"
-                >
-                  <Plus className="w-4 h-4 rotate-45 text-white/40" />
-                </button>
+                {!saving && (
+                  <button 
+                    onClick={() => setShowNewCustomerModal(false)}
+                    className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center hover:bg-white/5 transition-all text-white/20 hover:text-white"
+                  >
+                    <Plus className="w-4 h-4 rotate-45" />
+                  </button>
+                )}
               </div>
 
-              <div className="p-8">
-                {modalStep === 1 && (
-                  <div className="space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Nom de l'entreprise</label>
-                      <input 
-                        type="text" 
-                        value={newCustomer.name}
-                        onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
-                        placeholder="ex: Neural Dynamics"
-                        className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white placeholder:text-white/10 focus:border-[#4ade80]/40 transition-all outline-none"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                       <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Secteur d'activité</label>
+              <div className="p-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                {step === 1 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[#4ade80] ml-1">Nom de l'entreprise *</label>
                         <input 
                           type="text" 
-                          value={newCustomer.sector}
-                          onChange={(e) => setNewCustomer({...newCustomer, sector: e.target.value})}
-                          placeholder="ex: Fintech"
+                          value={form.name}
+                          onChange={(e) => setForm({...form, name: e.target.value})}
+                          placeholder="ex: Neural Dynamics"
+                          className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white placeholder:text-white/10 focus:border-[#4ade80]/40 transition-all outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Secteur / Métier *</label>
+                        <input 
+                          type="text" 
+                          value={form.sector}
+                          onChange={(e) => setForm({...form, sector: e.target.value})}
+                          placeholder="Saisissez le domaine d'activité"
                           className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Région</label>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Région *</label>
                         <input 
                           type="text" 
-                          value={newCustomer.region}
-                          onChange={(e) => setNewCustomer({...newCustomer, region: e.target.value})}
-                          placeholder="ex: AF-WEST-1"
+                          value={form.region}
+                          onChange={(e) => setForm({...form, region: e.target.value})}
+                          placeholder="Zone géographique d'opération"
                           className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[#4ade80] ml-1">Email de contact *</label>
+                        <input 
+                          type="email" 
+                          value={form.email}
+                          onChange={(e) => setForm({...form, email: e.target.value})}
+                          placeholder="admin@enterprise.node"
+                          className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Description des besoins</label>
+                        <textarea 
+                          rows={5}
+                          value={form.description}
+                          onChange={(e) => setForm({...form, description: e.target.value})}
+                          placeholder="Détails du projet, objectifs neurales..."
+                          className="w-full bg-black border border-white/10 rounded-xl px-5 py-4 text-[11px] font-mono text-white focus:border-[#4ade80]/40 outline-none resize-none"
                         />
                       </div>
                     </div>
                   </div>
                 )}
 
-                {modalStep === 2 && (
-                  <div className="space-y-6">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-white/40 ml-1">Sélection du plan neural</label>
-                    <div className="space-y-3">
-                      {plansMetadata.filter(p => p.name !== 'STARTUP').map((plan) => (
+                {step === 2 && (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                    {/* Filters */}
+                    <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-2xl border border-white/5 w-fit overflow-x-auto no-scrollbar">
+                      {(['ALL', 'STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE'] as const).map((f) => (
                         <button 
-                          key={plan.id}
-                          onClick={() => setNewCustomer({...newCustomer, plan: plan.name})}
-                          className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${
-                            newCustomer.plan === plan.name 
-                            ? 'bg-white/5 border-[#4ade80]/40 shadow-[0_0_30px_rgba(74,222,128,0.05)]' 
-                            : 'bg-black border-white/5 hover:border-white/20'
+                          key={f}
+                          onClick={() => setTemplateFilter(f)}
+                          className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                            templateFilter === f 
+                            ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]' 
+                            : 'text-white/20 hover:text-white/40'
                           }`}
                         >
-                          <div className="flex items-center gap-4 text-left">
-                            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${
-                               newCustomer.plan === plan.name ? 'border-[#4ade80]/20 text-[#4ade80]' : 'border-white/5 text-white/20'
-                            }`}>
-                              <Zap className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className={`text-[12px] font-black uppercase tracking-widest ${newCustomer.plan === plan.name ? 'text-white' : 'text-white/40'}`}>{plan.name}</p>
-                              <p className="text-[9px] font-mono text-white/20 uppercase">Intelligence Avancée Incluse</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                             <p className="text-[14px] font-black font-mono text-white">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(plan.monthly_price)}</p>
-                             <p className="text-[8px] font-mono text-white/20 uppercase tracking-tighter">Par mois</p>
-                          </div>
+                          {f}
                         </button>
                       ))}
                     </div>
+
+                    {isLoadingTemplates ? (
+                       <div className="h-64 flex flex-col items-center justify-center gap-4">
+                          <div className="w-8 h-8 border-2 border-white/5 border-t-[#4ade80] rounded-full animate-spin" />
+                          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/20">Accès au Template Vault...</p>
+                       </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {templates.filter((t: any) => templateFilter === 'ALL' || t.package_type === templateFilter).map((tmpl: any) => {
+                          const agentsCount = templateAgentsCounts[tmpl.id] || 0;
+                          const isSelected = form.template_id === tmpl.id;
+                          return (
+                            <div 
+                              key={tmpl.id}
+                              onClick={() => setForm({
+                                ...form, 
+                                template_id: tmpl.id, 
+                                package_type: tmpl.package_type, 
+                                price_fcfa: tmpl.price_fcfa,
+                                template_title: tmpl.title
+                              })}
+                              className={`p-6 bg-black border rounded-2xl cursor-pointer transition-all relative group overflow-hidden ${
+                                isSelected 
+                                ? 'border-[#4ade80] bg-[#4ade80]/5 ring-1 ring-[#4ade80]/50' 
+                                : 'border-white/5 hover:border-white/20'
+                              }`}
+                            >
+                              <div className="space-y-4 relative z-10">
+                                <div className="flex justify-between items-start">
+                                  <div className="space-y-1">
+                                    <h4 className="text-[12px] font-black uppercase tracking-widest text-white">{tmpl.title}</h4>
+                                    <p className="text-[9px] font-mono text-white/40 uppercase">{tmpl.sector}</p>
+                                  </div>
+                                  <div className={`px-2.5 py-1 rounded-md text-[8px] font-black uppercase tracking-widest border ${
+                                    tmpl.package_type === 'STARTUP' ? 'bg-white/5 border-white/10 text-white/40' : 'bg-[#4ade80]/10 border-[#4ade80]/20 text-[#4ade80]'
+                                  }`}>
+                                    {tmpl.package_type === 'STARTUP' ? 'SITE WEB' : 'IA ACTIVATE'}
+                                  </div>
+                                </div>
+                                
+                                <p className="text-[10px] text-white/30 line-clamp-2 h-10 leading-relaxed">{tmpl.description}</p>
+                                
+                                <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                   <div className="flex flex-col">
+                                      <span className="text-[14px] font-mono font-black text-white">{tmpl.price_fcfa.toLocaleString('fr-FR')} FCF</span>
+                                      <span className="text-[8px] font-black text-white/20 uppercase">Initialisation</span>
+                                   </div>
+                                   <div className="flex items-center gap-2">
+                                      <div className={`w-2 h-2 rounded-full ${agentsCount > 0 ? 'bg-[#4ade80]' : 'bg-white/10'}`} />
+                                      <span className="text-[9px] font-black text-white/60 uppercase">{agentsCount} AGENTS</span>
+                                   </div>
+                                </div>
+                              </div>
+                              {isSelected && (
+                                <motion.div layoutId="selection" className="absolute inset-0 bg-[#4ade80]/5 pointer-events-none" />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {modalStep === 3 && (
-                  <div className="space-y-8 py-4">
-                    <div className="flex flex-col items-center text-center space-y-4">
-                       <div className="w-20 h-20 rounded-full border-2 border-[#4ade80]/20 bg-[#4ade80]/5 flex items-center justify-center">
-                          <Shield className="w-10 h-10 text-[#4ade80] animate-pulse" />
+                {step === 3 && (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                    <div className="bg-[#4ade80]/5 border border-[#4ade80]/20 rounded-2xl p-8 flex flex-col md:flex-row items-center gap-8">
+                       <div className="w-24 h-24 rounded-full border-4 border-[#4ade80]/20 flex items-center justify-center relative">
+                          <Shield className="w-12 h-12 text-[#4ade80]" />
+                          <div className="absolute inset-0 rounded-full animate-ping opacity-10 bg-[#4ade80]" />
                        </div>
-                       <div className="space-y-1">
-                          <h3 className="text-[14px] font-black uppercase tracking-[0.4em] text-white">Confirmation du Node</h3>
-                          <p className="text-[10px] text-white/40 font-mono uppercase tracking-widest">Prêt pour initialisation neurale</p>
+                       <div className="flex-1 space-y-4">
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+                             <div className="space-y-1">
+                                <span className="text-[9px] font-black text-[#4ade80] uppercase tracking-widest">Entreprise</span>
+                                <p className="text-[12px] font-bold text-white uppercase">{form.name}</p>
+                             </div>
+                             <div className="space-y-1">
+                                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Secteur / Région</span>
+                                <p className="text-[11px] font-mono text-white/60 uppercase">{form.sector} • {form.region}</p>
+                             </div>
+                             <div className="space-y-1">
+                                <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Plan Selectionné</span>
+                                <p className="text-[12px] font-black text-[#4ade80] uppercase tracking-tighter">{form.package_type}</p>
+                             </div>
+                             <div className="space-y-1">
+                                <span className="text-[9px] font-black text-[#4ade80] uppercase tracking-widest">Coût Initial</span>
+                                <p className="text-[14px] font-mono font-black text-white">{form.price_fcfa.toLocaleString('fr-FR')} FCF</p>
+                             </div>
+                          </div>
+                          <div className="h-px bg-white/5 w-full" />
+                          <div className="flex items-center gap-6">
+                             <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-[#4ade80]" />
+                                <span className="text-[10px] font-bold text-white/60 uppercase">
+                                   {form.package_type === 'STARTUP' ? 'AUCUN AGENT — SITE WEB UNIQUEMENT' : `${templateAgentsCounts[form.template_id] || 0} agents seront déployés automatiquement`}
+                                </span>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                <span className="text-[10px] font-bold text-white/60 uppercase">MAINTENANCE CLOUD ACTIVE</span>
+                             </div>
+                          </div>
                        </div>
                     </div>
 
-                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-6 space-y-4">
-                       <div className="flex justify-between items-center border-b border-white/5 pb-4">
-                          <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Entreprise</span>
-                          <span className="text-[11px] font-mono font-bold text-white">{newCustomer.name}</span>
-                       </div>
-                       <div className="flex justify-between items-center border-b border-white/5 pb-4">
-                          <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Secteur / Région</span>
-                          <span className="text-[11px] font-mono font-bold text-white/60">{newCustomer.sector} • {newCustomer.region}</span>
-                       </div>
-                       <div className="flex justify-between items-center border-b border-white/5 pb-4">
-                          <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Plan de Routing</span>
-                          <span className="text-[11px] font-black text-[#4ade80] uppercase tracking-widest">{newCustomer.plan}</span>
-                       </div>
-                       <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">Tarification</span>
-                          <span className="text-[14px] font-black font-mono text-white">
-                             {new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(plansMetadata.find(p => p.name === newCustomer.plan)?.monthly_price || 0)}
-                          </span>
+                    <div className="p-6 bg-white/[0.02] border border-white/5 rounded-2xl">
+                       <div className="flex items-start gap-4">
+                          <Terminal className="w-5 h-5 text-white/20 mt-1" />
+                          <div className="space-y-2">
+                             <h5 className="text-[10px] font-black uppercase text-white/60 tracking-widest">Neural Deployment Sequence</h5>
+                             <p className="text-[9px] font-mono text-white/20 leading-relaxed uppercase">
+                                Initializing Project lattice for {form.name}...<br />
+                                Linking {form.package_type} parameters...<br />
+                                Provisioning encrypted storage for {form.email}...<br />
+                                Deploying template: {form.template_title}...
+                             </p>
+                          </div>
                        </div>
                     </div>
                   </div>
@@ -1599,51 +1876,38 @@ export default function NeuralCommandCenterV31() {
               </div>
 
               {/* Modal Footer */}
-              <div className="p-8 pt-0 flex gap-4">
-                 {modalStep > 1 && (
+              <div className="p-8 pt-4 border-t border-white/5 flex items-center justify-between bg-white/[0.01]">
+                <div className="flex items-center gap-2">
+                   <div className={`w-2 h-2 rounded-full ${form.name && form.sector && form.region && form.email ? 'bg-[#4ade80]' : 'bg-white/10'}`} />
+                   <span className="text-[8px] font-black text-white/20 uppercase tracking-widest">Logic Matrix Status</span>
+                </div>
+                
+                <div className="flex gap-4">
+                  {step > 1 && !saving && (
                     <button 
-                      onClick={() => setModalStep(s => s - 1)}
-                      className="flex-1 py-4 border border-white/10 rounded-xl text-[10px] font-black text-white/40 uppercase tracking-[0.4em] hover:bg-white/5 transition-all"
+                      onClick={() => setStep((s: any) => (s - 1) as any)}
+                      className="px-8 py-4 border border-white/10 rounded-xl text-[10px] font-black text-white/40 uppercase tracking-[0.4em] hover:bg-white/5 transition-all"
                     >
-                      Précédent
+                      MODIFIER
                     </button>
-                 )}
-                 <button 
-                   onClick={async () => {
-                     if (modalStep < 3) {
-                       setModalStep(s => s + 1);
-                     } else {
-                       // Handle Create Customer
-                       setSaving(true);
-                       try {
-                         const res = await fetch('/api/admin/fleet/create', {
-                           method: 'POST',
-                           headers: { 'Content-Type': 'application/json' },
-                           body: JSON.stringify(newCustomer)
-                         });
-                         const result = await res.json();
-                         if (result.success) {
-                           showToast('success', 'NODE_INITIALIZED: SUCCESS');
-                           setShowNewCustomerModal(false);
-                           // Refresh fleet
-                           const fleetRes = await fetch('/api/admin/fleet');
-                           const fleetJson = await fleetRes.json();
-                           setFleetData(fleetJson);
-                         } else {
-                           showToast('error', 'INIT_FAIL: ' + result.error);
-                         }
-                       } catch (err) {
-                         showToast('error', 'CONNECTION_TIMEOUT');
-                       } finally {
-                         setSaving(false);
-                       }
-                     }
-                   }}
-                   disabled={saving || (modalStep === 1 && !newCustomer.name)}
-                   className="flex-[2] py-4 bg-[#4ade80] text-black rounded-xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#22c55e] transition-all disabled:opacity-50"
-                 >
-                   {saving ? 'INITIALIZING...' : modalStep === 3 ? 'CRÉER LE CLIENT' : 'Suivant'}
-                 </button>
+                  )}
+                  
+                  <button 
+                    onClick={() => {
+                      if (step === 1) {
+                         if (form.name && form.sector && form.region && form.email) setStep(2);
+                      } else if (step === 2) {
+                         if (form.template_id) setStep(3);
+                      } else if (step === 3) {
+                         handleCreateCustomer();
+                      }
+                    }}
+                    disabled={saving || (step === 1 && (!form.name || !form.sector || !form.region || !form.email)) || (step === 2 && !form.template_id)}
+                    className="px-12 py-4 bg-[#4ade80] text-black rounded-xl text-[10px] font-black uppercase tracking-[0.4em] hover:bg-[#34d399] transition-all disabled:opacity-50 shadow-[0_0_30px_rgba(74,222,128,0.2)] hover:shadow-[0_0_50px_rgba(74,222,128,0.3)] active:scale-95"
+                  >
+                    {saving ? 'SEQUENCE ACTIVE...' : step === 3 ? 'CRÉER LE CLIENT' : 'SUIVANT'}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
