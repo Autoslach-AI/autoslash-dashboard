@@ -25,6 +25,9 @@ export default function ClientIsolatedSystemPage() {
   const [tasksStream, setTasksStream] = useState<any[]>([]);
   const [maxAgents, setMaxAgents] = useState<number>(0);
 
+  const [activeTab, setActiveTab] = useState<'agents' | 'stream'>('agents');
+  const [processingCount, setProcessingCount] = useState<number>(0);
+
   const fetchTasksStream = async () => {
     const { data } = await supabase
       .from('client_agent_tasks')
@@ -33,6 +36,15 @@ export default function ClientIsolatedSystemPage() {
       .order('started_at', { ascending: false })
       .limit(10);
     if (data) setTasksStream(data);
+  };
+
+  const fetchProcessingCount = async () => {
+    const { count } = await supabase
+      .from('client_agent_tasks')
+      .select('*', { count: 'exact', head: true })
+      .eq('enterprise_id', id)
+      .eq('status', 'PROCESSING');
+    setProcessingCount(count || 0);
   };
 
   useEffect(() => {
@@ -49,11 +61,13 @@ export default function ClientIsolatedSystemPage() {
         // Fetch max agents from plan_definitions
         const { data: planData } = await supabase
           .from('plan_definitions')
-          .select('max_agents_allowed')
+          .select('max_agents_allowed, next_plan_name')
           .eq('plan_name', entData.package_type)
           .maybeSingle();
         
         setMaxAgents(planData?.max_agents_allowed || 0);
+        // Storing next plan in clientData for the locked card message
+        setClientData((prev: any) => ({ ...prev, next_plan_name: planData?.next_plan_name }));
       }
 
       // Fetch agents
@@ -66,13 +80,17 @@ export default function ClientIsolatedSystemPage() {
 
       setBooting(false);
 
-      // Initial stream fetch
+      // Initial fetches
       fetchTasksStream();
+      fetchProcessingCount();
     }
 
     fetchData();
 
-    const interval = setInterval(fetchTasksStream, 5000);
+    const interval = setInterval(() => {
+      fetchTasksStream();
+      fetchProcessingCount();
+    }, 30000);
     return () => clearInterval(interval);
   }, [id]);
 
@@ -264,46 +282,45 @@ export default function ClientIsolatedSystemPage() {
         </div>
       </div>
 
-      {/* SECTION 2: AGENT COMMAND CENTER & LIVE THOUGHT STREAM */}
-      <div className="grid grid-cols-[1fr_350px] lg:grid-cols-[1fr_450px] bg-[#080808] min-h-[600px]">
-        {/* LEFT COLUMN: AGENT COMMAND CENTER */}
-        <div className="p-[28px] lg:p-[32px] border-r border-[#1a1a1a]">
-          <div className="flex justify-between items-center mb-10">
-            <div className="flex items-center gap-3">
-              <span className="text-white">⚡</span>
-              <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9CA3AF]">AGENT COMMAND CENTER</h2>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1 bg-black border border-white/5 rounded-full">
-              <div className={`w-1.5 h-1.5 rounded-full ${agents.length > 0 ? 'bg-[#10B981] animate-pulse' : 'bg-[#6B7280]'}`} />
-              <span className={`text-[9px] font-bold uppercase tracking-widest ${agents.length > 0 ? 'text-[#10B981]' : 'text-[#6B7280]'}`}>
-                {agents.length > 0 ? 'UNITS ACTIVE' : 'STANDBY'}
-              </span>
-            </div>
+      {/* SECTION 2: AGENT COMMAND CENTER & STREAM */}
+      <div className="bg-[#080808] border-b border-[#1a1a1a] p-[28px] lg:p-[32px]">
+        {/* SECTION HEADER WITH TABS */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-3">
+            <span className="text-white">⚡</span>
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9CA3AF]">AGENT COMMAND CENTER</h2>
           </div>
-
-          {clientData?.package_type === 'STARTUP' ? (
-            <div className="grid grid-cols-2 gap-[1px] bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden relative">
-              {[1, 2].map(i => (
-                <div key={i} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#2A2A2A] flex flex-col items-center justify-center p-8 text-center group/lock">
-                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-4 group-hover/lock:scale-110 transition-transform duration-500">
-                    <Lock className="w-5 h-5 text-white/20" />
-                  </div>
-                  <h4 className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mb-2">SLOT DISPONIBLE</h4>
-                  <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight max-w-[180px]">
-                    🔒 AUCUN AGENT — PLAN STARTUP
-                  </p>
+          
+          <div className="flex items-center gap-1 bg-[#0a0a0a] p-1 rounded-xl border border-white/5">
+            <button 
+              onClick={() => setActiveTab('agents')}
+              className={`px-6 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${activeTab === 'agents' ? 'bg-[#1a1a1a] text-white border-b-2 border-[#10B981]' : 'text-[#6B7280] hover:text-white/60'}`}
+            >
+              AGENTS
+            </button>
+            <button 
+              onClick={() => setActiveTab('stream')}
+              className={`px-6 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all relative ${activeTab === 'stream' ? 'bg-[#1a1a1a] text-white border-b-2 border-[#10B981]' : 'text-[#6B7280] hover:text-white/60'}`}
+            >
+              STREAM
+              {processingCount > 0 && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#10B981] rounded-full flex items-center justify-center border-2 border-[#0a0a0a]">
+                  <span className="text-[8px] font-black text-white">{processingCount}</span>
                 </div>
-              ))}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px] z-10">
-                <button className="px-8 py-3 bg-[#10B981] text-black font-black text-[11px] uppercase tracking-[0.2em] rounded-lg hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]">
-                  UPGRADER LE PLAN
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-[1px] bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden">
-              {Array.from({ length: Math.max(4, maxAgents) }).map((_, i) => {
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* TAB CONTENT: AGENTS */}
+        {activeTab === 'agents' && (
+          <div className="max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+            <div className="grid grid-cols-2 gap-px bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden">
+              {Array.from({ length: Math.max(agents.length, maxAgents, 4) }).map((_, i) => {
+                const slotIndex = i + 1;
                 const agent = agents[i];
+                
+                // Agent exists
                 if (agent) {
                   const neuralLoad = agent.neural_load || 0;
                   const loadColor = neuralLoad <= 50 ? '#10B981' : neuralLoad <= 80 ? '#F59E0B' : '#EF4444';
@@ -311,7 +328,7 @@ export default function ClientIsolatedSystemPage() {
                   return (
                     <div key={agent.id} className="bg-[#0A0A0A] p-[28px] hover:bg-[#0c0c0c] transition-all group/agent border border-white/5">
                       <div className="flex justify-between items-start mb-6">
-                        <span className="text-[9px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.primary_api || 'API_GENERIC'}]</span>
+                        <span className="text-[9px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.name.replace(/\s+/g, '_').toUpperCase()}]</span>
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black border border-white/5">
                           <div className={`w-1.5 h-1.5 rounded-full ${agent.status?.toLowerCase() === 'active' ? 'bg-[#10B981]' : 'bg-[#6B7280]'}`} />
                           <span className={`text-[8px] font-bold uppercase tracking-widest ${agent.status?.toLowerCase() === 'active' ? 'text-[#10B981]' : 'text-[#6B7280]'}`}>
@@ -347,57 +364,52 @@ export default function ClientIsolatedSystemPage() {
                   );
                 }
 
-                // If slot authorized but empty
-                if (i < maxAgents) {
+                // Slot authorized but empty
+                if (slotIndex <= maxAgents) {
                   return (
-                    <div key={`empty-${i}`} className="bg-[#0A0A0A] h-[280px] border border-dashed border-[#10B981]/30 flex flex-col items-center justify-center p-8 text-center group/config cursor-pointer hover:bg-[#10B981]/5 transition-all">
+                    <div key={`empty-${slotIndex}`} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#10B981]/30 flex flex-col items-center justify-center p-8 text-center group/config cursor-pointer hover:bg-[#10B981]/5 transition-all">
                       <div className="w-12 h-12 rounded-full bg-[#10B981]/10 flex items-center justify-center mb-4 group-hover/config:scale-110 transition-transform text-[#10B981]">
-                        <Activity className="w-5 h-5" />
+                        <span className="text-xl">+</span>
                       </div>
-                      <button className="text-[11px] font-black text-[#10B981] uppercase tracking-[0.2em] mb-2 px-4 py-2 border border-[#10B981]/20 rounded-lg">
+                      <h4 className="text-[10px] font-bold text-[#10B981] uppercase tracking-[0.2em] mb-2 font-mono">SLOT DISPONIBLE</h4>
+                      <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight mb-4">AUCUN AGENT CONFIGURÉ</p>
+                      <button className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.2em] px-4 py-2 border border-[#10B981]/20 rounded-lg hover:bg-[#10B981] hover:text-black transition-all">
                         + CONFIGURER CET AGENT
                       </button>
                     </div>
                   );
                 }
 
-                // Locked slot
+                // Slot locked
                 return (
-                  <div key={`locked-${i}`} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#2A2A2A] flex flex-col items-center justify-center p-8 text-center group/lock opacity-50">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 text-white/10">
+                  <div key={`locked-${slotIndex}`} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#2A2A2A] flex flex-col items-center justify-center p-8 text-center group/lock opacity-50">
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 text-[#6B7280]">
                       <Lock className="w-4 h-4" />
                     </div>
                     <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">SLOT VERROUILLÉ</h4>
                     <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight">
-                      Upgrade vers {clientData?.package_type === 'BUSINESS' ? 'ENTERPRISE' : 'ELITE'}
+                      Upgrade vers {clientData?.next_plan_name || 'LE PLAN SUPÉRIEUR'} pour débloquer
                     </p>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-
-        {/* RIGHT COLUMN: LIVE THOUGHT STREAM */}
-        <div className="p-[28px] lg:p-[32px] flex flex-col h-full bg-[#080808]">
-          <div className="flex justify-between items-center mb-10">
-            <div className="flex items-center gap-2 group/stream cursor-pointer">
-              <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9CA3AF] group-hover/stream:text-white transition-colors">LIVE THOUGHT STREAM</h2>
-              <ChevronRight className="w-3.5 h-3.5 text-[#9CA3AF] group-hover/stream:translate-x-1 transition-all" />
-            </div>
           </div>
+        )}
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+        {/* TAB CONTENT: STREAM */}
+        {activeTab === 'stream' && (
+          <div className="max-h-[400px] overflow-y-auto custom-scrollbar pr-2 space-y-4">
             {clientData?.package_type === 'STARTUP' ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
-                <Lock className="w-8 h-8 mb-4 text-[#4B5563]" />
-                <span className="text-[10px] font-mono text-[#4B5563] uppercase tracking-widest leading-loose">
+              <div className="h-[300px] flex flex-col items-center justify-center text-center p-8 border border-white/5 rounded-xl bg-[#0a0a0a]">
+                <Lock className="w-10 h-10 mb-4 text-[#4B5563]" />
+                <span className="text-[11px] font-mono text-[#4B5563] uppercase tracking-widest leading-loose">
                   🔒 LIVE STREAM NON DISPONIBLE — AUCUN AGENT DÉPLOYÉ
                 </span>
               </div>
             ) : tasksStream.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-8 opacity-40">
-                <span className="text-[10px] font-mono text-[#4B5563] uppercase tracking-widest">
+              <div className="h-[300px] flex flex-col items-center justify-center text-center p-8 border border-white/5 rounded-xl bg-[#0a0a0a]">
+                <span className="text-[11px] font-mono text-[#4B5563] uppercase tracking-widest">
                   FLUX VIDE — EN ATTENTE D'ACTIVITÉ AGENT
                 </span>
               </div>
@@ -405,33 +417,51 @@ export default function ClientIsolatedSystemPage() {
               tasksStream.map((task, i) => {
                 const agentName = agents.find(a => a.id === task.agent_id)?.name || 'SYSTEM';
                 return (
-                  <div key={task.id || i} className="p-4 bg-[#0a0a0a] border border-white/5 rounded-lg group/stream-item hover:border-white/10 transition-all">
-                    <div className="flex gap-3 mb-2">
-                      <span className="text-[9px] font-mono text-[#10B981] tabular-nums whitespace-nowrap">
+                  <div key={task.id || i} className="p-6 bg-[#0a0a0a] border border-white/5 rounded-xl group/stream-item hover:border-white/10 transition-all">
+                    <div className="flex gap-4 mb-3">
+                      <span className="text-[10px] font-mono text-[#10B981] tabular-nums whitespace-nowrap bg-[#10B981]/5 px-2 py-0.5 rounded border border-[#10B981]/10">
                         [{new Date(task.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}]
                       </span>
-                      <p className="text-[11px] text-white/80 font-medium tracking-tight">
-                        <span className="font-black text-[#10B981] mr-1 uppercase">{agentName}:</span>
+                      <p className="text-[13px] text-white/90 font-medium tracking-tight h-fit">
+                        <span className="font-black text-[#10B981] mr-2 uppercase">{agentName}</span>
+                        <span className="text-white/40 mr-2">→</span>
                         {task.task_description}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1">
-                      <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest bg-black px-1.5 py-0.5 rounded border border-white/5">TYPE: {task.task_type || 'GENERIC'}</span>
-                      <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">COMPLEXITY: {task.complexity || 'LOW'}</span>
-                      <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">API: {task.api_used || 'AUTO'}</span>
-                      <span className={`text-[8px] font-black uppercase tracking-widest ${task.status === 'COMPLETED' ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>{task.status}</span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 mb-3">
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black rounded border border-white/5">
+                        <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">TYPE:</span>
+                        <span className="text-[8px] font-black text-white/60 uppercase">{task.task_type || 'GENERIC'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black rounded border border-white/5">
+                        <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">COMPLEXITY:</span>
+                        <span className="text-[8px] font-black text-white/60 uppercase">{task.complexity || 'LOW'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black rounded border border-white/5">
+                        <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">API:</span>
+                        <span className="text-[8px] font-black text-white/60 uppercase">{task.api_used || 'AUTO'}</span>
+                      </div>
+                      <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                        task.status === 'COMPLETED' ? 'bg-[#10B981]/10 text-[#10B981]' : 
+                        task.status === 'PROCESSING' ? 'bg-[#3B82F6]/10 text-[#3B82F6] animate-pulse' : 
+                        'bg-[#F59E0B]/10 text-[#F59E0B]'
+                      }`}>
+                        {task.status}
+                      </div>
                     </div>
                     {task.output_summary && (
-                      <p className="mt-2 text-[10px] text-white/40 leading-relaxed italic line-clamp-2">
-                        "{task.output_summary}"
-                      </p>
+                      <div className="pt-3 border-t border-white/[0.03]">
+                        <p className="text-[11px] text-white/30 leading-relaxed italic line-clamp-2">
+                          "{task.output_summary}"
+                        </p>
+                      </div>
                     )}
                   </div>
                 );
               })
             )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
