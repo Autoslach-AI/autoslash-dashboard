@@ -12,7 +12,10 @@ import {
   X,
   Zap,
   Lock,
-  LockIcon
+  LockIcon,
+  Terminal,
+  ExternalLink,
+  Plus
 } from 'lucide-react';
 
 export default function ClientIsolatedSystemPage() {
@@ -282,64 +285,98 @@ export default function ClientIsolatedSystemPage() {
         </div>
       </div>
 
-      {/* SECTION 2: AGENT COMMAND CENTER & STREAM */}
-      <div className="bg-[#080808] border-b border-[#1a1a1a] p-[28px] lg:p-[32px]">
-        {/* SECTION HEADER WITH TABS */}
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-3">
-            <span className="text-white">⚡</span>
-            <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9CA3AF]">AGENT COMMAND CENTER</h2>
+      {/* SECTION 2: AGENT TASK FORCE & LIVE THOUGHT STREAM */}
+      <div className="grid grid-cols-1 lg:grid-cols-[65%_35%] bg-[#080808] border-b border-[#1a1a1a]">
+        
+        {/* LEFT COLUMN: AGENT TASK FORCE */}
+        <div className="p-[28px] lg:p-[32px] border-r border-[#1a1a1a]">
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-3">
+              <span className="text-white">⚡</span>
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9CA3AF]">AGENT TASK FORCE</h2>
+            </div>
+            
+            <div className="flex items-center gap-2 px-3 py-1 bg-black border border-white/5 rounded-full">
+              <div className={`w-1.5 h-1.5 rounded-full ${agents.some(a => a.status?.toLowerCase() === 'active') ? 'bg-[#10B981] animate-pulse' : 'bg-[#6B7280]'}`} />
+              <span className={`text-[9px] font-bold uppercase tracking-widest ${agents.some(a => a.status?.toLowerCase() === 'active') ? 'text-[#10B981]' : 'text-[#6B7280]'}`}>
+                {agents.some(a => a.status?.toLowerCase() === 'active') ? '● UNITS ACTIVE' : '● STANDBY'}
+              </span>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-1 bg-[#0a0a0a] p-1 rounded-xl border border-white/5">
-            <button 
-              onClick={() => setActiveTab('agents')}
-              className={`px-6 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${activeTab === 'agents' ? 'bg-[#1a1a1a] text-white border-b-2 border-[#10B981]' : 'text-[#6B7280] hover:text-white/60'}`}
-            >
-              AGENTS
-            </button>
-            <button 
-              onClick={() => setActiveTab('stream')}
-              className={`px-6 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all relative ${activeTab === 'stream' ? 'bg-[#1a1a1a] text-white border-b-2 border-[#10B981]' : 'text-[#6B7280] hover:text-white/60'}`}
-            >
-              STREAM
-              {processingCount > 0 && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#10B981] rounded-full flex items-center justify-center border-2 border-[#0a0a0a]">
-                  <span className="text-[8px] font-black text-white">{processingCount}</span>
-                </div>
-              )}
-            </button>
-          </div>
-        </div>
 
-        {/* TAB CONTENT: AGENTS */}
-        {activeTab === 'agents' && (
-          <div className="max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-            <div className="grid grid-cols-2 gap-px bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden">
-              {Array.from({ length: Math.max(agents.length, maxAgents, 4) }).map((_, i) => {
-                const slotIndex = i + 1;
+          {maxAgents === 0 ? (
+            <div className="h-[400px] flex flex-col items-center justify-center text-center p-8 bg-[#0a0a0a] border border-dashed border-[#1a1a1a] rounded-xl">
+              <Lock className="w-10 h-10 mb-4 text-[#4B5563]" />
+              <h4 className="text-[12px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4">AUCUN AGENT — PLAN STARTUP</h4>
+              <button 
+                className="px-8 py-3 bg-[#10B981] text-black font-black text-[11px] uppercase tracking-[0.2em] rounded-lg hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+              >
+                UPGRADER LE PLAN
+              </button>
+            </div>
+          ) : (
+            <div className={`grid gap-px bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden ${
+              maxAgents >= 3 || agents.length >= 3 ? 'grid-cols-3' : (maxAgents === 2 || agents.length === 2) ? 'grid-cols-2' : 'grid-cols-1'
+            }`}>
+              {Array.from({ length: Math.max(3, maxAgents) }).map((_, i) => {
                 const agent = agents[i];
+                const slotNumber = i + 1;
+                const isLocked = slotNumber > maxAgents;
                 
-                // Agent exists
                 if (agent) {
                   const neuralLoad = agent.neural_load || 0;
                   const loadColor = neuralLoad <= 50 ? '#10B981' : neuralLoad <= 80 ? '#F59E0B' : '#EF4444';
-                  
+                  const lastTask = tasksStream.find(t => t.agent_id === agent.id);
+
                   return (
-                    <div key={agent.id} className="bg-[#0A0A0A] p-[28px] hover:bg-[#0c0c0c] transition-all group/agent border border-white/5">
+                    <div 
+                      key={agent.id} 
+                      onClick={() => router.push(`/admin/system/${id}/agents`)}
+                      className="bg-[#0D0D0D] p-6 hover:bg-[#111827] transition-all group/agent cursor-pointer relative"
+                    >
+                      {/* TOOLTIP ON HOVER */}
+                      <div className="absolute inset-0 z-20 bg-[#111827] p-6 opacity-0 group-hover/agent:opacity-100 pointer-events-none transition-opacity duration-150">
+                        <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-2">
+                          <Activity className="w-3.5 h-3.5 text-[#10B981]" />
+                          <span className="text-[10px] font-black text-white uppercase tracking-widest">DERNIÈRE ACTIVITE</span>
+                        </div>
+                        {lastTask ? (
+                          <div className="space-y-3">
+                            <p className="text-[11px] text-white/80 font-medium line-clamp-2">{lastTask.task_description}</p>
+                            <div className="grid grid-cols-2 gap-2 pt-2">
+                              <div className="flex flex-col">
+                                <span className="text-[7px] text-white/30 uppercase font-bold">TYPE</span>
+                                <span className="text-[9px] text-[#10B981] font-mono leading-none">{lastTask.task_type}</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[7px] text-white/30 uppercase font-bold">DATE</span>
+                                <span className="text-[9px] text-white font-mono leading-none">{new Date(lastTask.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                            </div>
+                            <div className={`mt-2 inline-block px-2 py-0.5 rounded text-[7px] font-black uppercase ${
+                              lastTask.status === 'COMPLETED' ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'
+                            }`}>
+                              STATUT: {lastTask.status}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] font-mono text-white/20 uppercase">AUCUNE DONNÉE RÉCENTE</p>
+                        )}
+                      </div>
+
                       <div className="flex justify-between items-start mb-6">
-                        <span className="text-[9px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.name.replace(/\s+/g, '_').toUpperCase()}]</span>
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black border border-white/5">
+                        <span className="text-[8px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.name.replace(/\s+/g, '_').toUpperCase()}]</span>
+                        <div className="flex items-center gap-1.5">
                           <div className={`w-1.5 h-1.5 rounded-full ${agent.status?.toLowerCase() === 'active' ? 'bg-[#10B981]' : 'bg-[#6B7280]'}`} />
                           <span className={`text-[8px] font-bold uppercase tracking-widest ${agent.status?.toLowerCase() === 'active' ? 'text-[#10B981]' : 'text-[#6B7280]'}`}>
-                            ● {agent.status?.toLowerCase() === 'active' ? 'ACTIVE' : 'STANDBY'}
+                            {agent.status?.toLowerCase() === 'active' ? '● ACTIVE' : '● STANDBY'}
                           </span>
                         </div>
                       </div>
                       
                       <div className="mb-8">
                         <h4 className="text-[18px] font-black text-white uppercase tracking-tighter mb-1">{agent.name}</h4>
-                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em]">{agent.primary_api || 'LLM_UNIT'}</p>
+                        <p className="text-[9px] font-mono text-white/30 uppercase tracking-[0.2em]">{agent.primary_api || 'LLM_UNIT'}</p>
                       </div>
 
                       <div className="space-y-2 mb-8">
@@ -347,7 +384,7 @@ export default function ClientIsolatedSystemPage() {
                           <span>NEURAL_LOAD</span>
                           <span style={{ color: loadColor }}>{neuralLoad}%</span>
                         </div>
-                        <div className="h-[3px] w-full bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-[2px] w-full bg-white/5 rounded-full overflow-hidden">
                           <div 
                             className="h-full transition-all duration-1000" 
                             style={{ width: `${neuralLoad}%`, backgroundColor: loadColor }} 
@@ -357,101 +394,119 @@ export default function ClientIsolatedSystemPage() {
 
                       <div className="pt-6 border-t border-white/5">
                         <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight line-clamp-1">
-                          {agent.current_task || 'EN ATTENTE DE MISSION'}
+                          {agent.current_task ? agent.current_task.substring(0, 35) + '...' : 'EN ATTENTE DE MISSION'}
                         </p>
                       </div>
                     </div>
                   );
                 }
 
-                // Slot authorized but empty
-                if (slotIndex <= maxAgents) {
+                if (isLocked) {
                   return (
-                    <div key={`empty-${slotIndex}`} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#10B981]/30 flex flex-col items-center justify-center p-8 text-center group/config cursor-pointer hover:bg-[#10B981]/5 transition-all">
-                      <div className="w-12 h-12 rounded-full bg-[#10B981]/10 flex items-center justify-center mb-4 group-hover/config:scale-110 transition-transform text-[#10B981]">
-                        <span className="text-xl">+</span>
-                      </div>
-                      <h4 className="text-[10px] font-bold text-[#10B981] uppercase tracking-[0.2em] mb-2 font-mono">SLOT DISPONIBLE</h4>
-                      <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight mb-4">AUCUN AGENT CONFIGURÉ</p>
-                      <button className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.2em] px-4 py-2 border border-[#10B981]/20 rounded-lg hover:bg-[#10B981] hover:text-black transition-all">
-                        + CONFIGURER CET AGENT
-                      </button>
+                    <div 
+                      key={`locked-${i}`} 
+                      className="bg-[#080808] p-8 border border-[#1a1a1a] flex flex-col items-center justify-center text-center opacity-40 group/locked relative overflow-hidden"
+                    >
+                      <LockIcon className="w-6 h-6 text-[#4B5563] mb-3" />
+                      <span className="text-[9px] font-black text-[#4B5563] uppercase tracking-[0.2em]">SLOT VERROUILLÉ</span>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                     </div>
                   );
                 }
 
-                // Slot locked
                 return (
-                  <div key={`locked-${slotIndex}`} className="bg-[#0D0D0D] h-[280px] border border-dashed border-[#2A2A2A] flex flex-col items-center justify-center p-8 text-center group/lock opacity-50">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-4 text-[#6B7280]">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <h4 className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">SLOT VERROUILLÉ</h4>
-                    <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight">
-                      Upgrade vers {clientData?.next_plan_name || 'LE PLAN SUPÉRIEUR'} pour débloquer
-                    </p>
+                  <div 
+                    key={`empty-${i}`} 
+                    onClick={() => router.push(`/admin/system/${id}/agents`)}
+                    className="bg-[#0D0D0D] p-8 border border-dashed border-[#10B981]/20 flex flex-col items-center justify-center text-center group/config cursor-pointer hover:bg-[#10B981]/5 transition-all"
+                  >
+                    <Plus className="w-8 h-8 text-[#10B981] mb-4 opacity-40 group-hover/config:opacity-100 transition-opacity" />
+                    <button className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.2em] px-4 py-2 border border-[#10B981]/10 rounded-lg group-hover/config:bg-[#10B981] group-hover/config:text-black transition-all">
+                      + CONFIGURER
+                    </button>
                   </div>
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* TAB CONTENT: STREAM */}
-        {activeTab === 'stream' && (
-          <div className="max-h-[400px] overflow-y-auto custom-scrollbar pr-2 space-y-4">
+        {/* RIGHT COLUMN: LIVE THOUGHT STREAM */}
+        <div className="p-[28px] lg:p-[32px] bg-transparent">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <Terminal className="w-4 h-4 text-[#9CA3AF]" />
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#9CA3AF]">LIVE THOUGHT STREAM</h2>
+              <span className="text-[8px] font-mono text-[#4B5563]"> &gt;_ </span>
+            </div>
+            {processingCount > 0 && (
+              <div className="flex items-center gap-2 px-2 py-0.5 bg-[#10B981]/10 border border-[#10B981]/20 rounded-full animate-pulse">
+                <div className="w-1 h-1 rounded-full bg-[#10B981]" />
+                <span className="text-[8px] font-black text-[#10B981] uppercase tracking-[0.1em] leading-none">
+                  {processingCount} PROCESSING
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-0 border border-[#1a1a1a] rounded-xl overflow-hidden bg-[#0a0a0a]/50">
             {clientData?.package_type === 'STARTUP' ? (
-              <div className="h-[300px] flex flex-col items-center justify-center text-center p-8 border border-white/5 rounded-xl bg-[#0a0a0a]">
-                <Lock className="w-10 h-10 mb-4 text-[#4B5563]" />
-                <span className="text-[11px] font-mono text-[#4B5563] uppercase tracking-widest leading-loose">
-                  🔒 LIVE STREAM NON DISPONIBLE — AUCUN AGENT DÉPLOYÉ
+              <div className="p-12 flex flex-col items-center justify-center text-center opacity-40">
+                <Lock className="w-8 h-8 mb-4 text-[#4B5563]" />
+                <span className="text-[10px] font-mono text-[#4B5563] uppercase tracking-widest font-bold">
+                  🔒 NON DISPONIBLE
                 </span>
               </div>
             ) : tasksStream.length === 0 ? (
-              <div className="h-[300px] flex flex-col items-center justify-center text-center p-8 border border-white/5 rounded-xl bg-[#0a0a0a]">
-                <span className="text-[11px] font-mono text-[#4B5563] uppercase tracking-widest">
-                  FLUX VIDE — EN ATTENTE D'ACTIVITÉ AGENT
+              <div className="p-12 flex flex-col items-center justify-center text-center opacity-40">
+                <span className="text-[10px] font-mono text-[#4B5563] uppercase tracking-widest font-bold">
+                  FLUX VIDE — EN ATTENTE D'ACTIVITÉ
                 </span>
               </div>
             ) : (
-              tasksStream.map((task, i) => {
-                const agentName = agents.find(a => a.id === task.agent_id)?.name || 'SYSTEM';
+              tasksStream.slice(0, 8).map((task, i) => {
+                const agent = agents.find(a => a.id === task.agent_id);
+                const agentName = agent?.name || 'SYSTEM';
+                
                 return (
-                  <div key={task.id || i} className="p-6 bg-[#0a0a0a] border border-white/5 rounded-xl group/stream-item hover:border-white/10 transition-all">
-                    <div className="flex gap-4 mb-3">
-                      <span className="text-[10px] font-mono text-[#10B981] tabular-nums whitespace-nowrap bg-[#10B981]/5 px-2 py-0.5 rounded border border-[#10B981]/10">
+                  <div 
+                    key={task.id || i} 
+                    onClick={() => router.push(`/admin/system/${id}/agents`)}
+                    className="p-4 border-b border-[#1a1a1a] last:border-0 hover:bg-[#111827] transition-all group/task cursor-pointer overflow-hidden"
+                  >
+                    <div className="flex gap-2 items-center mb-1.5 whitespace-nowrap overflow-hidden">
+                      <span className="text-[9px] font-mono text-[#6B7280] tabular-nums">
                         [{new Date(task.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}]
                       </span>
-                      <p className="text-[13px] text-white/90 font-medium tracking-tight h-fit">
-                        <span className="font-black text-[#10B981] mr-2 uppercase">{agentName}</span>
-                        <span className="text-white/40 mr-2">→</span>
-                        {task.task_description}
-                      </p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="w-1 h-1 rounded-full bg-[#10B981]" />
+                        <span className="text-[10px] font-black text-[#10B981] uppercase truncate max-w-[100px]">{agentName}</span>
+                        <span className="text-white/20 ml-1"> &gt; </span>
+                        <span className="text-[11px] text-white/90 font-medium truncate group-hover/task:hidden">
+                          {task.task_description.substring(0, 30)}...
+                        </span>
+                        {/* EXPAND ON HOVER */}
+                        <span className="hidden group-hover/task:inline text-[11px] text-white font-medium animate-in fade-in slide-in-from-left-1 duration-200">
+                          {task.task_description}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 mb-3">
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black rounded border border-white/5">
-                        <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">TYPE:</span>
-                        <span className="text-[8px] font-black text-white/60 uppercase">{task.task_type || 'GENERIC'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black rounded border border-white/5">
-                        <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">COMPLEXITY:</span>
-                        <span className="text-[8px] font-black text-white/60 uppercase">{task.complexity || 'LOW'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black rounded border border-white/5">
-                        <span className="text-[8px] font-mono text-[#4B5563] uppercase tracking-widest">API:</span>
-                        <span className="text-[8px] font-black text-white/60 uppercase">{task.api_used || 'AUTO'}</span>
-                      </div>
-                      <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                        task.status === 'COMPLETED' ? 'bg-[#10B981]/10 text-[#10B981]' : 
-                        task.status === 'PROCESSING' ? 'bg-[#3B82F6]/10 text-[#3B82F6] animate-pulse' : 
-                        'bg-[#F59E0B]/10 text-[#F59E0B]'
-                      }`}>
+                    
+                    <div className="flex items-center gap-3 text-[8px] font-mono text-white/30 uppercase tracking-widest mb-0 group-hover/task:mb-2 transition-all">
+                      <span>{task.task_type || 'GENERIC'}</span>
+                      <span className="text-white/5">|</span>
+                      <span>{task.complexity || 'LOW'}</span>
+                      <span className="text-white/5">|</span>
+                      <span>{task.api_used || 'AUTO'}</span>
+                      <span className="text-white/5">|</span>
+                      <span className={`font-black ${task.status === 'COMPLETED' ? 'text-[#10B981]' : 'text-[#F59E0B]'}`}>
                         {task.status}
-                      </div>
+                      </span>
                     </div>
+
                     {task.output_summary && (
-                      <div className="pt-3 border-t border-white/[0.03]">
-                        <p className="text-[11px] text-white/30 leading-relaxed italic line-clamp-2">
+                      <div className="hidden group-hover/task:block animate-in slide-in-from-top-1 duration-200 border-t border-white/5 pt-2 mt-2">
+                        <p className="text-[10px] text-white/40 leading-relaxed italic">
                           "{task.output_summary}"
                         </p>
                       </div>
@@ -461,7 +516,7 @@ export default function ClientIsolatedSystemPage() {
               })
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
