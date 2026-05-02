@@ -17,29 +17,63 @@ export default function ClientIsolatedSystemPage() {
   const id = params?.id as string;
   const [booting, setBooting] = useState(true);
   const [clientData, setClientData] = useState<any>(null);
+  const [lastTask, setLastTask] = useState<any>(null);
 
   useEffect(() => {
-    async function fetchClient() {
-      const { data, error } = await supabase
+    async function fetchData() {
+      const { data: entData } = await supabase
         .from('enterprises')
         .select('*')
         .eq('id', id)
         .single();
       
-      if (data) {
-        setClientData(data);
-      } else {
-        setClientData({
-          name: "Neural Dynamics",
-          industry: "Electronics",
-          level: "Enterprise"
-        });
+      if (entData) {
+        setClientData(entData);
       }
+
+      const { data: taskData } = await supabase
+        .from('agent_tasks')
+        .select('*')
+        .eq('enterprise_id', id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      setLastTask(taskData);
       setBooting(false);
     }
 
-    fetchClient();
+    fetchData();
   }, [id]);
+
+  const getPlanColor = (plan: string) => {
+    switch (plan?.toUpperCase()) {
+      case 'STARTUP': return '#6B7280';
+      case 'BUSINESS': return '#3B82F6';
+      case 'ENTERPRISE': return '#10B981';
+      case 'ELITE': return '#F59E0B';
+      default: return '#6B7280';
+    }
+  };
+
+  const getHealthColor = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'STABLE': return '#10B981';
+      case 'WARNING': return '#F59E0B';
+      case 'CRITICAL': return '#EF4444';
+      default: return '#10B981';
+    }
+  };
+
+  const formatDateShort = (dateStr: string) => {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }).toUpperCase();
+  };
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('fr-FR').format(val || 0) + ' FCFA';
+  };
 
   if (booting) {
     return (
@@ -48,6 +82,9 @@ export default function ClientIsolatedSystemPage() {
       </div>
     );
   }
+
+  const tokenUsage = clientData?.tokens_limit ? (clientData.tokens_used / clientData.tokens_limit) * 100 : 0;
+  const tokenColor = tokenUsage >= 90 ? '#EF4444' : tokenUsage >= 75 ? '#F59E0B' : '#10B981';
 
   return (
     <div className="min-h-screen bg-[#080808] text-[#e0e0e0] font-sans">
@@ -103,6 +140,99 @@ export default function ClientIsolatedSystemPage() {
           </button>
         </div>
       </header>
+
+      {/* STATS SECTION */}
+      <div className="grid grid-cols-4 bg-[#1a1a1a] gap-[1px] border-b border-[#1a1a1a]">
+        {/* CARD 1: PLAN & FACTURATION */}
+        <div className="bg-[#0A0A0A] p-[28px] relative group overflow-hidden">
+          <div className="flex justify-between items-start mb-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#6B7280]">PLAN & FACTURATION</h3>
+            <div className="flex items-center gap-1.5 animate-pulse">
+              <span className="text-[9px] font-bold text-[#10B981] tracking-widest">⟳ LIVE</span>
+            </div>
+          </div>
+          <p className="text-[32px] font-extrabold leading-none mb-2" style={{ color: getPlanColor(clientData?.package_type) }}>
+            {clientData?.package_type || 'BUSINESS'}
+          </p>
+          <p className="text-[12px] font-bold text-white/60 mb-8 uppercase tracking-widest">
+            {formatCurrency(clientData?.monthly_cost)}
+          </p>
+          <p className="text-[10px] font-mono text-[#4B5563] uppercase tracking-tight">
+            {clientData?.status === 'PROSPECT' ? 'CLIENT NON ACTIVÉ' : `ACTIF DEPUIS ${formatDateShort(clientData?.activated_at) || 'INCONNU'}`}
+          </p>
+        </div>
+
+        {/* CARD 2: TOKEN USAGE */}
+        <div className="bg-[#0A0A0A] p-[28px] relative group overflow-hidden">
+          <div className="flex justify-between items-start mb-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#6B7280]">TOKEN USAGE</h3>
+            <div className="flex items-center gap-1.5 animate-pulse duration-[3000ms]">
+              <span className="text-[9px] font-bold text-[#10B981] tracking-widest">⟳ LIVE</span>
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2 mb-4">
+            <span className="text-[32px] font-extrabold leading-none" style={{ color: tokenColor }}>
+              {Math.round(tokenUsage)}%
+            </span>
+          </div>
+          <div className="h-[3px] w-full bg-white/5 rounded-full mb-4 overflow-hidden">
+            <div 
+              className="h-full transition-all duration-1000" 
+              style={{ width: `${tokenUsage}%`, backgroundColor: tokenColor }} 
+            />
+          </div>
+          <p className="text-[12px] font-bold text-white/60 mb-8 uppercase tracking-widest">
+            {clientData?.tokens_used?.toLocaleString() || 0} / {clientData?.tokens_limit?.toLocaleString() || '1M'}
+          </p>
+          <p className="text-[10px] font-mono text-[#4B5563] uppercase tracking-tight">
+            {clientData?.package_type === 'STARTUP' ? 'NON APPLICABLE — PLAN STARTUP' : 
+             tokenUsage >= 90 ? 'DÉPASSEMENT IMMINENT' : 
+             tokenUsage >= 75 ? 'SURVEILLANCE REQUISE' : 'CONSOMMATION NORMALE'}
+          </p>
+        </div>
+
+        {/* CARD 3: SYSTEM HEALTH */}
+        <div className="bg-[#0A0A0A] p-[28px] relative group overflow-hidden">
+          <div className="flex justify-between items-start mb-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#6B7280]">SYSTEM HEALTH</h3>
+            <div className="flex items-center gap-1.5 animate-pulse">
+              <span className="text-[9px] font-bold text-[#10B981] tracking-widest">⟳ LIVE</span>
+            </div>
+          </div>
+          <p className="text-[32px] font-extrabold leading-none mb-2" style={{ color: getHealthColor(clientData?.status) }}>
+            {clientData?.status === 'PROSPECT' ? 'INACTIVE' : 'STABLE'}
+          </p>
+          <p className="text-[12px] font-bold text-white/60 mb-8 uppercase tracking-widest">
+            RÉGION: {clientData?.region || 'FRANCE_SOUTH'}
+          </p>
+          <p className="text-[10px] font-mono text-[#4B5563] uppercase tracking-tight">
+            {clientData?.status === 'STABLE' || clientData?.status === 'ACTIVE' ? 'TOUS SYSTÈMES NOMINAUX' : 
+             clientData?.status === 'WARNING' ? 'ANOMALIE DÉTECTÉE — VÉRIFIER AGENTS' : 
+             clientData?.status === 'CRITICAL' ? 'INTERVENTION REQUISE' : 'SYSTÈME EN ATTENTE'}
+          </p>
+        </div>
+
+        {/* CARD 4: DERNIÈRE ACTIVITÉ */}
+        <div className="bg-[#0A0A0A] p-[28px] relative group overflow-hidden">
+          <div className="flex justify-between items-start mb-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#6B7280]">DERNIÈRE ACTIVITÉ</h3>
+            <div className="flex items-center gap-1.5 animate-pulse duration-[3000ms]">
+              <span className="text-[9px] font-bold text-[#10B981] tracking-widest">⟳ LIVE</span>
+            </div>
+          </div>
+          <p className="text-[32px] font-extrabold leading-none mb-2 text-white">
+            {formatDateShort(lastTask?.created_at) || 'N/A'}
+          </p>
+          <p className="text-[12px] font-bold text-white/60 mb-8 uppercase tracking-widest truncate">
+            {lastTask?.task_name || 'AUCUNE TÂCHE RÉCURRENTE'}
+          </p>
+          <p className="text-[10px] font-mono text-[#4B5563] uppercase tracking-tight">
+            {!lastTask ? 'AUCUNE ACTIVITÉ — AGENTS EN ATTENTE' : 
+             (new Date().getTime() - new Date(lastTask.created_at).getTime()) > 7 * 24 * 60 * 60 * 1000 ? 
+             'INACTIVITÉ DÉTECTÉE' : 'ACTIVITÉ RÉCENTE'}
+          </p>
+        </div>
+      </div>
 
       {/* CONTENT AREA (EMPTY) */}
       <main className="flex-1">
