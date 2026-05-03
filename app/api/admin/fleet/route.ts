@@ -27,8 +27,7 @@ export async function GET() {
         region, 
         monthly_cost
       `)
-      .not('status', 'in', '("PROSPECT","INACTIVE")')
-      .eq('is_test', false);
+      .not('status', 'in', '("PROSPECT","INACTIVE")');
 
     if (entError) throw entError;
 

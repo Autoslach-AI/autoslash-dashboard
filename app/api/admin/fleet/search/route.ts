@@ -29,8 +29,7 @@ export async function GET(request: Request) {
         region, 
         monthly_cost
       `)
-      .not('status', 'in', '("PROSPECT","INACTIVE")')
-      .eq('is_test', false);
+      .not('status', 'in', '("PROSPECT","INACTIVE")');
 
     if (q) {
       query = query.or(`name.ilike.%${q}%,status.ilike.%${q}%,package_type.ilike.%${q}%,region.ilike.%${q}%,sector.ilike.%${q}%,comm_mode.ilike.%${q}%`);
