@@ -28,7 +28,9 @@ export async function GET(request: Request) {
         last_event_at, 
         region, 
         monthly_cost
-      `);
+      `)
+      .not('status', 'in', '("PROSPECT","INACTIVE")')
+      .eq('is_test', false);
 
     if (q) {
       query = query.or(`name.ilike.%${q}%,status.ilike.%${q}%,package_type.ilike.%${q}%,region.ilike.%${q}%,sector.ilike.%${q}%,comm_mode.ilike.%${q}%`);

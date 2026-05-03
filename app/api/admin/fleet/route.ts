@@ -26,7 +26,9 @@ export async function GET() {
         last_event_at, 
         region, 
         monthly_cost
-      `);
+      `)
+      .not('status', 'in', '("PROSPECT","INACTIVE")')
+      .eq('is_test', false);
 
     if (entError) throw entError;
 
