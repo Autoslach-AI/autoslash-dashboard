@@ -9,11 +9,15 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Prospects en attente
-  const { count: prospectsCount } = await supabase
+  // Prospects en attente (filtrés par is_test = false)
+  const { data: prospectLogs } = await supabase
     .from('admin_intelligence_logs')
-    .select('*', { count: 'exact', head: true })
+    .select('id, raw_context, created_at, client_id, enterprises!inner(is_test)')
     .eq('issue_type', 'NEW_PROSPECT')
+    .eq('enterprises.is_test', false)
+
+  const prospectsCount = prospectLogs?.length || 0;
+  const recentProspects = prospectLogs?.slice(0, 3) || [];
 
   // Upsell opportunities
   const { count: upsellCount } = await supabase
@@ -27,14 +31,6 @@ export async function GET() {
     .select('*', { count: 'exact', head: true })
     .in('status', ['WARNING', 'CRITICAL'])
     .eq('is_test', false)
-
-  // Derniers prospects pour détail
-  const { data: recentProspects } = await supabase
-    .from('admin_intelligence_logs')
-    .select('id, raw_context, created_at, client_id')
-    .eq('issue_type', 'NEW_PROSPECT')
-    .order('created_at', { ascending: false })
-    .limit(3)
 
   return NextResponse.json({
     total: (prospectsCount || 0) + (upsellCount || 0) + (churnCount || 0),
