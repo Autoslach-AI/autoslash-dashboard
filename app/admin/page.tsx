@@ -206,7 +206,7 @@ export default function NeuralCommandCenterV31() {
   const [isAdminOracle, setIsAdminOracle] = useState(true); 
   const [clients, setClients] = useState<FleetNode[]>([]);
   const [commMode, setCommMode] = useState<CommMode>('APPROVAL');
-  const [oracleFilter, setOracleFilter] = useState<'ALL' | 'CRITICAL' | 'WARNING' | 'MESSAGE' | 'MESSAGES' | 'STABLE' | 'OPTIMAL'>('ALL');
+  const [oracleFilter, setOracleFilter] = useState<'ALL' | 'CRITICAL' | 'WARNING' | 'MESSAGE' | 'MESSAGES' | 'STABLE' | 'OPTIMAL' | 'PROSPECT' | 'TOKEN_WARNING' | 'CHURN'>('ALL');
   const [clickedRowId, setClickedRowId] = useState<string | null>(null);
   const [planFilter, setPlanFilter] = useState<'ALL' | 'ENTERPRISE' | 'BUSINESS' | 'STARTUP' | 'ELITE'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -268,6 +268,7 @@ export default function NeuralCommandCenterV31() {
   const [saving, setSaving] = useState(false);
   const [fleetData, setFleetData] = useState<any>(null);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const [commercialPipeline, setCommercialPipeline] = useState<any>(null);
   // Fetch Templates for Modal
   useEffect(() => {
     if (showNewCustomerModal && step === 2) {
@@ -675,7 +676,12 @@ export default function NeuralCommandCenterV31() {
          const fleetAdminJson = await fleetRes.json();
          setFleetData(fleetAdminJson);
 
-         // 14. Plan Definitions for Modal
+         // 14. Commercial Pipeline
+         const cpRes = await fetch('/api/admin/commercial-pipeline');
+         const cpData = await cpRes.json();
+         setCommercialPipeline(cpData);
+
+         // 15. Plan Definitions for Modal
          const { data: plans } = await supabase.from('plan_definitions').select('*');
 
 
@@ -804,7 +810,10 @@ export default function NeuralCommandCenterV31() {
   const filteredClients = (fleetData?.clients || [])
     .filter((c: any) => {
        const matchesStatus = oracleFilter === 'ALL' 
-         || (oracleFilter === 'MESSAGES' ? c.unread_messages > 0 : c.status === oracleFilter);
+         || (oracleFilter === 'MESSAGES' ? c.unread_messages > 0 
+             : oracleFilter === 'CHURN' ? (c.status === 'WARNING' || c.status === 'CRITICAL')
+             : oracleFilter === 'TOKEN_WARNING' ? (c.total_tokens_consumed > (c.token_budget * 0.8) || c.warning_flag)
+             : c.status === oracleFilter);
        const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
        return matchesStatus && matchesPlan;
     });
@@ -828,7 +837,7 @@ export default function NeuralCommandCenterV31() {
       <div className="max-w-[1400px] mx-auto space-y-8">
          
           {/* STATS GRID - NEURAL INTELLIGENCE HUB */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {/* CARD 1 — API COMMAND CENTER */}
             <div 
               className="p-6 bg-[#111111] border border-white/5 rounded-xl space-y-4 transition-all relative overflow-hidden"
@@ -996,6 +1005,111 @@ export default function NeuralCommandCenterV31() {
                 {neuralPulse?.totalEvents > 0 && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
               </div>
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
+            </div>
+
+            {/* CARD 5 — COMMERCIAL PIPELINE */}
+            <div 
+              className={`p-6 border rounded-xl space-y-4 transition-all relative overflow-hidden group ${
+                (commercialPipeline?.total || 0) === 0 
+                ? 'bg-[#111111] border-[#4ade80]/30 hover:border-[#4ade80]/50' 
+                : 'bg-[#111111] border-orange-500/30 hover:border-orange-500/50'
+              }`}
+            >
+              <div className="flex justify-between items-start relative z-10">
+                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">COMMERCIAL PIPELINE</span>
+                <div className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
+                  (commercialPipeline?.total || 0) === 0 
+                  ? 'bg-[#4ade80]/10 text-[#4ade80]' 
+                  : 'bg-red-500/10 text-red-500 animate-[pulse_3s_infinite]'
+                }`}>
+                  <div className={`w-1 h-1 rounded-full ${(commercialPipeline?.total || 0) === 0 ? 'bg-[#4ade80]' : 'bg-red-500'}`} />
+                  {(commercialPipeline?.total || 0) === 0 ? 'OPTIMAL' : `${commercialPipeline.total} ACTIONS`}
+                </div>
+              </div>
+
+              <div className="relative z-10">
+                {(commercialPipeline?.total || 0) === 0 ? (
+                  <div className="py-8 text-center space-y-1">
+                    <p className="text-[11px] font-black text-[#4ade80] uppercase tracking-[0.2em]">PIPELINE OPTIMAL</p>
+                    <p className="text-white/20 text-[8px] font-bold uppercase tracking-widest">AUCUNE ACTION COMMERCIALE REQUISE</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3">
+                    {/* PROSPECTS */}
+                    <div 
+                      onClick={() => {
+                        if (commercialPipeline?.prospects?.count > 0) {
+                           setOracleFilter('PROSPECT');
+                           setSearchQuery('');
+                           document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      className={`p-3 rounded-lg border transition-all ${
+                        commercialPipeline?.prospects?.count > 0 
+                        ? 'bg-black/40 border-green-500/20 hover:bg-black/60 cursor-pointer' 
+                        : 'opacity-40 grayscale pointer-events-none border-white/5'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-bold text-green-400 uppercase tracking-widest">PROSPECTS EN ATTENTE</span>
+                        <span className="text-xl font-mono font-black text-green-400">{commercialPipeline?.prospects?.count}</span>
+                      </div>
+                      <p className="text-[8px] text-white/40 font-mono truncate">
+                        {commercialPipeline?.prospects?.items?.[0]?.raw_context?.substring(0, 35) || "Aucun prospect"}
+                      </p>
+                    </div>
+
+                    {/* UPSELL */}
+                    <div 
+                      onClick={() => {
+                        if (commercialPipeline?.upsell?.count > 0) {
+                           setOracleFilter('TOKEN_WARNING');
+                           setSearchQuery('');
+                           document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      className={`p-3 rounded-lg border transition-all ${
+                        commercialPipeline?.upsell?.count > 0 
+                        ? 'bg-black/40 border-amber-500/20 hover:bg-black/60 cursor-pointer' 
+                        : 'opacity-40 grayscale pointer-events-none border-white/5'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">UPSELL OPPORTUNITIES</span>
+                        <span className="text-xl font-mono font-black text-amber-500">{commercialPipeline?.upsell?.count}</span>
+                      </div>
+                      <p className="text-[8px] text-white/40 font-mono">
+                        Clients proches de la limite tokens
+                      </p>
+                    </div>
+
+                    {/* CHURN */}
+                    <div 
+                      onClick={() => {
+                        if (commercialPipeline?.churn?.count > 0) {
+                           setOracleFilter('CHURN');
+                           setSearchQuery('');
+                           document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      className={`p-3 rounded-lg border transition-all ${
+                        commercialPipeline?.churn?.count > 0 
+                        ? 'bg-black/40 border-red-500/20 hover:bg-black/60 cursor-pointer' 
+                        : 'opacity-40 grayscale pointer-events-none border-white/5'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest">CHURN RISKS</span>
+                        <span className="text-xl font-mono font-black text-red-500">{commercialPipeline?.churn?.count}</span>
+                      </div>
+                      <p className="text-[8px] text-white/40 font-mono">
+                        Clients WARNING ou CRITICAL
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 rounded-full" />
             </div>
           </div>
 
@@ -1414,7 +1528,7 @@ export default function NeuralCommandCenterV31() {
              </div>
 
              {/* SECTION 4: THE ORACLE COMMAND CENTER */}
-             <div className="space-y-6">
+             <div id="oracle-section" className="space-y-6">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                   <div>
                     <h2 style={{ fontFamily: 'monospace', letterSpacing: 3, fontSize: 18 }}>
