@@ -10,123 +10,129 @@ export async function GET() {
   );
 
   try {
-    // 1. Fetch enterprises
-    const { data: enterprises, error: entError } = await supabaseAdmin
-      .from('enterprises')
-      .select(`
-        id, 
-        name, 
-        sector, 
-        package_type, 
-        token_budget, 
-        total_tokens_consumed, 
-        status, 
-        comm_mode, 
-        last_event_text, 
-        last_event_at, 
-        region, 
-        monthly_cost
-      `)
-      .not('status', 'in', '("PROSPECT","INACTIVE")');
+    // 1. Fetch available plans (excluding those with no agents allowed like STARTUP)
+    const { data: plansData } = await supabaseAdmin
+      .from('plan_definitions')
+      .select('plan_name')
+      .gt('max_agents_allowed', 0)
+      .order('price_cents', { ascending: true });
+    
+    const availablePlans = plansData?.map(p => p.plan_name) || [];
 
-    if (entError) throw entError;
-
-    // 2. Fetch extra data for intelligence computing
-    // Last log system_logs for each
-    const { data: systemLogs } = await supabaseAdmin
-      .from('system_logs')
-      .select('enterprise_id, status_color, created_at')
+    // 2. Fetch clients from v_clients_dev
+    const { data: clients, error: clientError } = await supabaseAdmin
+      .from('v_clients_dev')
+      .select('*')
       .order('created_at', { ascending: false });
 
-    // Last log admin_intelligence_logs for each
+    if (clientError) throw clientError;
+
+    // 3. Fetch all active intelligence logs to process priorities
     const { data: intelLogs } = await supabaseAdmin
       .from('admin_intelligence_logs')
-      .select('enterprise_id, message, severity_level, created_at')
+      .select('client_id, issue_type, raw_context, created_at')
       .order('created_at', { ascending: false });
 
-    // Unread messages count
-    const { data: unreadCounts } = await supabaseAdmin
-      .from('client_messages')
-      .select('enterprise_id, is_read')
-      .eq('is_read', false);
-
-    const processedClients = (enterprises || []).map(ent => {
-      const id = ent.id;
+    const processedClients = (clients || []).map(client => {
+      const id = client.id;
+      const clientLogs = intelLogs?.filter(l => l.client_id === id) || [];
       
-      // Get last system log
-      const lastSystemLog = systemLogs?.find(l => l.enterprise_id === id);
-      
-      // Get unread messages count
-      const unreadCount = unreadCounts?.filter(m => m.enterprise_id === id).length || 0;
-      
-      // Calculate token usage percent
-      const tokenUsagePercent = ent.token_budget > 0 
-        ? Math.round((ent.total_tokens_consumed / ent.token_budget) * 100) 
-        : 0;
+      // Strict Priority Logic
+      // Priority 1: SECURITY
+      const securityLog = clientLogs.find(l => l.issue_type === 'SECURITY');
+      // Priority 2: AGENT_ERROR
+      const agentErrorLog = clientLogs.find(l => l.issue_type === 'AGENT_ERROR');
+      // Priority 3: TOKEN_WARNING
+      const tokenWarningLog = clientLogs.find(l => l.issue_type === 'TOKEN_WARNING');
+      // Priority 4: CHURN_RISK
+      const churnRiskLog = clientLogs.find(l => l.issue_type === 'CHURN_RISK');
+      // Priority 5: MESSAGE
+      const messageLog = clientLogs.find(l => l.issue_type === 'MESSAGE');
+      // Priority 6: UPSELL
+      const upsellLog = clientLogs.find(l => l.issue_type === 'UPSELL');
 
-      // Compute Intelligence
-      let intelligenceType = 'STABLE';
-      let intelligenceSeverity = null;
-      let intelligenceMessage = 'Système optimal';
-      let intelligenceSourceUrl = `/admin/system/${id}`;
-      let intelligenceCreatedAt = ent.last_event_at;
+      let intel: any = {
+        type: 'OPTIMAL',
+        color: 'gray',
+        message: 'SYSTÈME OPTIMAL',
+        clickable: false,
+        link: null,
+        created_at: null
+      };
 
-      if (lastSystemLog?.status_color === 'red') {
-        intelligenceType = 'SYSTEM_ERROR';
-        intelligenceSeverity = 'CRITICAL';
-        intelligenceMessage = 'Erreur système critique détectée';
-        intelligenceSourceUrl = `/admin/system/${id}/agents`;
-        intelligenceCreatedAt = lastSystemLog.created_at;
-      } else if (tokenUsagePercent > 80) {
-        intelligenceType = 'TOKEN_WARNING';
-        intelligenceSeverity = 'WARNING';
-        intelligenceMessage = `Client à ${tokenUsagePercent}% de son budget tokens`;
-        intelligenceSourceUrl = `/admin/system/${id}/settings`;
-        intelligenceCreatedAt = new Date().toISOString(); // Default to now if no specific log
-      } else if (unreadCount > 0) {
-        intelligenceType = 'MESSAGE';
-        intelligenceSeverity = 'INFO';
-        intelligenceMessage = `${unreadCount} message(s) non lu(s)`;
-        intelligenceSourceUrl = `/admin/system/${id}/messages`;
-        intelligenceCreatedAt = new Date().toISOString(); 
+      const topLog = securityLog || agentErrorLog || tokenWarningLog || churnRiskLog || messageLog || upsellLog;
+
+      if (securityLog) {
+        intel = {
+          type: 'SECURITY',
+          color: 'red',
+          message: 'ALERTE SÉCURITÉ DÉTECTÉE',
+          clickable: true,
+          link: `/admin/system/${id}/agents`,
+          created_at: securityLog.created_at
+        };
+      } else if (agentErrorLog) {
+        intel = {
+          type: 'AGENT_ERROR',
+          color: 'red',
+          message: agentErrorLog.raw_context || 'ERREUR AGENT',
+          clickable: true,
+          link: `/admin/system/${id}/agents`,
+          created_at: agentErrorLog.created_at
+        };
+      } else if (tokenWarningLog) {
+        intel = {
+          type: 'TOKEN_WARNING',
+          color: 'orange',
+          message: tokenWarningLog.raw_context || 'LIMITE TOKENS PROCHE',
+          clickable: true,
+          link: `/admin/system/${id}/settings`,
+          created_at: tokenWarningLog.created_at
+        };
+      } else if (churnRiskLog) {
+        intel = {
+          type: 'CHURN_RISK',
+          color: 'orange',
+          message: churnRiskLog.raw_context || 'RISQUE DE DÉPART',
+          clickable: true,
+          link: `/admin/system/${id}`,
+          created_at: churnRiskLog.created_at
+        };
+      } else if (messageLog) {
+        intel = {
+          type: 'MESSAGE',
+          color: 'blue',
+          message: `NOUVEAU MESSAGE — ${messageLog.raw_context?.substring(0, 30)}...`,
+          clickable: true,
+          link: `/admin`,
+          created_at: messageLog.created_at
+        };
+      } else if (upsellLog) {
+        intel = {
+          type: 'UPSELL',
+          color: 'green',
+          message: upsellLog.raw_context || 'OPPORTUNITÉ UPSELL',
+          clickable: true,
+          link: `/admin/system/${id}/settings`,
+          created_at: upsellLog.created_at
+        };
       }
 
+      // Calculate token usage percent
+      const tokenUsagePercent = client.token_budget > 0 
+        ? (client.total_tokens_consumed / client.token_budget) * 100 
+        : 0;
+
       return {
-        ...ent,
+        ...client,
         token_usage_percent: tokenUsagePercent,
-        unread_messages: unreadCount,
-        intelligence: {
-          type: intelligenceType,
-          severity: intelligenceSeverity,
-          message: intelligenceMessage,
-          source_url: intelligenceSourceUrl,
-          created_at: intelligenceCreatedAt
-        }
+        intelligence: intel
       };
     });
 
-    // Sort by severity: CRITICAL -> WARNING -> STABLE
-    const severityOrder: Record<string, number> = {
-      'CRITICAL': 0,
-      'WARNING': 1,
-      'INFO': 2,
-      null: 3
-    };
-
-    processedClients.sort((a, b) => {
-      const sevA = a.intelligence.severity as string | null;
-      const sevB = b.intelligence.severity as string | null;
-      return (severityOrder[sevA as any] ?? 3) - (severityOrder[sevB as any] ?? 3);
-    });
-
-    // Dynamically generate regions and plans
-    const regions = Array.from(new Set(enterprises?.map(e => e.region).filter(Boolean)));
-    const plans = ["STARTUP", "BUSINESS", "ENTERPRISE", "ELITE"];
-
     return NextResponse.json({
       clients: processedClients,
-      availablePlans: plans,
-      availableRegions: regions,
+      availablePlans: availablePlans,
       total: processedClients.length
     });
 

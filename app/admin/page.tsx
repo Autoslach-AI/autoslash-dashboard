@@ -23,7 +23,11 @@ import {
   Download,
   Plus,
   FileText,
-  Terminal
+  Terminal,
+  AlertTriangle,
+  TrendingDown,
+  MessageSquare,
+  CheckCircle2
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useConfig } from '@/lib/contexts/config-context';
@@ -812,13 +816,14 @@ export default function NeuralCommandCenterV31() {
   const filteredClients = (fleetData?.clients || [])
     .filter((c: any) => {
        const matchesStatus = oracleFilter === 'ALL' 
-         || (oracleFilter === 'MESSAGES' ? c.unread_messages > 0 
-             : oracleFilter === 'CHURN' ? (c.status === 'WARNING' || c.status === 'CRITICAL')
-             : oracleFilter === 'TOKEN_WARNING' ? (c.total_tokens_consumed > (c.token_budget * 0.8) || c.warning_flag)
+         || (oracleFilter === 'MESSAGES' ? c.intelligence?.type === 'MESSAGE' 
+             : oracleFilter === 'CHURN' ? (c.status === 'WARNING' || c.status === 'CRITICAL' || c.intelligence?.type === 'CHURN_RISK')
+             : oracleFilter === 'TOKEN_WARNING' ? (c.intelligence?.type === 'TOKEN_WARNING')
              : c.status === oracleFilter);
        const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
        return matchesStatus && matchesPlan;
-    });
+    })
+    .slice(0, 10);
 
   const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
 
@@ -1743,7 +1748,7 @@ export default function NeuralCommandCenterV31() {
                                         </div>
                                         <div className="space-y-1">
                                            <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors">{client.name}</p>
-                                           <p className="text-[9px] text-white/20 font-mono tracking-tighter uppercase">{client.id.substring(0, 8)} • {client.package_type}</p>
+                                           <p className="text-[9px] text-white/20 font-mono tracking-tighter uppercase">{client.project_id || client.id.substring(0, 8)} • {client.package_type}</p>
                                         </div>
                                      </div>
                                   </td>
@@ -1768,8 +1773,8 @@ export default function NeuralCommandCenterV31() {
                                              initial={{ width: 0 }}
                                              animate={{ width: `${Math.min(client.token_usage_percent, 100)}%` }}
                                              className={`h-full ${
-                                               client.token_usage_percent > 80 ? 'bg-red-500' :
-                                               client.token_usage_percent > 60 ? 'bg-orange-500' :
+                                               client.token_usage_percent >= 80 ? 'bg-red-500' :
+                                               client.token_usage_percent >= 50 ? 'bg-orange-500' :
                                                'bg-green-500'
                                              }`}
                                            />
@@ -1778,26 +1783,34 @@ export default function NeuralCommandCenterV31() {
                                   </td>
                                   <td className="p-6" onClick={(e) => {
                                     e.stopPropagation();
-                                    if (client.intelligence?.source_url) {
-                                      router.push(client.intelligence.source_url);
+                                    if (client.intelligence?.clickable && client.intelligence?.link) {
+                                      if (client.intelligence.type === 'MESSAGE' && client.intelligence.link === '/admin') { setOracleFilter('MESSAGES'); router.push('/admin'); } else { router.push(client.intelligence.link); }
                                     }
                                   }}>
                                      {client.intelligence?.severity ? (
                                        <div className="flex items-center gap-3 group/intel hover:bg-white/5 p-2 -m-2 rounded-lg transition-all">
                                           <div className={`p-2 rounded-lg ${
-                                            client.intelligence.severity === 'CRITICAL' ? 'bg-red-500/20' :
-                                            client.intelligence.severity === 'WARNING' ? 'bg-amber-500/20' :
-                                            'bg-blue-500/20'
+                                            client.intelligence?.color === 'red' ? 'bg-red-500/20' :
+                                            client.intelligence?.color === 'orange' ? 'bg-orange-500/20' :
+                                            client.intelligence?.color === 'blue' ? 'bg-blue-500/20' :
+                                            client.intelligence?.color === 'green' ? 'bg-green-500/20' :
+                                            'bg-white/5'
                                           }`}>
-                                             {client.intelligence.type === 'SYSTEM_ERROR' && <Shield className="w-3.5 h-3.5 text-red-500" />}
-                                             {client.intelligence.type === 'TOKEN_WARNING' && <Activity className="w-3.5 h-3.5 text-amber-500" />}
-                                             {client.intelligence.type === 'MESSAGE' && <Users className="w-3.5 h-3.5 text-blue-500" />}
+                                             {client.intelligence?.type === 'SECURITY' && <Shield className="w-3.5 h-3.5 text-red-500" />}
+                                             {client.intelligence?.type === 'AGENT_ERROR' && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                                             {client.intelligence?.type === 'TOKEN_WARNING' && <Activity className="w-3.5 h-3.5 text-orange-500" />}
+                                             {client.intelligence?.type === 'CHURN_RISK' && <TrendingDown className="w-3.5 h-3.5 text-orange-500" />}
+                                             {client.intelligence?.type === 'MESSAGE' && <MessageSquare className="w-3.5 h-3.5 text-blue-500" />}
+                                             {client.intelligence?.type === 'UPSELL' && <Zap className="w-3.5 h-3.5 text-green-500" />}
+                                             {client.intelligence?.type === 'OPTIMAL' && <CheckCircle2 className="w-3.5 h-3.5 text-white/20" />}
                                           </div>
                                           <div className="space-y-0.5">
                                              <p className={`text-[10px] font-bold uppercase tracking-tight ${
-                                               client.intelligence.severity === 'CRITICAL' ? 'text-red-400' :
-                                               client.intelligence.severity === 'WARNING' ? 'text-amber-400' :
-                                               'text-blue-400'
+                                               client.intelligence?.color === 'red' ? 'text-red-400' :
+                                               client.intelligence?.color === 'orange' ? 'text-orange-400' :
+                                               client.intelligence?.color === 'blue' ? 'text-blue-400' :
+                                               client.intelligence?.color === 'green' ? 'text-green-400' :
+                                               'text-white/20'
                                              }`}>
                                                {client.intelligence.message}
                                              </p>
