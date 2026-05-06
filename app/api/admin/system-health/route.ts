@@ -10,7 +10,7 @@ export async function GET() {
   )
 
   const { data: clients, error } = await supabase
-    .from('v_clients_all')
+    .from('v_clients_dev')
     .select('id, status, name')
 
   if (error) {
@@ -23,7 +23,7 @@ export async function GET() {
     CRITICAL: 0
   }
 
-  const firstIds: Record<string, string | null> = {
+  const metadata: Record<string, { id: string, name: string } | null> = {
     STABLE: null,
     WARNING: null,
     CRITICAL: null
@@ -33,8 +33,8 @@ export async function GET() {
     const status = client.status as keyof typeof counts
     if (counts[status] !== undefined) {
       counts[status]++
-      if (!firstIds[status]) {
-        firstIds[status] = client.id
+      if (!metadata[status]) {
+        metadata[status] = { id: client.id, name: client.name }
       }
     }
   })
@@ -46,7 +46,7 @@ export async function GET() {
 
   return NextResponse.json({
     counts,
-    firstIds,
+    metadata,
     score,
     total,
     summary: `${counts.CRITICAL} CRITICAL / ${counts.WARNING} WARNING`

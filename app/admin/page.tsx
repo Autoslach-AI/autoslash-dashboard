@@ -911,28 +911,37 @@ export default function NeuralCommandCenterV31() {
 
               <div className="space-y-3 relative z-10">
                 <div 
-                  onClick={() => systemHealth?.firstIds?.STABLE && router.push(`/admin/system/${systemHealth.firstIds.STABLE}`)}
+                  onClick={() => systemHealth?.metadata?.STABLE?.id && router.push(`/admin/system/${systemHealth.metadata.STABLE.id}`)}
                   className={`group/item transition-all ${systemHealth?.counts?.STABLE > 0 ? 'cursor-pointer hover:translate-x-1' : 'opacity-40 grayscale pointer-events-none'}`}
                 >
                   <p className="text-2xl font-mono tracking-tighter font-black text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.2)]">
                     {systemHealth?.counts?.STABLE || 0} STABLE
                   </p>
+                  <p className="text-[8px] text-white/40 font-mono scale-90 origin-left -mt-0.5">
+                    {systemHealth?.metadata?.STABLE?.name ? `STABLE — ${systemHealth.metadata.STABLE.name}` : ''}
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div 
-                    onClick={() => systemHealth?.firstIds?.WARNING && router.push(`/admin/system/${systemHealth.firstIds.WARNING}`)}
+                    onClick={() => systemHealth?.metadata?.WARNING?.id && router.push(`/admin/system/${systemHealth.metadata.WARNING.id}`)}
                     className={`space-y-0.5 transition-all ${systemHealth?.counts?.WARNING > 0 ? 'cursor-pointer hover:opacity-80' : 'opacity-20 grayscale pointer-events-none'}`}
                   >
                     <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">WARNING</p>
                     <p className="text-xl font-mono font-black text-amber-500">{systemHealth?.counts?.WARNING || 0}</p>
+                    <p className="text-[7px] text-white/30 font-mono truncate max-w-full">
+                      {systemHealth?.metadata?.WARNING?.name || ''}
+                    </p>
                   </div>
                   <div 
-                    onClick={() => systemHealth?.firstIds?.CRITICAL && router.push(`/admin/system/${systemHealth.firstIds.CRITICAL}`)}
+                    onClick={() => systemHealth?.metadata?.CRITICAL?.id && router.push(`/admin/system/${systemHealth.metadata.CRITICAL.id}`)}
                     className={`space-y-0.5 transition-all ${systemHealth?.counts?.CRITICAL > 0 ? 'cursor-pointer hover:opacity-80' : 'opacity-20 grayscale pointer-events-none'}`}
                   >
                     <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">CRITICAL</p>
                     <p className="text-xl font-mono font-black text-red-500">{systemHealth?.counts?.CRITICAL || 0}</p>
+                    <p className="text-[7px] text-white/30 font-mono truncate max-w-full">
+                      {systemHealth?.metadata?.CRITICAL?.name || ''}
+                    </p>
                   </div>
                 </div>
               </div>
