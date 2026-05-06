@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronRight, 
@@ -49,8 +49,46 @@ export default function DoubleRibbonIntelligent({
   const router = useRouter();
   const pathname = usePathname();
   const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
+  const [primaryWidth, setPrimaryWidth] = useState(288); // Default w-72 is 288px
+  const [isResizing, setIsResizing] = useState(false);
   const [isSecondaryOpen, setIsSecondaryOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+
+  const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback(
+    (mouseMoveEvent: MouseEvent) => {
+      if (isResizing) {
+        const newWidth = mouseMoveEvent.clientX;
+        if (newWidth >= 80 && newWidth <= 600) {
+          setPrimaryWidth(newWidth);
+          if (newWidth < 120) {
+            setIsPrimaryCollapsed(true);
+          } else {
+            setIsPrimaryCollapsed(false);
+          }
+        }
+      }
+    },
+    [isResizing]
+  );
+
+  useEffect(() => {
+    window.addEventListener("mousemove", resize);
+    window.addEventListener("mouseup", stopResizing);
+    return () => {
+      window.removeEventListener("mousemove", resize);
+      window.removeEventListener("mouseup", stopResizing);
+    };
+  }, [resize, stopResizing]);
 
   const handleNavClick = (item: NavItem) => {
     if (item.onClick) {
@@ -69,9 +107,18 @@ export default function DoubleRibbonIntelligent({
     <div className="min-h-screen bg-[#000000] text-[#e0e0e0] font-sans selection:bg-white selection:text-black flex overflow-hidden">
       
       {/* PRIMARY RIBBON */}
-      <aside className={`fixed left-0 top-0 bottom-0 bg-[#000000] border-r border-white/10 transition-all duration-500 z-[100] flex flex-col items-center py-8 ${
-        isPrimaryCollapsed ? 'w-20' : 'w-72'
-      }`}>
+      <aside 
+        ref={sidebarRef}
+        style={{ width: isPrimaryCollapsed ? 80 : primaryWidth }}
+        className={`fixed left-0 top-0 bottom-0 bg-[#000000] border-r border-white/10 z-[100] flex flex-col items-center py-8 ${
+          isResizing ? '' : 'transition-all duration-500'
+        }`}
+      >
+        {/* RESIZE HANDLE */}
+        <div 
+          onMouseDown={startResizing}
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#4ade80]/20 transition-colors z-[110]"
+        />
         <div className="w-full h-full flex flex-col items-center px-4">
           {/* BRAND AREA */}
           <div className="flex items-center gap-3 text-white/80 mb-12 px-4 w-full">
@@ -158,9 +205,8 @@ export default function DoubleRibbonIntelligent({
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
-              className={`fixed top-4 bottom-4 bg-[#0a0a0a] border border-white/10 z-[90] flex flex-col py-24 transition-all duration-500 rounded-2xl shadow-2xl ${
-                isPrimaryCollapsed ? 'left-24 w-64' : 'left-76 w-80'
-              }`}
+              style={{ left: (isPrimaryCollapsed ? 80 : primaryWidth) + 16 }}
+              className={`fixed top-4 bottom-4 bg-[#0a0a0a] border border-white/10 z-[90] flex flex-col py-24 transition-all duration-500 rounded-2xl shadow-2xl w-80`}
             >
                <div className="px-8 mb-10 text-left">
                   <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] font-mono">{secondaryTitle}</h3>
@@ -190,11 +236,14 @@ export default function DoubleRibbonIntelligent({
       </AnimatePresence>
 
       {/* MAIN CONTENT AREA */}
-      <main className={`flex-1 flex flex-col overflow-hidden bg-[#000000] relative transition-all duration-500 ${
-        isPrimaryCollapsed 
-          ? (isSecondaryOpen ? 'ml-[23rem]' : 'ml-24') 
-          : (isSecondaryOpen ? 'ml-[42rem]' : 'ml-76')
-      } border border-white/10 m-4 rounded-2xl`}>
+      <main 
+        style={{ 
+          marginLeft: (isPrimaryCollapsed ? 80 : primaryWidth) + (isSecondaryOpen ? 340 : 16) 
+        }}
+        className={`flex-1 flex flex-col overflow-hidden bg-[#000000] relative border border-white/10 m-4 rounded-2xl ${
+          isResizing ? '' : 'transition-all duration-500'
+        }`}
+      >
         
         {/* HEADER */}
         <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-black/40 backdrop-blur-xl shrink-0">
