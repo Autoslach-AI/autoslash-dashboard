@@ -220,14 +220,14 @@ export default function NeuralCommandCenterV31() {
     topSeverity: 'INFO' | 'WARNING' | 'CRITICAL' | 'UPSELL' | null;
     topIssueType: string | null;
     topEnterpriseId: string | null;
-    isUpsell: boolean;
+    clientName?: string | null;
   }>({
     totalActive: 0,
     topMessage: null,
     topSeverity: null,
     topIssueType: null,
     topEnterpriseId: null,
-    isUpsell: false
+    clientName: null
   });
   const [neuralPulse, setNeuralPulse] = useState<any>(null);
   const [systemHealth, setSystemHealth] = useState<any>(null);
@@ -959,16 +959,18 @@ export default function NeuralCommandCenterV31() {
                 if (intelligenceSummary.totalActive > 0 && intelligenceSummary.topEnterpriseId) {
                   const id = intelligenceSummary.topEnterpriseId;
                   const type = intelligenceSummary.topIssueType;
-                  if (type === 'TOKEN_LIMIT' || type === 'TOKEN_WARNING' || type === 'UPSELL') {
-                    router.push(`/admin/system/${id}/settings`);
-                  } else if (type === 'AGENT_ERROR' || type === 'SECURITY') {
+                  if (type === 'AGENT_ERROR' || type === 'SECURITY') {
                     router.push(`/admin/system/${id}/agents`);
                   } else {
                     router.push(`/admin/system/${id}`);
                   }
                 }
               }}
-              className={`p-5 bg-[#111111] border border-white/5 ${intelligenceSummary.totalActive > 0 ? 'hover:border-white/10 cursor-pointer' : 'cursor-default'} rounded-xl space-y-4 transition-all group relative overflow-hidden min-h-[220px] min-w-[240px]`}
+              className={`p-5 bg-[#111111] border rounded-xl space-y-4 transition-all group relative overflow-hidden min-h-[220px] min-w-[240px] ${
+                intelligenceSummary.totalActive === 0 
+                ? 'border-[#4ade80]/20 hover:border-[#4ade80]/40' 
+                : 'border-white/5 hover:border-white/10 cursor-pointer'
+              }`}
             >
               <div className="flex justify-between items-start relative z-10">
                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">INTELLIGENCE HUB</span>
@@ -976,7 +978,6 @@ export default function NeuralCommandCenterV31() {
                   <div className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest ${
                     intelligenceSummary.topSeverity === 'CRITICAL' ? 'bg-red-500/20 text-red-500' :
                     intelligenceSummary.topSeverity === 'WARNING' ? 'bg-amber-500/20 text-amber-500' :
-                    intelligenceSummary.topSeverity === 'UPSELL' ? 'bg-green-500/20 text-green-500' :
                     'bg-blue-500/20 text-blue-500'
                   }`}>
                     {intelligenceSummary.topSeverity}
@@ -991,20 +992,23 @@ export default function NeuralCommandCenterV31() {
                   </>
                 ) : (
                   <>
-                    <p className="text-lg font-mono font-black text-white/90 leading-tight line-clamp-2">
+                    <p className="text-lg font-mono font-black text-white/90 leading-tight line-clamp-3">
                       {intelligenceSummary.topMessage}
                     </p>
-                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest">
-                      {intelligenceSummary.totalActive} ALERTES ACTIVES CE MOIS
+                    <p className="text-[#8B5CF6] text-[9px] font-bold uppercase tracking-widest pt-1">
+                      {intelligenceSummary.clientName}
+                    </p>
+                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest pt-2">
+                      {intelligenceSummary.totalActive} ALERTES ACTIVES
                     </p>
                   </>
                 )}
               </div>
               <div className={`pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10 ${intelligenceSummary.totalActive === 0 ? 'opacity-20' : ''}`}>
-                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">GROWTH & ALERT OPPORTUNITIES &gt;</p>
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">THREAT ANALYTICS & HUB &gt;</p>
                 {intelligenceSummary.totalActive > 0 && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.03] transition-all rounded-full" />
             </div>
 
             {/* CARD 4 — NEURAL PULSE */}

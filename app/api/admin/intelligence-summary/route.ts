@@ -11,9 +11,12 @@ export async function GET() {
 
   const { data: logs, error } = await supabase
     .from('admin_intelligence_logs')
-    .select('*')
+    .select(`
+      *,
+      enterprises!inner(name)
+    `)
+    .in('issue_type', ['AGENT_ERROR', 'SECURITY', 'CHURN_RISK', 'FEEDBACK_NEGATIF'])
     .order('created_at', { ascending: false })
-    .limit(10)
 
   if (error) {
     console.error('INTELLIGENCE_SUMMARY_ERROR:', error)
@@ -29,6 +32,6 @@ export async function GET() {
     topSeverity: latestLog?.severity_level || null,
     topIssueType: latestLog?.issue_type || null,
     topEnterpriseId: latestLog?.client_id || null,
-    isUpsell: latestLog?.issue_type === 'UPSELL'
+    clientName: latestLog?.enterprises?.name || null
   })
 }
