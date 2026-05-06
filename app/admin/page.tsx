@@ -230,6 +230,7 @@ export default function NeuralCommandCenterV31() {
     isUpsell: false
   });
   const [neuralPulse, setNeuralPulse] = useState<any>(null);
+  const [systemHealth, setSystemHealth] = useState<any>(null);
   const [thoughtStream, setThoughtStream] = useState<any[]>([]);
   const [apiMonitor, setApiMonitor] = useState<any>(null);
   const [activeApis, setActiveApis] = useState<string[]>([]);
@@ -644,6 +645,11 @@ export default function NeuralCommandCenterV31() {
         const npData = await npRes.json()
         setNeuralPulse(npData)
 
+        // 8.1 System Health
+        const shRes = await fetch('/api/admin/system-health')
+        const shData = await shRes.json()
+        setSystemHealth(shData)
+
         // 9. Agent Task Force
         const tfRes = await fetch('/api/admin/agent-taskforce');
         const tfData = await tfRes.json();
@@ -750,16 +756,6 @@ export default function NeuralCommandCenterV31() {
   const filteredTasks = selectedApiFilter === 'ALL' ? agentTasks : agentTasks.filter(t => (t as any).api_used === selectedApiFilter);
   const totalTokens = filteredTasks.reduce((acc, t) => acc + (t.tokens_consumed || 0), 0);
   const totalCostFCFA = totalTokens * 0.0006; // Estimated: 1000 tokens ≈ 0.6 FCFA
-
-  // Card 2 (SYSTEM HEALTH)
-  const stableCount = clients.filter(c => c.status === 'STABLE').length;
-  const warningCount = clients.filter(c => c.status === 'WARNING').length;
-  const criticalCount = clients.filter(c => c.status === 'CRITICAL').length;
-  const healthScore = clients.length > 0 ? Math.round((stableCount * 100 + warningCount * 50) / clients.length) : 100;
-  const mostCriticalNode = clients.sort((a, b) => {
-    const statusOrder = { CRITICAL: 0, WARNING: 1, STABLE: 2 };
-    return statusOrder[a.status] - statusOrder[b.status];
-  })[0];
 
   // Card 3 (INTELLIGENCE & OPPORTUNITIES)
   const opportunitiesCount = intelligenceLogs.filter(l => l.is_upsell_opportunity).length;
@@ -897,44 +893,55 @@ export default function NeuralCommandCenterV31() {
 
             {/* CARD 2 — SYSTEM HEALTH */}
             <div 
-              onClick={() => {
-                if (healthScore < 100 && mostCriticalNode) {
-                  router.push(`/admin/system/${mostCriticalNode.id}`);
-                }
-              }}
-              className={`p-5 border rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden min-h-[220px] min-w-[240px] ${
-                healthScore < 70 ? 'bg-red-500/10 border-red-500/50' : 
-                healthScore < 100 ? 'bg-amber-500/10 border-amber-500/50' : 
-                'bg-[#111111] border-white/5 hover:border-white/10'
+              className={`p-5 border rounded-xl space-y-4 transition-all relative overflow-hidden min-h-[220px] min-w-[240px] ${
+                (systemHealth?.counts?.CRITICAL || 0) > 0 ? 'bg-red-500/10 border-red-500/50' : 
+                (systemHealth?.counts?.WARNING || 0) > 0 ? 'bg-amber-500/10 border-amber-500/50' : 
+                'bg-[#111111] border-[#4ade80]/20 hover:border-[#4ade80]/40'
               }`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className={`text-xs font-bold uppercase tracking-[0.2em] ${healthScore < 100 ? 'text-white' : 'text-white/40'}`}>SYSTEM HEALTH</span>
+                <span className={`text-xs font-bold uppercase tracking-[0.2em] ${(systemHealth?.score || 100) < 100 ? 'text-white' : 'text-white/40'}`}>SYSTEM HEALTH</span>
                 <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                  healthScore === 100 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-500 animate-pulse'
+                  (systemHealth?.score || 100) === 100 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-500 animate-pulse'
                 }`}>
                   <Shield className="w-2.5 h-2.5" />
-                  {healthScore}%
+                  {systemHealth?.score || 100}%
                 </div>
               </div>
-              <div className="space-y-1 relative z-10">
-                <p className={`text-3xl font-mono tracking-tighter font-black ${
-                  healthScore === 100 ? 'text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]' : 
-                  healthScore < 70 ? 'text-red-500' : 'text-amber-500'
-                }`}>
-                  {stableCount} STABLE
-                </p>
-                <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest flex gap-2">
-                  <span>{warningCount} WARNING</span>
-                  <span className="opacity-20">/</span>
-                  <span>{criticalCount} CRITICAL</span>
-                </p>
+
+              <div className="space-y-3 relative z-10">
+                <div 
+                  onClick={() => systemHealth?.firstIds?.STABLE && router.push(`/admin/system/${systemHealth.firstIds.STABLE}`)}
+                  className={`group/item transition-all ${systemHealth?.counts?.STABLE > 0 ? 'cursor-pointer hover:translate-x-1' : 'opacity-40 grayscale pointer-events-none'}`}
+                >
+                  <p className="text-2xl font-mono tracking-tighter font-black text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.2)]">
+                    {systemHealth?.counts?.STABLE || 0} STABLE
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div 
+                    onClick={() => systemHealth?.firstIds?.WARNING && router.push(`/admin/system/${systemHealth.firstIds.WARNING}`)}
+                    className={`space-y-0.5 transition-all ${systemHealth?.counts?.WARNING > 0 ? 'cursor-pointer hover:opacity-80' : 'opacity-20 grayscale pointer-events-none'}`}
+                  >
+                    <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">WARNING</p>
+                    <p className="text-xl font-mono font-black text-amber-500">{systemHealth?.counts?.WARNING || 0}</p>
+                  </div>
+                  <div 
+                    onClick={() => systemHealth?.firstIds?.CRITICAL && router.push(`/admin/system/${systemHealth.firstIds.CRITICAL}`)}
+                    className={`space-y-0.5 transition-all ${systemHealth?.counts?.CRITICAL > 0 ? 'cursor-pointer hover:opacity-80' : 'opacity-20 grayscale pointer-events-none'}`}
+                  >
+                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">CRITICAL</p>
+                    <p className="text-xl font-mono font-black text-red-500">{systemHealth?.counts?.CRITICAL || 0}</p>
+                  </div>
+                </div>
               </div>
+
               <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
                 <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">Global Infrastructure Score</p>
-                {healthScore < 100 && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
+                <ChevronRight className="w-3 h-3 text-white/10 group-hover:text-white/40 transition-all transform group-hover:translate-x-1" />
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 rounded-full" />
             </div>
 
             {/* CARD 3 — INTELLIGENCE HUB */}
