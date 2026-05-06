@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Zap, 
@@ -20,12 +20,15 @@ import {
   AlertTriangle,
   CheckCircle2,
   Bell,
-  Settings,
-  ExternalLink,
-  Shield,
-  Users,
-  Trash2,
-  Power
+  Power,
+  TrendingUp,
+  DollarSign,
+  Cpu,
+  ShieldAlert,
+  ArrowUpRight,
+  User,
+  Globe,
+  Briefcase
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/lib/contexts/user-context';
@@ -34,7 +37,7 @@ import { createClient } from '@/lib/supabase';
 
 const supabase = createClient();
 
-type PlanType = 'ALL' | 'STARTUP' | 'BUSINESS' | 'ENTERPRISE' | 'ELITE';
+type PlanType = 'ALL' | string;
 type StatusType = 'ALL' | 'STABLE' | 'WARNING' | 'CRITICAL';
 
 interface ClientNode {
@@ -50,7 +53,7 @@ interface ClientNode {
   monthly_cost: number;
   activated_at: string;
   created_at: string;
-  agent_count?: number;
+  agent_count: number;
   intelligence?: {
     issue_type: string;
     raw_context: string;
@@ -69,9 +72,15 @@ export default function FleetPage() {
   const [planFilter, setPlanFilter] = useState<PlanType>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusType>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showConfirmModal, setShowConfirmModal] = useState<{ id: string, name: string } | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [hoveredClient, setHoveredClient] = useState<ClientNode | null>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [stats, setStats] = useState({
+    activeSystems: 0,
+    totalRevenue: 0,
+    totalTokens: 0,
+    activeAlerts: 0
+  });
 
   const pageSize = 20;
 
@@ -82,17 +91,15 @@ export default function FleetPage() {
   async function fetchData() {
     setLoading(true);
     try {
-      // 1. Fetch available plans
+      // 1. Fetch plans
       const { data: plansData } = await supabase
         .from('plan_definitions')
         .select('plan_name')
-        .order('plan_name', { ascending: true });
+        .order('plan_name');
       
-      if (plansData) {
-        setPlans(plansData.map((p: any) => p.plan_name));
-      }
+      if (plansData) setPlans(plansData.map((p: any) => p.plan_name));
 
-      // 2. Fetch clients from v_clients_dev
+      // 2. Fetch clients
       const { data: clientsData, error: clientError } = await supabase
         .from('v_clients_dev')
         .select('*')
@@ -110,56 +117,63 @@ export default function FleetPage() {
         agentCounts[a.enterprise_id] = (agentCounts[a.enterprise_id] || 0) + 1;
       });
 
-      // 4. Fetch intelligence logs
+      // 4. Fetch intelligence logs with priority
       const { data: logsData } = await supabase
         .from('admin_intelligence_logs')
         .select('client_id, issue_type, raw_context, severity_level, created_at')
+        .eq('is_test', false)
+        .neq('issue_type', 'NEW_PROSPECT')
         .order('created_at', { ascending: false });
 
-      const latestLogsMap: Record<string, any> = {};
-      const priorityWeights: Record<string, number> = {
-        'SECURITY': 10,
-        'AGENT_ERROR': 9,
-        'TOKEN_WARNING': 8,
-        'CHURN_RISK': 7,
-        'MESSAGE': 6,
-        'UPSELL': 5
+      const logsMap: Record<string, any> = {};
+      const priority: Record<string, number> = {
+        'SECURITY': 6,
+        'AGENT_ERROR': 5,
+        'TOKEN_WARNING': 4,
+        'CHURN_RISK': 3,
+        'MESSAGE': 2,
+        'UPSELL': 1
       };
 
       logsData?.forEach((log: any) => {
-        const existing = latestLogsMap[log.client_id];
-        if (!existing || (priorityWeights[log.issue_type] || 0) > (priorityWeights[existing.issue_type] || 0)) {
-          latestLogsMap[log.client_id] = log;
+        const existing = logsMap[log.client_id];
+        if (!existing || (priority[log.issue_type] || 0) > (priority[existing.issue_type] || 0)) {
+          logsMap[log.client_id] = log;
         }
       });
 
       const processed = (clientsData || []).map((c: any) => ({
         ...c,
         agent_count: agentCounts[c.id] || 0,
-        intelligence: latestLogsMap[c.id] || null
+        intelligence: logsMap[c.id] || null
       }));
 
       setClients(processed);
+
+      // Calculate Stats
+      setStats({
+        activeSystems: processed.length,
+        totalRevenue: processed.reduce((acc: number, c: any) => acc + (c.monthly_cost || 0), 0),
+        totalTokens: processed.reduce((acc: number, c: any) => acc + (c.total_tokens_consumed || 0), 0),
+        activeAlerts: logsData?.length || 0
+      });
+
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error("Fleet Data Fetch Error:", err);
     } finally {
       setLoading(false);
     }
   }
 
-  const showToast = (type: 'success' | 'error', message: string) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3000);
-  };
-
   const filteredClients = useMemo(() => {
-    return clients.filter((c: any) => {
+    return clients.filter(c => {
+      const q = searchQuery.toLowerCase();
       const matchesSearch = 
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.project_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.package_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.region.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.sector.toLowerCase().includes(searchQuery.toLowerCase());
+        c.name.toLowerCase().includes(q) ||
+        c.project_id?.toLowerCase().includes(q) ||
+        c.package_type.toLowerCase().includes(q) ||
+        c.region.toLowerCase().includes(q) ||
+        c.sector.toLowerCase().includes(q);
       
       const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
       const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
@@ -171,9 +185,10 @@ export default function FleetPage() {
   const paginatedClients = filteredClients.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(filteredClients.length / pageSize);
 
-  const activeSystemsCount = clients.filter(c => c.status !== 'INACTIVE').length;
+  const handleMouseMove = (e: React.MouseEvent) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
+  };
 
-  // Primary navigation items
   const primaryItems: NavItem[] = [
     { id: 'NEURAL_HUB', label: 'Dashboard', icon: LayoutDashboard, onClick: () => router.push('/admin') },
     { id: 'MEMORY_VAULT', label: 'Lifecycle', icon: RefreshCcw },
@@ -189,52 +204,6 @@ export default function FleetPage() {
     { id: 'DEV_AGENT', label: 'Dev Agent', icon: Brain }
   ];
 
-  const exportLogs = () => {
-    const headers = ["CLIENT", "PROJECT_ID", "PLAN", "STATUS", "REGION", "SECTOR", "MONTHLY_COST", "DATE_ACTIVATION"];
-    const csvContent = [
-      headers.join(","),
-      ...filteredClients.map((c: any) => [
-        `"${c.name}"`,
-        `"${c.project_id}"`,
-        `"${c.package_type}"`,
-        `"${c.status}"`,
-        `"${c.region}"`,
-        `"${c.sector}"`,
-        `"${c.monthly_cost}"`,
-        `"${c.activated_at || c.created_at}"`
-      ].join(","))
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", "fleet_export.csv");
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'CRITICAL': return 'bg-red-500/10 text-red-500 border-red-500/20';
-      case 'WARNING': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
-      case 'STABLE': return 'bg-[#4ade80]/10 text-[#4ade80] border-[#4ade80]/20';
-      default: return 'bg-white/5 text-white/40 border-white/10';
-    }
-  };
-
-  const getPlanStyle = (plan: string) => {
-    switch (plan) {
-      case 'ELITE': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-      case 'ENTERPRISE': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      case 'BUSINESS': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
-      case 'STARTUP': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      default: return 'bg-white/5 text-white/40 border-white/10';
-    }
-  };
-
   return (
     <DoubleRibbonIntelligent
       primaryItems={primaryItems}
@@ -247,346 +216,232 @@ export default function FleetPage() {
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'admin'}`
       }}
     >
-      <div className="flex-1 flex flex-col min-h-screen bg-[#050505] overflow-y-auto custom-scrollbar">
-        {/* HEADER SECTION */}
-        <div className="px-8 pt-8 pb-4 space-y-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex-1 flex flex-col min-h-screen bg-[#050505] overflow-y-auto custom-scrollbar relative">
+        <div className="p-8 space-y-8">
+          {/* HEADER */}
+          <div className="flex items-center justify-between">
             <div className="space-y-1">
               <div className="flex items-center gap-4">
-                <button 
-                  onClick={() => router.push('/admin')}
-                  className="p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all text-white/60 hover:text-white group"
-                >
-                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                <button onClick={() => router.push('/admin')} className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-white/50 hover:text-white">
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
-                <div className="space-y-0.5">
-                  <h1 className="text-2xl md:text-3xl font-black text-white tracking-widest uppercase italic leading-none">
-                    FLEET COMMAND CENTER
-                  </h1>
-                </div>
+                <h1 className="text-xl font-black text-white tracking-[0.2em] uppercase">FLEET COMMAND CENTER</h1>
               </div>
-              <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.3em] pl-14">
-                {activeSystemsCount} systèmes actifs — Fleet Management & Multi-Tenant Neural Routing
-              </p>
+              <p className="text-[10px] font-mono text-white/20 uppercase tracking-[0.3em] pl-12">{stats.activeSystems} SYSTÈMES ACTIFS</p>
             </div>
-
             <div className="flex items-center gap-3">
-              <button 
-                onClick={exportLogs}
-                className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold text-white/40 uppercase tracking-widest hover:bg-white/10 hover:text-white transition-all flex items-center gap-2.5 shadow-sm"
-              >
-                <Download className="w-3.5 h-3.5" />
-                EXPORT LOGS
+              <button className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-[10px] font-bold text-white/40 uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
+                <Download className="w-3.5 h-3.5" /> EXPORT LOGS
               </button>
-              <button 
-                onClick={() => router.push('/admin')}
-                className="px-6 py-3 bg-[#4ade80]/10 border border-[#4ade80]/20 rounded-xl text-[10px] font-bold text-[#4ade80] uppercase tracking-widest hover:bg-[#4ade80]/20 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(74,222,128,0.05)]"
-              >
+              <button onClick={() => router.push('/admin')} className="px-4 py-2 bg-[#10B981]/10 border border-[#10B981]/20 rounded-lg text-[10px] font-bold text-[#10B981] uppercase tracking-widest hover:bg-[#10B981]/20 transition-all">
                 ← ORACLE
               </button>
             </div>
           </div>
 
-          {/* SEARCH BAR */}
-          <div className="relative group max-w-4xl">
-            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-[#4ade80] transition-colors pointer-events-none">
-              <Search className="w-5 h-5" />
-            </div>
-            <input 
-              type="text"
-              placeholder="Rechercher par nom, ID, plan, région, secteur..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#0a0a0a]/50 backdrop-blur-md border border-white/10 rounded-2xl px-16 py-5 text-[13px] font-mono text-white placeholder:text-white/10 focus:border-[#4ade80]/40 transition-all outline-none shadow-2xl focus:shadow-[#4ade80]/5"
-            />
+          {/* STATS CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { label: 'SYSTÈMES ACTIFS', value: stats.activeSystems, icon: Cpu, color: 'text-blue-500' },
+              { label: 'REVENUS TOTAL', value: `${stats.totalRevenue.toLocaleString()} FCFA`, icon: DollarSign, color: 'text-[#10B981]' },
+              { label: 'TOKENS CONSOMMÉS', value: `${(stats.totalTokens / 1000000).toFixed(2)}M`, icon: TrendingUp, color: 'text-purple-500' },
+              { label: 'ALERTES ACTIVES', value: stats.activeAlerts, icon: ShieldAlert, color: 'text-red-500' }
+            ].map((stat, i) => (
+              <div key={i} className="bg-[#0D0D0D] border border-[#1A1A1A] p-4 rounded-xl flex items-center gap-4">
+                <div className={`p-2 rounded-lg bg-white/5 ${stat.color}`}>
+                  <stat.icon className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest">{stat.label}</p>
+                  <p className="text-lg font-bold text-white uppercase">{stat.value}</p>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* FILTERS SECTION */}
+          {/* FILTERS */}
           <div className="space-y-4">
-            {/* ROW 1: PLANS */}
-            <div className="flex flex-wrap gap-2">
-              {(['ALL', ...plans] as PlanType[]).map((plan) => (
-                <button
-                  key={plan}
-                  onClick={() => setPlanFilter(plan)}
-                  className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border ${
-                    planFilter === plan 
-                    ? 'bg-white text-black border-white' 
-                    : 'bg-black/40 text-gray-400 border-white/5 hover:border-white/10'
-                  }`}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-[#10B981] transition-colors" />
+                <input 
+                  type="text"
+                  placeholder="Rechercher par nom, ID, plan, région, secteur..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-[#0D0D0D] border border-[#1A1A1A] rounded-xl px-12 py-3 text-xs font-mono text-white placeholder:text-white/10 outline-none focus:border-[#10B981]/40 transition-all"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setPlanFilter('ALL')}
+                  className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border ${planFilter === 'ALL' ? 'bg-white text-black border-white' : 'bg-transparent text-gray-500 border-[#1A1A1A]'}`}
                 >
-                  {plan === 'ALL' ? 'ALL NODES' : plan}
+                  ALL NODES
                 </button>
-              ))}
+                {plans.map(plan => (
+                  <button 
+                    key={plan}
+                    onClick={() => setPlanFilter(plan)}
+                    className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border ${planFilter === plan ? 'bg-white text-black border-white' : 'bg-transparent text-gray-500 border-[#1A1A1A]'}`}
+                  >
+                    {plan}
+                  </button>
+                ))}
+              </div>
             </div>
-
-            {/* ROW 2: STATUS */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2">
               {[
-                { id: 'ALL', label: 'ALL', color: 'bg-white/20' },
-                { id: 'STABLE', label: 'STABLE', color: 'bg-[#4ade80]' },
-                { id: 'WARNING', label: 'WARNING', color: 'bg-amber-500' },
-                { id: 'CRITICAL', label: 'CRITICAL', color: 'bg-red-500' }
-              ].map((status) => (
-                <button
+                { id: 'ALL', label: 'ALL', dot: 'bg-white' },
+                { id: 'STABLE', label: 'STABLE', dot: 'bg-[#10B981]' },
+                { id: 'WARNING', label: 'WARNING', dot: 'bg-amber-500' },
+                { id: 'CRITICAL', label: 'CRITICAL', dot: 'bg-red-500' }
+              ].map(status => (
+                <button 
                   key={status.id}
                   onClick={() => setStatusFilter(status.id as StatusType)}
-                  className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2.5 border ${
-                    statusFilter === status.id 
-                    ? 'bg-white/10 text-white border-white/20' 
-                    : 'bg-black/40 text-white/20 border-white/5 hover:border-white/10'
-                  }`}
+                  className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border flex items-center gap-2 ${statusFilter === status.id ? 'bg-white/10 text-white border-white/20' : 'bg-transparent text-white/20 border-[#1A1A1A]'}`}
                 >
-                  <div className={`w-1.5 h-1.5 rounded-full ${status.color}`} />
+                  <div className={`w-1 h-1 rounded-full ${status.dot}`} />
                   {status.label}
                 </button>
               ))}
             </div>
           </div>
-        </div>
 
-        {/* TABLE SECTION */}
-        <div className="flex-1 px-8 pb-12">
-          <div className="bg-[#0a0a0a]/50 rounded-3xl border border-white/5 overflow-hidden">
-            <div className="overflow-x-auto custom-scrollbar">
+          {/* TABLE */}
+          <div className="bg-[#0D0D0D] border border-[#1A1A1A] rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse min-w-[1200px]">
                 <thead>
-                  <tr className="border-b border-white/5 bg-white/[0.02]">
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Client Cluster</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Plan</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Fleet Status</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Token Usage</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 text-center">Agents</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Intelligence Mode</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Région</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Secteur</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Monthly Cost</th>
-                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Date Activation</th>
-                    <th className="px-6 py-5 w-10"></th>
+                  <tr className="border-b border-[#1A1A1A] bg-white/[0.02]">
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Client Cluster</th>
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Plan</th>
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Fleet Status</th>
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Token Usage</th>
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest text-center">Agents</th>
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Intelligence Mode</th>
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Région</th>
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Secteur</th>
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Monthly Cost</th>
+                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Date Activation</th>
+                    <th className="px-6 py-4 w-10"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-[#1A1A1A]">
                   {loading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <tr key={i} className="animate-pulse">
-                        <td colSpan={11} className="px-6 py-8 h-12 bg-white/[0.01]" />
-                      </tr>
-                    ))
-                  ) : paginatedClients.length > 0 ? (
-                    paginatedClients.map((client) => {
-                      const usagePercent = client.token_budget > 0 
-                        ? (client.total_tokens_consumed / client.token_budget) * 100 
-                        : 0;
-                      
-                      return (
-                        <tr 
-                          key={client.id}
-                          onClick={() => router.push(`/admin/system/${client.id}`)}
-                          className="group hover:bg-white/[0.03] transition-colors cursor-pointer"
-                        >
-                          <td className="px-6 py-6">
-                            <div className="flex items-center gap-4">
-                              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/40 font-mono text-xs group-hover:border-[#4ade80]/30 transition-all">
-                                {client.name.substring(0, 2).toUpperCase()}
-                              </div>
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[13px] font-bold text-white group-hover:text-[#4ade80] transition-colors line-clamp-1">{client.name}</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[9px] font-mono text-white/20 uppercase tracking-tighter">{client.project_id || client.id.substring(0, 8)}</span>
-                                  <span className="w-1 h-1 rounded-full bg-white/10" />
-                                  <span className="text-[9px] font-mono text-white/20 uppercase">{client.package_type}</span>
-                                </div>
-                              </div>
+                    <tr><td colSpan={11} className="px-6 py-20 text-center text-white/20 font-mono text-[10px] tracking-widest">CHARGEMENT DES NŒUDS...</td></tr>
+                  ) : paginatedClients.map(client => {
+                    const usage = client.token_budget > 0 ? (client.total_tokens_consumed / client.token_budget) * 100 : 0;
+                    return (
+                      <tr 
+                        key={client.id}
+                        onMouseMove={handleMouseMove}
+                        onMouseEnter={() => setHoveredClient(client)}
+                        onMouseLeave={() => setHoveredClient(null)}
+                        onClick={() => router.push(`/admin/system/${client.id}`)}
+                        className="group h-[56px] hover:bg-white/[0.02] transition-colors cursor-pointer"
+                      >
+                        <td className="px-6 py-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40">
+                              {client.name.substring(0, 2).toUpperCase()}
                             </div>
-                          </td>
-                          <td className="px-6 py-6">
-                            <span className={`px-2.5 py-1 rounded-md text-[9px] font-black tracking-tighter border ${getPlanStyle(client.package_type)}`}>
-                              {client.package_type}
-                            </span>
-                          </td>
-                          <td className="px-6 py-6">
-                            <div className={`px-2.5 py-1 rounded-md text-[9px] font-black tracking-tighter border inline-flex items-center gap-1.5 ${getStatusStyle(client.status)}`}>
-                              <div className="w-1 h-1 rounded-full bg-current" />
-                              {client.status}
+                            <div>
+                              <p className="text-[11px] font-bold text-white group-hover:text-[#10B981] transition-colors leading-none">{client.name}</p>
+                              <p className="text-[8px] font-mono text-white/20 uppercase tracking-tighter mt-1">{client.project_id || `AS-B-2026-${client.id.substring(0,4)}`} • {client.package_type}</p>
                             </div>
-                          </td>
-                          <td className="px-6 py-6">
-                            <div className="w-40 space-y-2">
-                              <div className="flex justify-between items-center text-[9px] font-mono text-white/40 uppercase">
-                                <span>{usagePercent.toFixed(1)}%</span>
-                                <span>{Math.round(client.total_tokens_consumed / 1000)}k / {Math.round(client.token_budget / 1000)}k</span>
-                              </div>
-                              <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                                <motion.div 
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${Math.min(usagePercent, 100)}%` }}
-                                  className={`h-full ${usagePercent > 90 ? 'bg-red-500' : usagePercent > 70 ? 'bg-amber-500' : 'bg-[#4ade80]'}`}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-6 text-center">
-                            <span className="text-sm font-mono font-bold text-white/80">{client.agent_count}</span>
-                          </td>
-                          <td className="px-6 py-6">
-                            {client.intelligence ? (
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const path = client.intelligence?.issue_type === 'SECURITY' || client.intelligence?.issue_type === 'AGENT_ERROR' 
-                                    ? `/admin/system/${client.id}/agents` 
-                                    : `/admin/system/${client.id}`;
-                                  router.push(path);
-                                }}
-                                className={`flex items-center gap-2 group/intel transition-all p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04]`}
-                              >
-                                {client.intelligence.severity_level === 'CRITICAL' ? (
-                                  <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                                ) : client.intelligence.severity_level === 'WARNING' ? (
-                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                                ) : (
-                                  <Bell className="w-3.5 h-3.5 text-blue-400" />
-                                )}
-                                <div className="flex flex-col text-left">
-                                  <span className={`text-[9px] font-black uppercase tracking-tighter ${
-                                    client.intelligence.severity_level === 'CRITICAL' ? 'text-red-500' : 
-                                    client.intelligence.severity_level === 'WARNING' ? 'text-amber-500' : 
-                                    'text-blue-400'
-                                  }`}>
-                                    {client.intelligence.issue_type}
-                                  </span>
-                                  <span className="text-[10px] text-white/40 font-medium truncate max-w-[150px]">
-                                    {client.intelligence.raw_context}
-                                  </span>
-                                </div>
-                              </button>
-                            ) : (
-                              <div className="flex items-center gap-2 text-white/20">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-[#4ade80]/40" />
-                                <span className="text-[10px] font-medium uppercase tracking-widest italic">Stable</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-6 py-6">
-                            <span className="text-[11px] font-medium text-white/60">{client.region}</span>
-                          </td>
-                          <td className="px-6 py-6">
-                            <span className="text-[11px] font-medium text-white/60">{client.sector}</span>
-                          </td>
-                          <td className="px-6 py-6">
-                            <div className="flex flex-col">
-                              <span className="text-[13px] font-mono font-black text-white">{(client.monthly_cost || 0).toLocaleString()} FCFA</span>
-                              <span className="text-[9px] text-white/20 uppercase tracking-tighter tracking-tighter">Billed monthly</span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-6">
-                            <span className="text-[11px] font-mono text-white/40">
-                              {new Date(client.activated_at || client.created_at).toLocaleDateString('fr-FR')}
-                            </span>
-                          </td>
-                          <td className="px-6 py-6">
-                            <div className="relative">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveMenuId(activeMenuId === client.id ? null : client.id);
-                                }}
-                                className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/20 hover:text-white"
-                              >
-                                <MoreHorizontal className="w-4 h-4" />
-                              </button>
-                              
-                              <AnimatePresence>
-                                {activeMenuId === client.id && (
-                                  <motion.div 
-                                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                    className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#0a0a0a] border border-white/10 shadow-2xl z-[100] py-2"
-                                  >
-                                    <button 
-                                      onClick={() => router.push(`/admin/system/${client.id}`)}
-                                      className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-all"
-                                    >
-                                      <Zap className="w-3.5 h-3.5" />
-                                      OUVRIR SYSTÈME
-                                    </button>
-                                    <button 
-                                      onClick={() => router.push(`/admin/system/${client.id}/agents`)}
-                                      className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-all"
-                                    >
-                                      <Brain className="w-3.5 h-3.5" />
-                                      VOIR AGENTS
-                                    </button>
-                                    <div className="h-px bg-white/5 my-1" />
-                                    <button 
-                                      onClick={() => setShowConfirmModal({ id: client.id, name: client.name })}
-                                      className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-red-500/60 hover:text-red-500 hover:bg-red-500/5 flex items-center gap-3 transition-all"
-                                    >
-                                      <Power className="w-3.5 h-3.5" />
-                                      DÉSACTIVER
-                                    </button>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={11} className="px-6 py-20 text-center">
-                        <div className="flex flex-col items-center gap-4 text-white/20">
-                          <Package className="w-12 h-12 stroke-[1px]" />
-                          <div className="space-y-1">
-                            <p className="text-[11px] font-black uppercase tracking-[0.3em]">Aucun système détecté</p>
-                            <p className="text-[9px] font-mono uppercase tracking-widest italic">Vérifiez les paramètres du cluster ou les filtres</p>
                           </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
+                        </td>
+                        <td className="px-6 py-2">
+                          <span className={`text-[9px] font-black tracking-tight border px-2 py-0.5 rounded ${
+                            client.package_type === 'ELITE' ? 'text-purple-400 border-purple-400/20 bg-purple-400/5' :
+                            client.package_type === 'ENTERPRISE' ? 'text-blue-400 border-blue-400/20 bg-blue-400/5' :
+                            'text-emerald-400 border-emerald-400/20 bg-emerald-400/5'
+                          }`}>
+                            {client.package_type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-2">
+                          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[9px] font-black ${
+                            client.status === 'CRITICAL' ? 'text-red-500 border-red-500/20 bg-red-500/5' :
+                            client.status === 'WARNING' ? 'text-amber-500 border-amber-500/20 bg-amber-500/5' :
+                            'text-[#10B981] border-[#10B981]/20 bg-[#10B981]/5'
+                          }`}>
+                            <div className="w-1 h-1 rounded-full bg-current" />
+                            {client.status}
+                          </div>
+                        </td>
+                        <td className="px-6 py-2">
+                          <div className="w-32 space-y-1">
+                            <div className="flex justify-between text-[8px] font-mono text-white/20">
+                              <span>{usage.toFixed(1)}%</span>
+                              <span>{Math.round(client.total_tokens_consumed/1000)}K</span>
+                            </div>
+                            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                              <div className={`h-full ${usage > 90 ? 'bg-red-500' : usage > 70 ? 'bg-amber-500' : 'bg-[#10B981]'}`} style={{ width: `${Math.min(usage, 100)}%` }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-2 text-center text-[10px] font-bold text-white/60">{client.agent_count}</td>
+                        <td className="px-6 py-2">
+                          {client.intelligence ? (
+                            <div className="flex items-center gap-2 cursor-pointer group/intel" onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(client.intelligence?.severity_level === 'CRITICAL' ? `/admin/system/${client.id}/agents` : `/admin/system/${client.id}`);
+                            }}>
+                              <AlertTriangle className={`w-3.5 h-3.5 ${
+                                client.intelligence.severity_level === 'CRITICAL' ? 'text-red-500' : 
+                                client.intelligence.severity_level === 'WARNING' ? 'text-amber-500' : 'text-blue-400'
+                              }`} />
+                              <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-white/60 uppercase leading-none">{client.intelligence.issue_type}</span>
+                                <span className="text-[10px] text-white/20 truncate max-w-[120px]">{client.intelligence.raw_context}</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]/40" />
+                              <span className="text-[10px] text-white/10 uppercase font-mono tracking-widest">SECURE</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-2 text-[10px] text-white/40">{client.region}</td>
+                        <td className="px-6 py-2 text-[10px] text-white/40">{client.sector}</td>
+                        <td className="px-6 py-2">
+                          <p className="text-[11px] font-mono font-bold text-white">{(client.monthly_cost || 0).toLocaleString()} FCFA</p>
+                        </td>
+                        <td className="px-6 py-2 text-[10px] font-mono text-white/20">
+                          {new Date(client.activated_at || client.created_at).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="px-6 py-2">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === client.id ? null : client.id); }}
+                            className="p-1.5 hover:bg-white/10 rounded-lg text-white/30 hover:text-white transition-all"
+                          >
+                            <MoreHorizontal className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* PAGINATION */}
-            <div className="px-8 py-6 bg-white/[0.02] border-t border-white/5 flex items-center justify-between">
-              <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
-                Total affiché : {filteredClients.length} systèmes
-              </span>
-              
-              <div className="flex items-center gap-2">
-                <button 
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 hover:text-white hover:border-white/20 disabled:opacity-20 disabled:pointer-events-none transition-all"
-                >
+            <div className="px-8 py-4 border-t border-[#1A1A1A] flex items-center justify-between bg-white/[0.01]">
+              <p className="text-[10px] font-mono text-white/10 italic">AFFICHAGE {paginatedClients.length} SUR {filteredClients.length} SYSTÈMES</p>
+              <div className="flex items-center gap-1.5">
+                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="p-1.5 rounded-lg border border-[#1A1A1A] text-white/20 hover:text-white disabled:opacity-30">
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setCurrentPage(i + 1)}
-                      className={`w-8 h-8 rounded-lg text-[10px] font-mono font-bold transition-all ${
-                        currentPage === i + 1 
-                        ? 'bg-white text-black' 
-                        : 'text-white/20 hover:text-white/40 hover:bg-white/5'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-
-                <button 
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  className="p-2 rounded-lg border border-white/10 bg-white/5 text-white/40 hover:text-white hover:border-white/20 disabled:opacity-20 disabled:pointer-events-none transition-all"
-                >
+                {Array.from({ length: totalPages }).map((_, i) => (
+                  <button key={i} onClick={() => setCurrentPage(i+1)} className={`w-8 h-8 rounded-lg text-[10px] font-mono font-bold ${currentPage === i+1 ? 'bg-white text-black' : 'text-white/20 hover:bg-white/5'}`}>
+                    {i+1}
+                  </button>
+                ))}
+                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="p-1.5 rounded-lg border border-[#1A1A1A] text-white/20 hover:text-white disabled:opacity-30">
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -594,69 +449,101 @@ export default function FleetPage() {
           </div>
         </div>
 
-        {/* CONFIRMATION MODAL */}
+        {/* HOVER CONTEXT CARD */}
         <AnimatePresence>
-          {showConfirmModal && (
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowConfirmModal(null)}
-                className="absolute inset-0 bg-black/80 backdrop-blur-md"
-              />
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 shadow-2xl"
-              >
-                <div className="space-y-6 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
-                    <Power className="w-8 h-8 text-red-500" />
+          {hoveredClient && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              style={{
+                position: 'fixed',
+                left: mousePos.x + 16,
+                top: mousePos.y + 16,
+                zIndex: 9999,
+                pointerEvents: 'none'
+              }}
+              className="w-[280px] bg-[#111111] border border-[#2A2A2A] rounded-xl p-4 shadow-2xl backdrop-blur-xl space-y-4"
+            >
+              <div className="space-y-1">
+                <p className="text-sm font-black text-white leading-none">{hoveredClient.name}</p>
+                <p className="text-[10px] font-mono text-[#10B981] uppercase tracking-tighter">{hoveredClient.project_id || `AS-B-2026-${hoveredClient.id.substring(0,4)}`}</p>
+              </div>
+
+              <div className="flex gap-2">
+                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-black text-white/60 uppercase">{hoveredClient.package_type}</span>
+                <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase ${
+                  hoveredClient.status === 'CRITICAL' ? 'text-red-500 border-red-500/20 bg-red-500/10' : 'text-[#10B981] border-[#10B981]/20 bg-[#10B981]/10'
+                }`}>{hoveredClient.status}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-white/20">
+                    <Briefcase className="w-3 h-3" />
+                    <span className="text-[8px] font-bold uppercase tracking-widest">SECTEUR</span>
                   </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-white uppercase tracking-wider">Désactiver le système ?</h3>
-                    <p className="text-xs text-white/40 leading-relaxed">
-                      Vous allez suspendre l'accès pour <span className="text-white font-bold">{showConfirmModal.name}</span>. 
-                      Tous les agents et processus neuraux seront mis en pause.
-                    </p>
-                  </div>
-                  <div className="flex gap-4 pt-4">
-                    <button 
-                      onClick={() => setShowConfirmModal(null)}
-                      className="flex-1 py-4 rounded-xl border border-white/10 text-[10px] font-bold text-white/40 uppercase tracking-widest hover:bg-white/5 transition-all"
-                    >
-                      Annuler
-                    </button>
-                    <button 
-                      onClick={() => {
-                        showToast('success', `SYSTÈME ${showConfirmModal.id} DÉSACTIVÉ`);
-                        setShowConfirmModal(null);
-                      }}
-                      className="flex-1 py-4 rounded-xl bg-red-500 text-white text-[10px] font-bold uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
-                    >
-                      Confirmer
-                    </button>
-                  </div>
+                  <p className="text-[10px] text-white/60 uppercase">{hoveredClient.sector}</p>
                 </div>
-              </motion.div>
-            </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-1.5 text-white/20">
+                    <Globe className="w-3 h-3" />
+                    <span className="text-[8px] font-bold uppercase tracking-widest">RÉGION</span>
+                  </div>
+                  <p className="text-[10px] text-white/60 uppercase">{hoveredClient.region}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-[9px] font-mono text-white/40 uppercase">
+                  <span>TOKEN USAGE</span>
+                  <span>{((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100).toFixed(1)}%</span>
+                </div>
+                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#10B981]" style={{ width: `${Math.min((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100, 100)}%` }} />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded bg-white/5">
+                    <Brain className="w-3 h-3 text-purple-400" />
+                  </div>
+                  <span className="text-[10px] font-bold text-white/60">{hoveredClient.agent_count} AGENTS</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[#10B981]">
+                  <span className="text-[9px] font-black uppercase tracking-widest">OUVRIR</span>
+                  <ArrowUpRight className="w-3 h-3" />
+                </div>
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
-        {/* TOAST NOTIFICATION */}
+        {/* CONTEXT MENU */}
         <AnimatePresence>
-          {toast && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="fixed bottom-8 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl z-[300] flex items-center gap-3"
-            >
-              <CheckCircle2 className={`w-4 h-4 ${toast.type === 'success' ? 'text-[#4ade80]' : 'text-red-500'}`} />
-              {toast.message}
-            </motion.div>
+          {activeMenuId && (
+            <div className="fixed inset-0 z-[100]" onClick={() => setActiveMenuId(null)}>
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                style={{ top: mousePos.y, left: mousePos.x - 200 }}
+                className="absolute w-52 bg-[#111111] border border-white/10 rounded-xl shadow-2xl py-2 overflow-hidden"
+              >
+                <button onClick={() => router.push(`/admin/system/${activeMenuId}`)} className="w-full px-4 py-2.5 text-left text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-all uppercase tracking-widest">
+                  <Zap className="w-3.5 h-3.5" /> OUVRIR SYSTÈME
+                </button>
+                <button onClick={() => router.push(`/admin/system/${activeMenuId}/agents`)} className="w-full px-4 py-2.5 text-left text-[10px] font-bold text-white/60 hover:text-white hover:bg-white/5 flex items-center gap-3 transition-all uppercase tracking-widest">
+                  <Brain className="w-3.5 h-3.5" /> VOIR AGENTS
+                </button>
+                <div className="h-px bg-white/5 my-1" />
+                <button className="w-full px-4 py-2.5 text-left text-[10px] font-bold text-red-500/60 hover:text-red-500 hover:bg-red-500/5 flex items-center gap-3 transition-all uppercase tracking-widest">
+                  <Power className="w-3.5 h-3.5" /> DÉSACTIVER
+                </button>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>
