@@ -229,18 +229,9 @@ export default function NeuralCommandCenterV31() {
     topEnterpriseId: null,
     isUpsell: false
   });
-  const [apiMonitorData, setApiMonitorData] = useState<any>(null);
-  const [systemHealthData, setSystemHealthData] = useState<any>(null);
-  const [intelligenceSummaryData, setIntelligenceSummaryData] = useState<any>(null);
-  const [neuralPulseData, setNeuralPulseData] = useState<any>(null);
-  const [commercialPipelineData, setCommercialPipelineData] = useState<any>(null);
-  
-  // Legacy states for other sections
-  const [apiMonitor, setApiMonitor] = useState<any>(null);
   const [neuralPulse, setNeuralPulse] = useState<any>(null);
-  const [commercialPipeline, setCommercialPipeline] = useState<any>(null);
-  
   const [thoughtStream, setThoughtStream] = useState<any[]>([]);
+  const [apiMonitor, setApiMonitor] = useState<any>(null);
   const [activeApis, setActiveApis] = useState<string[]>([]);
   const [monitorDays, setMonitorDays] = useState('30');
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -277,6 +268,7 @@ export default function NeuralCommandCenterV31() {
   const [saving, setSaving] = useState(false);
   const [fleetData, setFleetData] = useState<any>(null);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+  const [commercialPipeline, setCommercialPipeline] = useState<any>(null);
   // Fetch Templates for Modal
   useEffect(() => {
     if (showNewCustomerModal && step === 2) {
@@ -647,6 +639,11 @@ export default function NeuralCommandCenterV31() {
           setIntelligenceSummary(summaryJson);
         }
 
+        // 8. Neural Pulse
+        const npRes = await fetch('/api/admin/neural-pulse')
+        const npData = await npRes.json()
+        setNeuralPulse(npData)
+
         // 9. Agent Task Force
         const tfRes = await fetch('/api/admin/agent-taskforce');
         const tfData = await tfRes.json();
@@ -661,12 +658,12 @@ export default function NeuralCommandCenterV31() {
           setThoughtStream(tsData.thoughts);
         }
 
-        // 11. API Monitor (Standard Audit)
-        const apiMonitorResLegacy = await fetch(`/api/admin/api-monitor?days=${monitorDays}${selectedPlan ? `&plan=${selectedPlan}` : ''}`);
-        const apiMonitorDataLegacy = await apiMonitorResLegacy.json();
-        setApiMonitor(apiMonitorDataLegacy);
-        if (apiMonitorDataLegacy.apiKeys && activeApis.length === 0) {
-          setActiveApis(apiMonitorDataLegacy.apiKeys);
+        // 11. API Monitor
+        const apiRes = await fetch(`/api/admin/api-monitor?days=${monitorDays}${selectedPlan ? `&plan=${selectedPlan}` : ''}`);
+        const apiData = await apiRes.json();
+        setApiMonitor(apiData);
+        if (apiData.apiKeys && activeApis.length === 0) {
+          setActiveApis(apiData.apiKeys);
         }
 
         // 12. Growth Intelligence
@@ -679,28 +676,10 @@ export default function NeuralCommandCenterV31() {
          const fleetAdminJson = await fleetRes.json();
          setFleetData(fleetAdminJson);
 
-         // Section 1: Dashboard Cards - New Dynamic Refactor
-         const [sec1ApiRes, sec1HealthRes, sec1IntelRes, sec1PulseRes, sec1PipelineRes] = await Promise.all([
-           fetch('/api/admin/api-monitor'),
-           fetch('/api/admin/system-health'),
-           fetch('/api/admin/intelligence-summary'),
-           fetch('/api/admin/neural-pulse'),
-           fetch('/api/admin/commercial-pipeline')
-         ]);
-
-         const [sec1ApiData, sec1HealthData, sec1IntelData, sec1PulseData, sec1CpData] = await Promise.all([
-           sec1ApiRes.json(),
-           sec1HealthRes.json(),
-           sec1IntelRes.json(),
-           sec1PulseRes.json(),
-           sec1PipelineRes.json()
-         ]);
-
-         setApiMonitorData(sec1ApiData);
-         setSystemHealthData(sec1HealthData);
-         setIntelligenceSummaryData(sec1IntelData);
-         setNeuralPulseData(sec1PulseData);
-         setCommercialPipelineData(sec1CpData);
+         // 14. Commercial Pipeline
+         const cpRes = await fetch('/api/admin/commercial-pipeline');
+         const cpData = await cpRes.json();
+         setCommercialPipeline(cpData);
 
          // 15. Plan Definitions for Modal
          const { data: plans } = await supabase.from('plan_definitions').select('*');
@@ -861,284 +840,274 @@ export default function NeuralCommandCenterV31() {
           <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar">
             {/* CARD 1 — API COMMAND CENTER */}
             <div 
-              className="p-5 bg-[#111111] border border-white/5 rounded-xl space-y-4 transition-all relative overflow-hidden h-[280px] flex-1 min-w-[240px] group hover:bg-[#151515]"
+              className="p-5 bg-[#111111] border border-white/5 rounded-xl space-y-4 transition-all relative overflow-hidden min-h-[220px] min-w-[240px]"
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className="text-xs font-bold uppercase tracking-widest text-white/40 whitespace-nowrap">API COMMAND CENTER</span>
-                <div className="flex gap-1.5">
-                  {(apiMonitorData?.apis || ['Claude', 'Gemini', 'OpenRouter']).map((api: string) => (
-                    <button
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">API COMMAND CENTER</span>
+                <div className="flex gap-1 opacity-20">
+                  {['Claude', 'Gemini', 'OpenRouter'].map((api) => (
+                    <div
                       key={api}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/admin/api-audit?model=${api.toLowerCase()}`);
-                      }}
-                      className="px-2 py-0.5 rounded text-[8px] font-bold border border-white/10 text-white/40 bg-white/5 hover:bg-[#4ade80]/20 hover:text-[#4ade80] transition-all"
+                      className="px-1.5 py-0.5 rounded text-[7px] font-bold border border-white/10 text-white/30 bg-white/5"
                     >
                       {api[0]}
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
-              <div className="space-y-4 relative z-10 py-2">
-                {!apiMonitorData?.hasAgents ? (
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.2em] leading-tight">
-                      AUCUN AGENT DÉPLOYÉ CE MOIS
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-2xl font-mono font-black text-white leading-none">
-                        {apiMonitorData.totalTokens?.toLocaleString()}
-                      </p>
-                      <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">TOKENS CONSUMÉS</p>
-                    </div>
-                    <div>
-                      <p className="text-xl font-mono font-black text-[#4ade80] leading-none">
-                        {apiMonitorData.totalCalls?.toLocaleString()}
-                      </p>
-                      <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">APPELS API (MOIS)</p>
-                    </div>
-                  </div>
-                )}
+              <div className="space-y-2 relative z-10 py-2">
+                <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] leading-tight">
+                  AUCUN AGENT DÉPLOYÉ CE MOIS
+                </p>
+                <p className="text-[8px] font-medium text-white/20 uppercase tracking-[0.1em] leading-relaxed max-w-[180px]">
+                  Les données apparaîtront dès le premier agent client activé
+                </p>
               </div>
-              <div className="pt-4 mt-auto border-t border-white/[0.03] relative z-10">
-                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">ECOSYSTEM MONITOR READY</p>
+              <div className="pt-6 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">TOKENS CONSUMED (MONTHLY)</p>
+                <span className="text-[10px] font-mono font-bold text-white/20">—</span>
               </div>
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 rounded-full" />
             </div>
 
             {/* CARD 2 — SYSTEM HEALTH */}
             <div 
-              className={`p-5 border rounded-xl space-y-4 transition-all relative overflow-hidden h-[280px] flex-1 min-w-[240px] group hover:bg-[#151515] ${
-                (systemHealthData?.counts?.CRITICAL || 0) > 0 ? 'border-red-500/30' :
-                (systemHealthData?.counts?.WARNING || 0) > 0 ? 'border-orange-500/30' : 'border-white/5'
+              onClick={() => {
+                if (healthScore < 100 && mostCriticalNode) {
+                  router.push(`/admin/system/${mostCriticalNode.id}`);
+                }
+              }}
+              className={`p-5 border rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden min-h-[220px] min-w-[240px] ${
+                healthScore < 70 ? 'bg-red-500/10 border-red-500/50' : 
+                healthScore < 100 ? 'bg-amber-500/10 border-amber-500/50' : 
+                'bg-[#111111] border-white/5 hover:border-white/10'
               }`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className="text-xs font-bold uppercase tracking-widest text-white/40 whitespace-nowrap">SYSTEM HEALTH</span>
-                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  (systemHealthData?.score || 100) === 100 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-500 animate-pulse'
+                <span className={`text-xs font-bold uppercase tracking-[0.2em] ${healthScore < 100 ? 'text-white' : 'text-white/40'}`}>SYSTEM HEALTH</span>
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                  healthScore === 100 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-500 animate-pulse'
                 }`}>
-                  <Shield className="w-3 h-3" />
-                  {systemHealthData?.score || 100}%
+                  <Shield className="w-2.5 h-2.5" />
+                  {healthScore}%
                 </div>
               </div>
-              <div className="space-y-4 relative z-10">
-                <div 
-                  onClick={() => systemHealthData?.firstIds?.STABLE && router.push(`/admin/system/${systemHealthData.firstIds.STABLE}`)}
-                  className="flex justify-between items-baseline cursor-pointer group/row"
-                >
-                  <span className="text-[10px] font-bold text-white/30 group-hover/row:text-white/60 transition-all uppercase tracking-widest">STABLE</span>
-                  <span className="text-2xl font-mono font-black text-[#4ade80]">{systemHealthData?.counts?.STABLE || 0}</span>
-                </div>
-                <div 
-                  onClick={() => systemHealthData?.firstIds?.WARNING && router.push(`/admin/system/${systemHealthData.firstIds.WARNING}`)}
-                  className="flex justify-between items-baseline cursor-pointer group/row"
-                >
-                  <span className="text-[10px] font-bold text-white/30 group-hover/row:text-white/60 transition-all uppercase tracking-widest">WARNING</span>
-                  <span className="text-2xl font-mono font-black text-orange-500">{systemHealthData?.counts?.WARNING || 0}</span>
-                </div>
-                <div 
-                  onClick={() => systemHealthData?.firstIds?.CRITICAL && router.push(`/admin/system/${systemHealthData.firstIds.CRITICAL}`)}
-                  className="flex justify-between items-baseline cursor-pointer group/row"
-                >
-                  <span className="text-[10px] font-bold text-white/30 group-hover/row:text-white/60 transition-all uppercase tracking-widest">CRITICAL</span>
-                  <span className="text-2xl font-mono font-black text-red-500">{systemHealthData?.counts?.CRITICAL || 0}</span>
-                </div>
+              <div className="space-y-1 relative z-10">
+                <p className={`text-3xl font-mono tracking-tighter font-black ${
+                  healthScore === 100 ? 'text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.3)]' : 
+                  healthScore < 70 ? 'text-red-500' : 'text-amber-500'
+                }`}>
+                  {stableCount} STABLE
+                </p>
+                <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest flex gap-2">
+                  <span>{warningCount} WARNING</span>
+                  <span className="opacity-20">/</span>
+                  <span>{criticalCount} CRITICAL</span>
+                </p>
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 rounded-full" />
+              <div className="pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">Global Infrastructure Score</p>
+                {healthScore < 100 && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
+              </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
             </div>
 
             {/* CARD 3 — INTELLIGENCE HUB */}
             <div 
               onClick={() => {
-                if (intelligenceSummaryData?.latestAlert) {
-                  const alert = intelligenceSummaryData.latestAlert;
-                  if (alert.issue_type === 'AGENT_ERROR' || alert.issue_type === 'SECURITY') {
-                    router.push(`/admin/system/${alert.client_id}/agents`);
+                if (intelligenceSummary.totalActive > 0 && intelligenceSummary.topEnterpriseId) {
+                  const id = intelligenceSummary.topEnterpriseId;
+                  const type = intelligenceSummary.topIssueType;
+                  if (type === 'TOKEN_LIMIT' || type === 'TOKEN_WARNING' || type === 'UPSELL') {
+                    router.push(`/admin/system/${id}/settings`);
+                  } else if (type === 'AGENT_ERROR' || type === 'SECURITY') {
+                    router.push(`/admin/system/${id}/agents`);
                   } else {
-                    router.push(`/admin/system/${alert.client_id}`);
+                    router.push(`/admin/system/${id}`);
                   }
                 }
               }}
-              className={`p-5 bg-[#111111] border border-white/5 rounded-xl space-y-4 transition-all relative overflow-hidden h-[280px] flex-1 min-w-[240px] group hover:bg-[#151515] ${intelligenceSummaryData?.totalActive > 0 ? 'cursor-pointer hover:border-white/20' : ''}`}
+              className={`p-5 bg-[#111111] border border-white/5 ${intelligenceSummary.totalActive > 0 ? 'hover:border-white/10 cursor-pointer' : 'cursor-default'} rounded-xl space-y-4 transition-all group relative overflow-hidden min-h-[220px] min-w-[240px]`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className="text-xs font-bold uppercase tracking-widest text-white/40 whitespace-nowrap">INTELLIGENCE HUB</span>
-                {intelligenceSummaryData?.totalActive > 0 && (
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">INTELLIGENCE HUB</span>
+                {intelligenceSummary.totalActive > 0 && intelligenceSummary.topSeverity && (
                   <div className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest ${
-                    intelligenceSummaryData.latestAlert?.severity_level === 'CRITICAL' ? 'bg-red-500/20 text-red-500' :
-                    intelligenceSummaryData.latestAlert?.severity_level === 'WARNING' ? 'bg-amber-500/20 text-amber-500' :
+                    intelligenceSummary.topSeverity === 'CRITICAL' ? 'bg-red-500/20 text-red-500' :
+                    intelligenceSummary.topSeverity === 'WARNING' ? 'bg-amber-500/20 text-amber-500' :
+                    intelligenceSummary.topSeverity === 'UPSELL' ? 'bg-green-500/20 text-green-500' :
                     'bg-blue-500/20 text-blue-500'
                   }`}>
-                    {intelligenceSummaryData.latestAlert?.severity_level}
+                    {intelligenceSummary.topSeverity}
                   </div>
                 )}
               </div>
-              <div className="space-y-2 relative z-10">
-                {intelligenceSummaryData?.isOptimal ? (
-                  <div className="py-8">
-                    <p className="text-[11px] font-black text-[#4ade80] uppercase tracking-[0.2em]">SYSTÈME OPTIMAL</p>
-                    <p className="text-white/20 text-xs font-bold uppercase tracking-widest mt-1">AUCUNE ALERTE ACTIVE</p>
-                  </div>
+              <div className="space-y-1 relative z-10">
+                {intelligenceSummary.totalActive === 0 ? (
+                  <>
+                    <p className="text-[11px] font-black text-[#4ade80] uppercase tracking-[0.2em] py-1">SYSTÈME OPTIMAL</p>
+                    <p className="text-white/20 text-[9px] font-bold uppercase tracking-widest">AUCUNE ALERTE ACTIVE</p>
+                  </>
                 ) : (
                   <>
-                    <p className="text-[11px] font-mono font-bold text-white/90 leading-relaxed max-h-[100px] overflow-y-auto custom-scrollbar">
-                      {intelligenceSummaryData.latestAlert?.raw_context}
+                    <p className="text-lg font-mono font-black text-white/90 leading-tight line-clamp-2">
+                      {intelligenceSummary.topMessage}
                     </p>
-                    <div className="pt-4 flex justify-between items-end">
-                      <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest">
-                        {intelligenceSummaryData.totalActive} ALERTES À TRAITER
-                      </p>
-                      <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />
-                    </div>
+                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest">
+                      {intelligenceSummary.totalActive} ALERTES ACTIVES CE MOIS
+                    </p>
                   </>
                 )}
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 rounded-full" />
+              <div className={`pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10 ${intelligenceSummary.totalActive === 0 ? 'opacity-20' : ''}`}>
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">GROWTH & ALERT OPPORTUNITIES &gt;</p>
+                {intelligenceSummary.totalActive > 0 && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
+              </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
             </div>
 
             {/* CARD 4 — NEURAL PULSE */}
             <div 
               onClick={() => {
-                if (neuralPulseData?.latestLog?.enterprise_id) {
-                   router.push(`/admin/system/${neuralPulseData.latestLog.enterprise_id}`);
+                if (neuralPulse?.totalEvents > 0 && neuralPulse?.lastEnterpriseId) {
+                  router.push(`/admin/system/${neuralPulse.lastEnterpriseId}`);
                 }
               }}
-              className="p-5 bg-[#111111] border border-white/5 rounded-xl space-y-4 transition-all relative overflow-hidden h-[280px] flex-1 min-w-[240px] group hover:bg-[#151515] cursor-pointer"
+              className={`p-5 bg-[#111111] border border-white/5 ${neuralPulse?.totalEvents > 0 ? 'hover:border-white/10 cursor-pointer' : 'cursor-default'} rounded-xl space-y-4 transition-all group relative overflow-hidden min-h-[220px] min-w-[240px]`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className="text-xs font-bold uppercase tracking-widest text-white/40 whitespace-nowrap">NEURAL PULSE</span>
-                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                  neuralPulseData?.latestLog?.status_color === 'red' ? 'bg-red-500/10 text-red-500' : 
-                  neuralPulseData?.latestLog?.status_color === 'amber' ? 'bg-amber-500/10 text-amber-500' :
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">NEURAL PULSE</span>
+                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
+                  neuralPulse?.globalStatus === 'ERROR' ? 'bg-red-500/10 text-red-500' : 
+                  neuralPulse?.globalStatus === 'SYNC' ? 'bg-amber-500/10 text-amber-500' :
                   'bg-green-500/10 text-green-400'
                 }`}>
-                   <Activity className="w-3 h-3" />
-                   {neuralPulseData?.latestLog?.status_label || 'LIVE'}
+                   <Activity className="w-2.5 h-2.5" />
+                   {neuralPulse?.globalStatus || 'LIVE'}
                 </div>
               </div>
-              <div className="space-y-4 relative z-10 flex flex-col h-full">
-                <p className="text-sm font-mono font-bold text-white leading-relaxed line-clamp-3">
-                  {neuralPulseData?.latestLog?.description || "En attente d'activité..."}
-                </p>
-                
-                {neuralPulseData?.community?.count > 0 && (
-                  <div 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="mt-2 p-3 bg-white/[0.03] border border-white/5 rounded-lg hover:bg-white/[0.05] transition-all cursor-pointer"
-                  >
-                    <p className="text-[10px] font-black text-[#4ade80] uppercase tracking-widest">
-                      {neuralPulseData.community.count} NOUVEAUX MEMBRES
+              <div className="space-y-1 relative z-10">
+                {(!neuralPulse || neuralPulse.totalEvents === 0) ? (
+                  <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.2em] py-4">N/A — EN ATTENTE</p>
+                ) : (
+                  <>
+                    <p className="text-xl font-mono tracking-tighter font-black text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.3)] line-clamp-2">
+                      {neuralPulse.lastEvent}
                     </p>
-                    <p className="text-[9px] text-white/40 mt-1 truncate">
-                      {neuralPulseData.community.latest?.raw_context}
+                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest truncate">
+                      {neuralPulse.lastEventType}
                     </p>
-                  </div>
+                  </>
                 )}
-
-                <div className="mt-auto pt-4 flex items-center justify-between border-t border-white/[0.03]">
-                  <p className="uppercase tracking-widest text-[8px] font-bold text-white/10 uppercase">SIGNAL COMMUNAUTÉ INTÉGRÉ</p>
-                  <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white" />
-                </div>
               </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 rounded-full" />
+              <div className={`pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10 ${(!neuralPulse || neuralPulse.totalEvents === 0) ? 'opacity-20' : ''}`}>
+                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">REAL-TIME SYNAPTIC FLOW &gt;</p>
+                {neuralPulse?.totalEvents > 0 && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
+              </div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
             </div>
 
             {/* CARD 5 — COMMERCIAL PIPELINE */}
             <div 
-              className={`p-5 border rounded-xl space-y-4 transition-all relative overflow-hidden h-[280px] flex-1 min-w-[240px] group hover:bg-[#151515] ${
-                (commercialPipelineData?.total || 0) === 0 
-                ? 'border-[#4ade80]/30' 
-                : 'border-orange-500/30'
+              className={`p-5 border rounded-xl space-y-4 transition-all relative overflow-hidden group min-h-[220px] min-w-[240px] ${
+                (commercialPipeline?.total || 0) === 0 
+                ? 'bg-[#111111] border-[#4ade80]/30 hover:border-[#4ade80]/50' 
+                : 'bg-[#111111] border-orange-500/30 hover:border-orange-500/50'
               }`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className="text-xs font-bold uppercase tracking-widest text-white/40 whitespace-nowrap">COMMERCIAL PIPELINE</span>
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">COMMERCIAL PIPELINE</span>
                 <div className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
-                  (commercialPipelineData?.total || 0) === 0 
+                  (commercialPipeline?.total || 0) === 0 
                   ? 'bg-[#4ade80]/10 text-[#4ade80]' 
                   : 'bg-red-500/10 text-red-500 animate-[pulse_3s_infinite]'
                 }`}>
-                  <div className={`w-1 h-1 rounded-full ${(commercialPipelineData?.total || 0) === 0 ? 'bg-[#4ade80]' : 'bg-red-500'}`} />
-                  {(commercialPipelineData?.total || 0) === 0 ? 'OPTIMAL' : `${commercialPipelineData.total} ACTIONS`}
+                  <div className={`w-1 h-1 rounded-full ${(commercialPipeline?.total || 0) === 0 ? 'bg-[#4ade80]' : 'bg-red-500'}`} />
+                  {(commercialPipeline?.total || 0) === 0 ? 'OPTIMAL' : `${commercialPipeline.total} ACTIONS`}
                 </div>
               </div>
 
-              <div className="space-y-3 relative z-10">
-                {/* PROSPECTS */}
-                <div 
-                  onClick={() => {
-                    if (commercialPipelineData?.prospects?.count > 0) {
-                       setOracleFilter('PROSPECT');
-                       setSearchQuery('');
-                       document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }}
-                  className={`p-2.5 rounded-lg border transition-all ${
-                    commercialPipelineData?.prospects?.count > 0 
-                    ? 'bg-black/40 border-green-500/20 hover:bg-black/60 cursor-pointer' 
-                    : 'opacity-20 grayscale pointer-events-none border-white/5'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-bold text-green-400 uppercase tracking-widest">PROSPECTS</span>
-                    <span className="text-lg font-mono font-black text-green-400">{commercialPipelineData?.prospects?.count}</span>
+              <div className="relative z-10">
+                {(commercialPipeline?.total || 0) === 0 ? (
+                  <div className="py-8 text-center space-y-1">
+                    <p className="text-[11px] font-black text-[#4ade80] uppercase tracking-[0.2em]">PIPELINE OPTIMAL</p>
+                    <p className="text-white/20 text-[8px] font-bold uppercase tracking-widest">AUCUNE ACTION COMMERCIALE REQUISE</p>
                   </div>
-                  <p className="text-[8px] text-white/40 font-mono truncate mt-0.5">
-                    {commercialPipelineData?.prospects?.latest?.name || "Aucun"} · {commercialPipelineData?.prospects?.latest?.package_type}
-                  </p>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3">
+                    {/* PROSPECTS */}
+                    <div 
+                      onClick={() => {
+                        if (commercialPipeline?.prospects?.count > 0) {
+                           setOracleFilter('PROSPECT');
+                           setSearchQuery('');
+                           document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      className={`p-3 rounded-lg border transition-all ${
+                        commercialPipeline?.prospects?.count > 0 
+                        ? 'bg-black/40 border-green-500/20 hover:bg-black/60 cursor-pointer' 
+                        : 'opacity-40 grayscale pointer-events-none border-white/5'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-bold text-green-400 uppercase tracking-widest">PROSPECTS EN ATTENTE</span>
+                        <span className="text-xl font-mono font-black text-green-400">{commercialPipeline?.prospects?.count}</span>
+                      </div>
+                      <p className="text-[8px] text-white/40 font-mono truncate">
+                        {commercialPipeline?.prospects?.items?.[0]?.raw_context?.substring(0, 35) || "Aucun prospect"}
+                      </p>
+                    </div>
 
-                {/* UPSELL */}
-                <div 
-                  onClick={() => {
-                    if (commercialPipelineData?.upsell?.count > 0) {
-                       router.push(`/admin/system/${commercialPipelineData.upsell.latest.client_id}/settings`);
-                    }
-                  }}
-                  className={`p-2.5 rounded-lg border transition-all ${
-                    commercialPipelineData?.upsell?.count > 0 
-                    ? 'bg-black/40 border-amber-500/20 hover:bg-black/60 cursor-pointer' 
-                    : 'opacity-20 grayscale pointer-events-none border-white/5'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">UPSELL</span>
-                    <span className="text-lg font-mono font-black text-amber-500">{commercialPipelineData?.upsell?.count}</span>
-                  </div>
-                  <p className="text-[8px] text-white/40 font-mono mt-0.5 truncate">
-                    {commercialPipelineData?.upsell?.latest?.enterprises?.name || "Aucun"}
-                  </p>
-                </div>
+                    {/* UPSELL */}
+                    <div 
+                      onClick={() => {
+                        if (commercialPipeline?.upsell?.count > 0) {
+                           setOracleFilter('TOKEN_WARNING');
+                           setSearchQuery('');
+                           document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      className={`p-3 rounded-lg border transition-all ${
+                        commercialPipeline?.upsell?.count > 0 
+                        ? 'bg-black/40 border-amber-500/20 hover:bg-black/60 cursor-pointer' 
+                        : 'opacity-40 grayscale pointer-events-none border-white/5'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">UPSELL OPPORTUNITIES</span>
+                        <span className="text-xl font-mono font-black text-amber-500">{commercialPipeline?.upsell?.count}</span>
+                      </div>
+                      <p className="text-[8px] text-white/40 font-mono">
+                        Clients proches de la limite tokens
+                      </p>
+                    </div>
 
-                {/* CHURN */}
-                <div 
-                  onClick={() => {
-                    if (commercialPipelineData?.churn?.count > 0) {
-                       router.push(`/admin/system/${commercialPipelineData.churn.latest.id}`);
-                    }
-                  }}
-                  className={`p-2.5 rounded-lg border transition-all ${
-                    commercialPipelineData?.churn?.count > 0 
-                    ? 'bg-black/40 border-red-500/20 hover:bg-black/60 cursor-pointer' 
-                    : 'opacity-20 grayscale pointer-events-none border-white/5'
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest">CHURN RISKS</span>
-                    <span className="text-lg font-mono font-black text-red-500">{commercialPipelineData?.churn?.count}</span>
+                    {/* CHURN */}
+                    <div 
+                      onClick={() => {
+                        if (commercialPipeline?.churn?.count > 0) {
+                           setOracleFilter('CHURN');
+                           setSearchQuery('');
+                           document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      }}
+                      className={`p-3 rounded-lg border transition-all ${
+                        commercialPipeline?.churn?.count > 0 
+                        ? 'bg-black/40 border-red-500/20 hover:bg-black/60 cursor-pointer' 
+                        : 'opacity-40 grayscale pointer-events-none border-white/5'
+                      }`}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest">CHURN RISKS</span>
+                        <span className="text-xl font-mono font-black text-red-500">{commercialPipeline?.churn?.count}</span>
+                      </div>
+                      <p className="text-[8px] text-white/40 font-mono">
+                        Clients WARNING ou CRITICAL
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[8px] text-white/40 font-mono mt-0.5 truncate">
-                    {commercialPipelineData?.churn?.latest?.name || "Aucun"}
-                  </p>
-                </div>
+                )}
               </div>
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 rounded-full" />
             </div>

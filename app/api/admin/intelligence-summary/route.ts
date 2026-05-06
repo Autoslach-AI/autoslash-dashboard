@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-export const revalidate = 30
+export const revalidate = 30;
 
 export async function GET() {
   const supabase = createClient(
@@ -9,18 +9,26 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: alerts } = await supabase
+  const { data: logs, error } = await supabase
     .from('admin_intelligence_logs')
     .select('*')
-    .in('issue_type', ['AGENT_ERROR', 'SECURITY', 'CHURN_RISK', 'FEEDBACK_NEGATIF'])
     .order('created_at', { ascending: false })
+    .limit(10)
 
-  const totalActive = alerts?.length || 0
-  const latestAlert = alerts?.[0] || null
+  if (error) {
+    console.error('INTELLIGENCE_SUMMARY_ERROR:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  const totalActive = logs?.length || 0
+  const latestLog = logs?.[0] || null
 
   return NextResponse.json({
     totalActive,
-    latestAlert,
-    isOptimal: totalActive === 0
+    topMessage: latestLog?.raw_context || null,
+    topSeverity: latestLog?.severity_level || null,
+    topIssueType: latestLog?.issue_type || null,
+    topEnterpriseId: latestLog?.client_id || null,
+    isUpsell: latestLog?.issue_type === 'UPSELL'
   })
 }
