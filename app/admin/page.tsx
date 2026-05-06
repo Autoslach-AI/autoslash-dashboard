@@ -1014,8 +1014,13 @@ export default function NeuralCommandCenterV31() {
             {/* CARD 4 — NEURAL PULSE */}
             <div 
               onClick={() => {
-                if (neuralPulse?.totalEvents > 0 && neuralPulse?.lastEnterpriseId) {
-                  router.push(`/admin/system/${neuralPulse.lastEnterpriseId}`);
+                if (neuralPulse?.totalEvents > 0) {
+                  if (neuralPulse.eventSource === 'COMMUNITY') {
+                    // Navigate to Dashboard 4 section or just scroll
+                    document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
+                  } else if (neuralPulse.enterpriseId) {
+                    router.push(`/admin/system/${neuralPulse.enterpriseId}`);
+                  }
                 }
               }}
               className={`p-5 bg-[#111111] border border-white/5 ${neuralPulse?.totalEvents > 0 ? 'hover:border-white/10 cursor-pointer' : 'cursor-default'} rounded-xl space-y-4 transition-all group relative overflow-hidden min-h-[220px] min-w-[240px]`}
@@ -1023,33 +1028,40 @@ export default function NeuralCommandCenterV31() {
               <div className="flex justify-between items-start relative z-10">
                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">NEURAL PULSE</span>
                 <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
-                  neuralPulse?.globalStatus === 'ERROR' ? 'bg-red-500/10 text-red-500' : 
-                  neuralPulse?.globalStatus === 'SYNC' ? 'bg-amber-500/10 text-amber-500' :
-                  'bg-green-500/10 text-green-400'
+                   neuralPulse?.globalStatus === 'ERROR' ? 'bg-red-500/10 text-red-500' : 
+                   neuralPulse?.globalStatus === 'SYNC' ? 'bg-amber-500/10 text-amber-500' :
+                   'bg-green-500/10 text-green-400'
                 }`}>
-                   <Activity className="w-2.5 h-2.5" />
-                   {neuralPulse?.globalStatus || 'LIVE'}
+                  <RefreshCcw className={`w-2.5 h-2.5 ${neuralPulse?.globalStatus !== 'ERROR' ? 'animate-spin-slow' : ''}`} />
+                  {neuralPulse?.globalStatus || 'LIVE'}
                 </div>
               </div>
-              <div className="space-y-1 relative z-10">
+
+              <div className="space-y-2 relative z-10 py-1">
                 {(!neuralPulse || neuralPulse.totalEvents === 0) ? (
-                  <p className="text-[11px] font-black text-white/20 uppercase tracking-[0.2em] py-4">N/A — EN ATTENTE</p>
+                   <div className="opacity-40 grayscale flex flex-col items-center justify-center py-6">
+                    <p className="text-sm font-mono font-black text-white/40">N/A — EN ATTENTE</p>
+                    <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest mt-1">AUCUN ÉVÉNEMENT RÉCENT</p>
+                  </div>
                 ) : (
                   <>
-                    <p className="text-xl font-mono tracking-tighter font-black text-[#4ade80] drop-shadow-[0_0_10px_rgba(74,222,128,0.3)] line-clamp-2">
-                      {neuralPulse.lastEvent}
+                    <p className={`text-lg font-mono font-black leading-tight line-clamp-3 ${neuralPulse?.eventSource === 'COMMUNITY' ? 'text-blue-400' : 'text-white/90'}`}>
+                      {neuralPulse?.eventSource === 'COMMUNITY' ? (
+                        <span className="flex items-center gap-2">
+                          <Users className="w-3 h-3" />
+                          COMMUNITY · {neuralPulse.lastEvent?.description}
+                        </span>
+                      ) : (
+                        neuralPulse.lastEvent?.description
+                      )}
                     </p>
-                    <p className="text-white/30 text-[9px] font-bold uppercase tracking-widest truncate">
-                      {neuralPulse.lastEventType}
+                    <p className="text-white/20 text-[8px] font-bold uppercase tracking-widest pt-2">
+                      {neuralPulse.eventSource === 'COMMUNITY' ? 'ÉVÉNEMENT COMMUNAUTÉ ACTIF' : 'REAL-TIME SYNAPTIC FLOW >'}
                     </p>
                   </>
                 )}
               </div>
-              <div className={`pt-4 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10 ${(!neuralPulse || neuralPulse.totalEvents === 0) ? 'opacity-20' : ''}`}>
-                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">REAL-TIME SYNAPTIC FLOW &gt;</p>
-                {neuralPulse?.totalEvents > 0 && <ChevronRight className="w-3 h-3 text-white/20 group-hover:text-white transition-all transform group-hover:translate-x-1" />}
-              </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.05] transition-all rounded-full" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 group-hover:bg-white/[0.03] transition-all rounded-full" />
             </div>
 
             {/* CARD 5 — COMMERCIAL PIPELINE */}
