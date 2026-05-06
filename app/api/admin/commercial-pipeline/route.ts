@@ -9,15 +9,14 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Prospects en attente (filtrés par is_test = false)
-  const { data: prospectLogs } = await supabase
-    .from('admin_intelligence_logs')
-    .select('id, raw_context, created_at, client_id, enterprises!inner(is_test)')
-    .eq('issue_type', 'NEW_PROSPECT')
-    .eq('enterprises.is_test', false)
+  // Prospects en attente (filtrés par is_test = false via la vue v_prospects_all)
+  const { data: prospectLogs, count: prospectsCount } = await supabase
+    .from('v_prospects_all')
+    .select('id, raw_context, created_at, client_id', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .limit(3);
 
-  const prospectsCount = prospectLogs?.length || 0;
-  const recentProspects = prospectLogs?.slice(0, 3) || [];
+  const recentProspects = prospectLogs || [];
 
   // Upsell opportunities
   const { count: upsellCount } = await supabase
