@@ -240,23 +240,52 @@ export default function FleetPage() {
           </div>
 
           {/* STATS CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[
-              { label: 'SYSTÈMES ACTIFS', value: stats.activeSystems, icon: Cpu, color: 'text-blue-500' },
-              { label: 'REVENUS TOTAL', value: `${stats.totalRevenue.toLocaleString()} FCFA`, icon: DollarSign, color: 'text-[#10B981]' },
-              { label: 'TOKENS CONSOMMÉS', value: `${(stats.totalTokens / 1000000).toFixed(2)}M`, icon: TrendingUp, color: 'text-purple-500' },
-              { label: 'ALERTES ACTIVES', value: stats.activeAlerts, icon: ShieldAlert, color: 'text-red-500' }
-            ].map((stat, i) => (
-              <div key={i} className="bg-[#0D0D0D] border border-[#1A1A1A] p-4 rounded-xl flex items-center gap-4">
-                <div className={`p-2 rounded-lg bg-white/5 ${stat.color}`}>
-                  <stat.icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest">{stat.label}</p>
-                  <p className="text-lg font-bold text-white uppercase">{stat.value}</p>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* CARD 1: SYSTÈMES ACTIFS */}
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#10B981] p-5 rounded-xl relative overflow-hidden group">
+              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <Cpu className="w-6 h-6 text-[#10B981]" />
               </div>
-            ))}
+              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">SYSTÈMES ACTIFS</p>
+              <p className="text-3xl font-black text-[#10B981] uppercase">{stats.activeSystems}</p>
+            </div>
+
+            {/* CARD 2: REVENUS TOTAL */}
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#3B82F6] p-5 rounded-xl relative overflow-hidden group">
+              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <DollarSign className="w-6 h-6 text-[#3B82F6]" />
+              </div>
+              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">REVENUS TOTAL</p>
+              <p className="text-3xl font-black text-[#3B82F6] uppercase">{(stats.totalRevenue || 0).toLocaleString()} FCFA</p>
+            </div>
+
+            {/* CARD 3: TOKENS CONSOMMÉS */}
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#8B5CF6] p-5 rounded-xl relative overflow-hidden group">
+              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <TrendingUp className="w-6 h-6 text-[#8B5CF6]" />
+              </div>
+              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">TOKENS CONSOMMÉS</p>
+              <p className="text-3xl font-black text-[#8B5CF6] uppercase">
+                {stats.totalTokens >= 1000000 
+                  ? `${(stats.totalTokens / 1000000).toFixed(2)}M` 
+                  : `${(stats.totalTokens / 1000).toFixed(0)}K`}
+              </p>
+            </div>
+
+            {/* CARD 4: ALERTES ACTIVES */}
+            <div className={`bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 p-5 rounded-xl relative overflow-hidden group ${
+              stats.activeAlerts === 0 ? 'border-l-[#10B981]' : 'border-l-[#EF4444]'
+            }`}>
+              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <ShieldAlert className={`w-6 h-6 ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`} />
+              </div>
+              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">ALERTES ACTIVES</p>
+              <p className={`text-3xl font-black uppercase ${
+                stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'
+              }`}>
+                {stats.activeAlerts === 0 ? 'OPTIMAL' : stats.activeAlerts}
+              </p>
+            </div>
           </div>
 
           {/* FILTERS */}
