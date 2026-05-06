@@ -16,27 +16,37 @@ export async function GET(request: Request) {
   const rangeStart = new Date()
   rangeStart.setDate(rangeStart.getDate() - days)
 
-  // 1. Get available plans (excluding STARTUP)
-  const { data: entPlans } = await supabase
-    .from('enterprises')
-    .select('package_type')
+  // 1. Get available plans dynamically from plan_definitions
+  const { data: planData } = await supabase
+    .from('plan_definitions')
+    .select('name')
+    .order('price_cents', { ascending: true })
   
-  const availablePlans = Array.from(new Set(entPlans?.map(e => e.package_type).filter(p => p && p !== 'STARTUP'))) as string[]
+  const availablePlans = planData?.map(p => p.name) || ['STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']
 
-  // 2. Fetch tasks from both tables
+  // 2. Fetch tasks from both tables with relational filtering if plan is set
   const firstDayOfMonth = new Date();
   firstDayOfMonth.setDate(1);
   firstDayOfMonth.setHours(0, 0, 0, 0);
 
-  const [agentTasksRes, clientTasksRes] = await Promise.all([
-    supabase
+  let agentTasksQuery = supabase
       .from('agent_tasks')
-      .select('api_used, started_at, enterprise_id, tokens_consumed')
-      .gte('started_at', rangeStart.toISOString()),
-    supabase
+      .select('api_used, started_at, enterprise_id, tokens_consumed, enterprises!inner(package_type)')
+      .gte('started_at', rangeStart.toISOString());
+  
+  let clientTasksQuery = supabase
       .from('client_agent_tasks')
-      .select('api_used, started_at, enterprise_id, tokens_consumed')
-      .gte('started_at', rangeStart.toISOString())
+      .select('api_used, started_at, enterprise_id, tokens_consumed, enterprises!inner(package_type)')
+      .gte('started_at', rangeStart.toISOString());
+
+  if (plan && plan !== 'ALL') {
+    agentTasksQuery = agentTasksQuery.eq('enterprises.package_type', plan);
+    clientTasksQuery = clientTasksQuery.eq('enterprises.package_type', plan);
+  }
+
+  const [agentTasksRes, clientTasksRes] = await Promise.all([
+    agentTasksQuery,
+    clientTasksQuery
   ]);
 
   const allTasks = [...(agentTasksRes.data || []), ...(clientTasksRes.data || [])];
@@ -46,11 +56,7 @@ export async function GET(request: Request) {
   const totalTokensMonth = monthTasks.reduce((sum, t) => sum + (t.tokens_consumed || 0), 0);
   const totalCallsMonth = monthTasks.length;
 
-  if (agentTasksRes.error || clientTasksRes.error) {
-    return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })
-  }
-
-  // 3. Get dynamic API keys
+  // 3. Get dynamic API keys from the filtered data
   const apiKeys = Array.from(new Set(allTasks.map(t => t.api_used).filter(Boolean))) as string[]
 
   // 4. Prepare daily data
@@ -72,6 +78,23 @@ export async function GET(request: Request) {
     dailyMap[date][task.api_used] = (dailyMap[date][task.api_used] || 0) + 1
     totals[task.api_used] = (totals[task.api_used] || 0) + 1
   })
+
+  // Fill in missing days to ensure a continuous graph if data exists
+  if (allTasks.length > 0) {
+    const dates = Object.keys(dailyMap).sort();
+    const start = new Date(dates[0]);
+    const end = new Date();
+    const current = new Date(start);
+    
+    while (current <= end) {
+      const dStr = current.toISOString().split('T')[0];
+      if (!dailyMap[dStr]) {
+        dailyMap[dStr] = { date: dStr };
+        apiKeys.forEach(k => dailyMap[dStr][k] = 0);
+      }
+      current.setDate(current.getDate() + 1);
+    }
+  }
 
   // Sort daily data by date
   const dailyData = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date))

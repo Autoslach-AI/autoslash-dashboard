@@ -1410,8 +1410,11 @@ export default function NeuralCommandCenterV31() {
                         ) : (
                           <div className="absolute inset-0 flex flex-col items-center justify-center border border-dashed border-white/5 bg-white/[0.01] rounded-xl">
                              <Activity className="w-10 h-10 text-white/5 mb-2" />
-                             <p className="text-[10px] font-bold text-white/10 uppercase tracking-widest">
-                               WAITING FOR ANALYTICS DATA...
+                             <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.2em] mb-1">
+                               EN ATTENTE DE DONNÉES
+                             </p>
+                             <p className="text-[8px] font-medium text-white/10 uppercase tracking-widest">
+                               Aucune activité API sur cette période
                              </p>
                           </div>
                         )}
