@@ -1654,26 +1654,24 @@ export default function NeuralCommandCenterV31() {
                 <div className="flex flex-wrap gap-2 px-6 pb-2">
                    <button 
                      onClick={() => setPlanFilter('ALL')}
-                     className={`px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2.5 border ${
+                     className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
                        planFilter === 'ALL' 
-                       ? 'bg-white/10 text-white border-white/20' 
-                       : 'bg-black/40 text-white/20 border-white/5 hover:border-white/10'
+                       ? 'bg-white text-black border-white' 
+                       : 'bg-transparent text-gray-400 border-[#333333] hover:border-gray-500'
                      }`}
                    >
-                     <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
                      ALL NODES
                    </button>
                    {fleetData?.availablePlans?.map((plan: string) => (
                       <button 
                         key={plan}
                         onClick={() => setPlanFilter(plan as any)}
-                        className={`px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2.5 border ${
+                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
                           planFilter === plan 
-                          ? 'bg-white/10 text-white border-white/20' 
-                          : 'bg-black/40 text-white/20 border-white/5 hover:border-white/10'
+                          ? 'bg-white text-black border-white' 
+                          : 'bg-transparent text-gray-400 border-[#333333] hover:border-gray-500'
                         }`}
                       >
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#4ade80]" />
                         {plan}
                       </button>
                    ))}
