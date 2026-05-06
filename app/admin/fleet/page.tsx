@@ -239,56 +239,52 @@ export default function FleetPage() {
             </div>
           </div>
 
-          {/* STATS CARDS - EXLM STYLE */}
+          {/* STATS CARDS - OPTION A */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-[#1A1C2E] p-6 rounded-lg relative group transition-all">
-              <p className="text-[10px] font-bold text-[#8C90B5] uppercase tracking-wider mb-8">SYSTÈMES ACTIFS</p>
-              <div className="flex items-end justify-between">
-                <p className="text-4xl font-bold text-white leading-none">{stats.activeSystems}</p>
-                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-                  <Cpu className="w-5 h-5 text-blue-400" />
-                </div>
+            {/* CARD 1: SYSTÈMES ACTIFS */}
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#10B981] p-5 rounded-xl relative overflow-hidden group">
+              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <Cpu className="w-5 h-5 text-[#10B981]" />
               </div>
+              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">SYSTÈMES ACTIFS</p>
+              <p className="text-3xl font-black text-[#10B981] uppercase">{stats.activeSystems}</p>
             </div>
 
-            <div className="bg-[#1C2522] p-6 rounded-lg relative group transition-all">
-              <p className="text-[10px] font-bold text-[#8FB5A8] uppercase tracking-wider mb-8">REVENUS TOTAL</p>
-              <div className="flex items-end justify-between">
-                <p className="text-4xl font-bold text-white leading-none">{(stats.totalRevenue || 0).toLocaleString()}</p>
-                <div className="w-10 h-10 rounded-lg bg-[#4ade80]/10 flex items-center justify-center">
-                  <DollarSign className="w-5 h-5 text-[#4ade80]" />
-                </div>
+            {/* CARD 2: REVENUS TOTAL */}
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#3B82F6] p-5 rounded-xl relative overflow-hidden group">
+              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <DollarSign className="w-5 h-5 text-[#3B82F6]" />
               </div>
-              <p className="absolute bottom-6 right-6 text-[10px] font-bold text-[#4ade80]/40">FCFA</p>
+              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">REVENUS TOTAL</p>
+              <p className="text-3xl font-black text-[#3B82F6] uppercase">{(stats.totalRevenue || 0).toLocaleString('fr-FR')} FCFA</p>
             </div>
 
-            <div className="bg-[#2E241A] p-6 rounded-lg relative group transition-all">
-              <p className="text-[10px] font-bold text-[#B5A18C] uppercase tracking-wider mb-8">TOKENS CONSOMMÉS</p>
-              <div className="flex items-end justify-between">
-                <p className="text-4xl font-bold text-white leading-none">
-                  {stats.totalTokens >= 1000000 
-                    ? (stats.totalTokens / 1000000).toFixed(1)
-                    : (stats.totalTokens / 1000).toFixed(0)}
-                </p>
-                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-amber-500" />
-                </div>
+            {/* CARD 3: TOKENS CONSOMMÉS */}
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#8B5CF6] p-5 rounded-xl relative overflow-hidden group">
+              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <TrendingUp className="w-5 h-5 text-[#8B5CF6]" />
               </div>
-              <p className="absolute bottom-6 right-6 text-[10px] font-bold text-amber-500/40 uppercase tracking-tighter">
-                {stats.totalTokens >= 1000000 ? 'MILLIONS' : 'K-TOKENS'}
+              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">TOKENS CONSOMMÉS</p>
+              <p className="text-3xl font-black text-[#8B5CF6] uppercase">
+                {stats.totalTokens >= 1000000 
+                  ? `${(stats.totalTokens / 1000000).toFixed(2)}M` 
+                  : stats.totalTokens.toLocaleString('fr-FR')}
               </p>
             </div>
 
-            <div className={`p-6 rounded-lg relative group transition-all ${stats.activeAlerts === 0 ? 'bg-[#1C1C1C]' : 'bg-[#2E1A1A]'}`}>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-8">ALERTES ACTIVES</p>
-              <div className="flex items-end justify-between">
-                <p className={`text-4xl font-bold leading-none ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-red-500'}`}>
-                  {stats.activeAlerts === 0 ? '0.0%' : stats.activeAlerts}
-                </p>
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${stats.activeAlerts === 0 ? 'bg-[#10B981]/10' : 'bg-red-500/10'}`}>
-                  <ShieldAlert className={`w-5 h-5 ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-red-500'}`} />
-                </div>
+            {/* CARD 4: ALERTES ACTIVES */}
+            <div className={`bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 p-5 rounded-xl relative overflow-hidden group ${
+              stats.activeAlerts === 0 ? 'border-l-[#10B981]' : 'border-l-[#EF4444]'
+            }`}>
+              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                <ShieldAlert className={`w-5 h-5 ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`} />
               </div>
+              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">ALERTES ACTIVES</p>
+              <p className={`text-3xl font-black uppercase ${
+                stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'
+              }`}>
+                {stats.activeAlerts === 0 ? 'OPTIMAL' : stats.activeAlerts}
+              </p>
             </div>
           </div>
 
