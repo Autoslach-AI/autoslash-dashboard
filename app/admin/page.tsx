@@ -1632,35 +1632,8 @@ export default function NeuralCommandCenterV31() {
                       )}
                    </AnimatePresence>
 
-                   {/* PLAN FILTERS - DYNAMIC */}
-                   <div className="flex bg-[#1A1A1A] p-1 rounded-xl border border-[#333333] z-10 overflow-x-auto no-scrollbar">
-                      <button 
-                        onClick={() => setPlanFilter('ALL')}
-                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
-                          planFilter === 'ALL' 
-                          ? 'bg-white text-black shadow-lg' 
-                          : 'text-white/20 hover:text-white/40'
-                        }`}
-                      >
-                        ALL NODES
-                      </button>
-                      {fleetData?.availablePlans?.map((plan: string) => (
-                         <button 
-                           key={plan}
-                           onClick={() => setPlanFilter(plan as any)}
-                           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
-                             planFilter === plan 
-                             ? 'bg-white text-black shadow-lg' 
-                             : 'text-white/20 hover:text-white/40'
-                           }`}
-                         >
-                           {plan}
-                         </button>
-                      ))}
-                   </div>
-
                    {/* SEARCH BAR */}
-                   <div className="flex-1 max-w-2xl relative z-10">
+                   <div className="flex-1 w-full relative z-10">
                       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20">
                          <Search className="w-4 h-4" />
                       </div>
@@ -1675,6 +1648,35 @@ export default function NeuralCommandCenterV31() {
                         className="w-full bg-[#111111] border border-[#333333] rounded-xl py-3.5 pl-12 pr-4 text-xs font-mono text-white placeholder:text-gray-500 focus:border-white/20 transition-all outline-none"
                       />
                    </div>
+                </div>
+
+                {/* PLAN FILTERS - DYNAMIC (RESTORED) */}
+                <div className="flex flex-wrap gap-2 px-6 pb-2">
+                   <button 
+                     onClick={() => setPlanFilter('ALL')}
+                     className={`px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2.5 border ${
+                       planFilter === 'ALL' 
+                       ? 'bg-white/10 text-white border-white/20' 
+                       : 'bg-black/40 text-white/20 border-white/5 hover:border-white/10'
+                     }`}
+                   >
+                     <div className="w-1.5 h-1.5 rounded-full bg-white/40" />
+                     ALL NODES
+                   </button>
+                   {fleetData?.availablePlans?.map((plan: string) => (
+                      <button 
+                        key={plan}
+                        onClick={() => setPlanFilter(plan as any)}
+                        className={`px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2.5 border ${
+                          planFilter === plan 
+                          ? 'bg-white/10 text-white border-white/20' 
+                          : 'bg-black/40 text-white/20 border-white/5 hover:border-white/10'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#4ade80]" />
+                        {plan}
+                      </button>
+                   ))}
                 </div>
 
                 {/* STATUS TABS */}
@@ -1751,7 +1753,7 @@ export default function NeuralCommandCenterV31() {
                                            {client.name.substring(0, 2).toUpperCase()}
                                         </div>
                                         <div className="space-y-0.5">
-                                           <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors line-clamp-1">{client.name}</p>
+                                           <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors break-words">{client.name}</p>
                                            <p className="text-[8px] text-white/20 font-mono tracking-tighter uppercase">{client.project_id || client.id.substring(0, 8)} • {client.package_type}</p>
                                         </div>
                                      </div>
