@@ -1639,7 +1639,7 @@ export default function NeuralCommandCenterV31() {
                       </div>
                       <input 
                         type="text"
-                        placeholder="RECHERCHE NŒUD PAR NOM, ID, STATUT, PLAN, RÉGION, SECTEUR..."
+                        placeholder="Rechercher par nom, ID, statut..."
                         value={searchQuery}
                         onChange={(e) => {
                           setSearchQuery(e.target.value);
@@ -1650,35 +1650,29 @@ export default function NeuralCommandCenterV31() {
                    </div>
                 </div>
 
-                {/* PLAN FILTERS - DYNAMIC (RESTORED) */}
-                <div className="flex flex-wrap gap-2 px-6 pb-2">
-                   <button 
-                     onClick={() => setPlanFilter('ALL')}
-                     className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
-                       planFilter === 'ALL' 
-                       ? 'bg-white text-black border-white' 
-                       : 'bg-transparent text-gray-400 border-[#333333] hover:border-gray-500'
-                     }`}
-                   >
-                     ALL NODES
-                   </button>
-                   {fleetData?.availablePlans?.map((plan: string) => (
-                      <button 
-                        key={plan}
-                        onClick={() => setPlanFilter(plan as any)}
-                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
-                          planFilter === plan 
-                          ? 'bg-white text-black border-white' 
-                          : 'bg-transparent text-gray-400 border-[#333333] hover:border-gray-500'
-                        }`}
-                      >
-                        {plan}
-                      </button>
-                   ))}
+                {/* PLAN FILTERS - SÉPARÉS */}
+                <div className="flex flex-wrap gap-2 px-6 py-4 border-b border-white/5">
+                   {(['ALL NODES', 'STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE'] as const).map((planLabel) => {
+                      const planValue = planLabel === 'ALL NODES' ? 'ALL' : planLabel;
+                      const isActive = planFilter === planValue;
+                      return (
+                         <button 
+                           key={planLabel}
+                           onClick={() => setPlanFilter(planValue as any)}
+                           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
+                             isActive 
+                             ? 'bg-white text-black border-white' 
+                             : 'bg-transparent text-gray-400 border-[#333333] hover:border-gray-500'
+                           }`}
+                         >
+                           {planLabel}
+                         </button>
+                      );
+                   })}
                 </div>
 
                 {/* STATUS TABS */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 p-6">
                    {([
                       { id: 'ALL', label: 'ALL', color: 'white' },
                       { id: 'CRITICAL', label: 'CRITICAL', color: '#ef4444' },
@@ -1736,7 +1730,7 @@ export default function NeuralCommandCenterV31() {
                                         <p className="text-[9px] text-white/20 font-mono uppercase tracking-[0.2em]">Check cluster parameters or search queries</p>
                                      </div>
                                   </div>
-                                                                </td>
+                                </td>
                              </tr>
                           ) : (
                              filteredClients.map((client: any) => (
@@ -1751,7 +1745,7 @@ export default function NeuralCommandCenterV31() {
                                            {client.name.substring(0, 2).toUpperCase()}
                                         </div>
                                         <div className="space-y-0.5">
-                                           <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors break-words">{client.name}</p>
+                                           <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors whitespace-normal break-words">{client.name}</p>
                                            <p className="text-[8px] text-white/20 font-mono tracking-tighter uppercase">{client.project_id || client.id.substring(0, 8)} • {client.package_type}</p>
                                         </div>
                                      </div>
