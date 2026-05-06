@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-export const revalidate = 30;
+export const revalidate = 30
 
 export async function GET() {
   const supabase = createClient(
@@ -9,32 +9,27 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data, error } = await supabase
+  // Latest system log
+  const { data: latestLog } = await supabase
     .from('system_logs')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(10)
+    .limit(1)
+    .single()
 
-  if (error) {
-    return NextResponse.json({ totalEvents: 0, lastEvent: null, lastEventType: null, lastEventColor: null, lastEnterpriseId: null, globalStatus: 'LIVE' })
-  }
-
-  const totalEvents = data?.length ?? 0
-  const last = data?.[0] ?? null
-
-  let globalStatus = 'LIVE'
-  if (last?.status_color === 'red') globalStatus = 'ERROR'
-  else if (last?.status_color === 'orange') globalStatus = 'SYNC'
-  else if (last?.status_color === 'green') globalStatus = 'LIVE'
+  // Community events
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const { data: communityEvents } = await supabase
+    .from('admin_intelligence_logs')
+    .select('*')
+    .eq('issue_type', 'COMMUNITY_EVENT')
+    .gte('created_at', yesterday)
 
   return NextResponse.json({
-    totalEvents,
-    lastEvent: last?.raw_data ?? null,
-    lastEventType: last?.event_type ?? null,
-    lastEventColor: last?.status_color ?? null,
-    lastEnterpriseId: last?.id_projet ?? null,
-    globalStatus
-  }, {
-    headers: { 'Cache-Control': 'no-store, max-age=0' }
+    latestLog,
+    community: {
+      count: communityEvents?.length || 0,
+      latest: communityEvents?.[0] || null
+    }
   })
 }
