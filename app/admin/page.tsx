@@ -816,14 +816,25 @@ export default function NeuralCommandCenterV31() {
   const filteredClients = (fleetData?.clients || [])
     .filter((c: any) => {
        const matchesStatus = oracleFilter === 'ALL' 
-         || (oracleFilter === 'MESSAGES' ? c.intelligence?.type === 'MESSAGE' 
+         || (oracleFilter === 'MESSAGES' ? c.unread_messages > 0 || c.intelligence?.type === 'MESSAGE' 
              : oracleFilter === 'CHURN' ? (c.status === 'WARNING' || c.status === 'CRITICAL' || c.intelligence?.type === 'CHURN_RISK')
              : oracleFilter === 'TOKEN_WARNING' ? (c.intelligence?.type === 'TOKEN_WARNING')
              : c.status === oracleFilter);
        const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
-       return matchesStatus && matchesPlan;
-    })
-    .slice(0, 10);
+       
+       const query = searchQuery.toLowerCase();
+       const matchesSearch = !query || [
+         c.name,
+         c.id,
+         c.project_id,
+         c.status,
+         c.package_type,
+         c.region,
+         c.sector
+       ].some(field => field?.toLowerCase().includes(query));
+
+       return matchesStatus && matchesPlan && matchesSearch;
+    });
 
   const COLORS = ["#8B5CF6", "#3B82F6", "#F97316", "#10B981", "#EF4444", "#EC4899"];
 
@@ -1622,12 +1633,12 @@ export default function NeuralCommandCenterV31() {
                    </AnimatePresence>
 
                    {/* PLAN FILTERS - DYNAMIC */}
-                   <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 z-10 overflow-x-auto no-scrollbar">
+                   <div className="flex bg-[#1A1A1A] p-1 rounded-xl border border-[#333333] z-10 overflow-x-auto no-scrollbar">
                       <button 
                         onClick={() => setPlanFilter('ALL')}
-                        className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${
+                        className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
                           planFilter === 'ALL' 
-                          ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]' 
+                          ? 'bg-white text-black shadow-lg' 
                           : 'text-white/20 hover:text-white/40'
                         }`}
                       >
@@ -1637,9 +1648,9 @@ export default function NeuralCommandCenterV31() {
                          <button 
                            key={plan}
                            onClick={() => setPlanFilter(plan as any)}
-                           className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${
+                           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
                              planFilter === plan 
-                             ? 'bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)]' 
+                             ? 'bg-white text-black shadow-lg' 
                              : 'text-white/20 hover:text-white/40'
                            }`}
                          >
@@ -1655,13 +1666,13 @@ export default function NeuralCommandCenterV31() {
                       </div>
                       <input 
                         type="text"
-                        placeholder="Rechercher par nom, statut, plan, région, secteur..."
+                        placeholder="RECHERCHE NŒUD PAR NOM, ID, STATUT, PLAN, RÉGION, SECTEUR..."
                         value={searchQuery}
                         onChange={(e) => {
                           setSearchQuery(e.target.value);
-                          handleSearch(e.target.value);
+                          // Local search handled by filteredClients
                         }}
-                        className="w-full bg-black/60 border border-white/5 rounded-xl py-3.5 pl-12 pr-4 text-[11px] font-mono text-white placeholder:text-white/10 focus:border-[#4ade80]/40 transition-all outline-none"
+                        className="w-full bg-[#111111] border border-[#333333] rounded-xl py-3.5 pl-12 pr-4 text-xs font-mono text-white placeholder:text-gray-500 focus:border-white/20 transition-all outline-none"
                       />
                    </div>
                 </div>
@@ -1702,17 +1713,17 @@ export default function NeuralCommandCenterV31() {
                 <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative">
                    <table className="w-full text-left border-collapse">
                       <thead>
-                         <tr className="border-b border-white/5 bg-[#111111]/30">
-                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">CLIENT CLUSTER</th>
-                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">FLEET STATUS</th>
-                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">TOKEN USAGE</th>
-                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">INTELLIGENCE MODE</th>
-                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">REGION</th>
-                            <th className="p-6 text-[10px] font-bold text-white/20 uppercase tracking-[0.2em]">MONTHLY COST</th>
-                            <th className="p-6 w-12 text-right"></th>
+                         <tr className="border-b border-white/10 bg-[#111111]">
+                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">CLIENT CLUSTER</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">FLEET STATUS</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">TOKEN USAGE</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">INTELLIGENCE MODE</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">REGION</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">MONTHLY COST</th>
+                            <th className="px-6 py-4 w-12 text-right"></th>
                          </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/[0.02]">
+                      <tbody className="divide-y divide-white/5">
                          {filteredClients.length === 0 ? (
                             <tr>
                                <td colSpan={7} className="p-20 text-center">
@@ -1725,50 +1736,43 @@ export default function NeuralCommandCenterV31() {
                                         <p className="text-[9px] text-white/20 font-mono uppercase tracking-[0.2em]">Check cluster parameters or search queries</p>
                                      </div>
                                   </div>
-                               </td>
-                            </tr>
-                         ) : (
-                            filteredClients.map((client: any) => (
+                                                                </td>
+                             </tr>
+                          ) : (
+                             filteredClients.map((client: any) => (
                                <tr 
                                  key={client.id} 
-                                 className="group"
+                                 className="group hover:bg-white/[0.03] transition-all duration-150 cursor-pointer h-[64px] border-b border-white/5"
                                  onClick={() => router.push(`/admin/system/${client.id}`)}
-                                 onMouseEnter={(e) => {
-                                   (e.currentTarget as HTMLElement).style.background = '#111827'
-                                   ;(e.currentTarget as HTMLElement).style.cursor = 'pointer'
-                                 }}
-                                 onMouseLeave={(e) => {
-                                   (e.currentTarget as HTMLElement).style.background = 'transparent'
-                                 }}
                                >
-                                  <td className="p-6">
+                                  <td className="px-6 py-3">
                                      <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/10 to-transparent border border-white/5 flex items-center justify-center text-[12px] font-black text-white/40 group-hover:text-white group-hover:border-[#4ade80]/50 transition-all">
+                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-white/10 to-transparent border border-white/5 flex items-center justify-center text-[10px] font-black text-white/40 group-hover:text-white group-hover:border-[#4ade80]/50 transition-all">
                                            {client.name.substring(0, 2).toUpperCase()}
                                         </div>
-                                        <div className="space-y-1">
-                                           <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors">{client.name}</p>
-                                           <p className="text-[9px] text-white/20 font-mono tracking-tighter uppercase">{client.project_id || client.id.substring(0, 8)} • {client.package_type}</p>
+                                        <div className="space-y-0.5">
+                                           <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors line-clamp-1">{client.name}</p>
+                                           <p className="text-[8px] text-white/20 font-mono tracking-tighter uppercase">{client.project_id || client.id.substring(0, 8)} • {client.package_type}</p>
                                         </div>
                                      </div>
                                   </td>
-                                  <td className="p-6">
-                                     <div className={`px-3 py-1.5 rounded-full border w-fit flex items-center gap-2 ${
+                                  <td className="px-6 py-3">
+                                     <div className={`px-2.5 py-1 rounded-full border w-fit flex items-center gap-1.5 ${
                                        client.status === 'CRITICAL' ? 'bg-red-500/10 border-red-500/20 text-red-500' :
                                        client.status === 'WARNING' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
                                        'bg-green-500/10 border-green-500/20 text-green-500'
                                      }`}>
-                                        <div className={`w-1.5 h-1.5 rounded-full ${client.status === 'CRITICAL' ? 'animate-pulse bg-red-500' : client.status === 'WARNING' ? 'bg-amber-500' : 'bg-green-500'}`} />
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em]">{client.status}</span>
+                                        <div className={`w-1 h-1 rounded-full ${client.status === 'CRITICAL' ? 'animate-pulse bg-red-500' : client.status === 'WARNING' ? 'bg-amber-500' : 'bg-green-500'}`} />
+                                        <span className="text-[8px] font-black uppercase tracking-[0.2em]">{client.status}</span>
                                      </div>
                                   </td>
-                                  <td className="p-6 min-w-[150px]">
-                                     <div className="space-y-2">
-                                        <div className="flex justify-between text-[9px] font-mono text-white/30">
+                                  <td className="px-6 py-3 min-w-[150px]">
+                                     <div className="space-y-1.5">
+                                        <div className="flex justify-between text-[8px] font-mono text-white/30">
                                            <span className="uppercase tracking-widest">{client.token_usage_percent}% LOAD</span>
-                                           <span className="font-bold">{(client.total_tokens_consumed / 1000).toFixed(0)}k / {(client.token_budget / 1000).toFixed(0)}k</span>
+                                           <span className="font-bold">{(client.total_tokens_consumed / 1000).toFixed(0)}k</span>
                                         </div>
-                                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                                        <div className="h-0.5 w-full bg-white/5 rounded-full overflow-hidden">
                                            <motion.div 
                                              initial={{ width: 0 }}
                                              animate={{ width: `${Math.min(client.token_usage_percent, 100)}%` }}
@@ -1781,31 +1785,31 @@ export default function NeuralCommandCenterV31() {
                                         </div>
                                      </div>
                                   </td>
-                                  <td className="p-6" onClick={(e) => {
+                                  <td className="px-6 py-3" onClick={(e) => {
                                     e.stopPropagation();
                                     if (client.intelligence?.clickable && client.intelligence?.link) {
                                       if (client.intelligence.type === 'MESSAGE' && client.intelligence.link === '/admin') { setOracleFilter('MESSAGES'); router.push('/admin'); } else { router.push(client.intelligence.link); }
                                     }
                                   }}>
                                      {client.intelligence?.severity ? (
-                                       <div className="flex items-center gap-3 group/intel hover:bg-white/5 p-2 -m-2 rounded-lg transition-all">
-                                          <div className={`p-2 rounded-lg ${
+                                       <div className="flex items-center gap-3 group/intel hover:bg-white/5 p-1.5 -m-1.5 rounded-lg transition-all">
+                                          <div className={`p-1.5 rounded-lg ${
                                             client.intelligence?.color === 'red' ? 'bg-red-500/20' :
                                             client.intelligence?.color === 'orange' ? 'bg-orange-500/20' :
                                             client.intelligence?.color === 'blue' ? 'bg-blue-500/20' :
                                             client.intelligence?.color === 'green' ? 'bg-green-500/20' :
                                             'bg-white/5'
                                           }`}>
-                                             {client.intelligence?.type === 'SECURITY' && <Shield className="w-3.5 h-3.5 text-red-500" />}
-                                             {client.intelligence?.type === 'AGENT_ERROR' && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
-                                             {client.intelligence?.type === 'TOKEN_WARNING' && <Activity className="w-3.5 h-3.5 text-orange-500" />}
-                                             {client.intelligence?.type === 'CHURN_RISK' && <TrendingDown className="w-3.5 h-3.5 text-orange-500" />}
-                                             {client.intelligence?.type === 'MESSAGE' && <MessageSquare className="w-3.5 h-3.5 text-blue-500" />}
-                                             {client.intelligence?.type === 'UPSELL' && <Zap className="w-3.5 h-3.5 text-green-500" />}
-                                             {client.intelligence?.type === 'OPTIMAL' && <CheckCircle2 className="w-3.5 h-3.5 text-white/20" />}
+                                             {client.intelligence?.type === 'SECURITY' && <Shield className="w-3 h-3 text-red-500" />}
+                                             {client.intelligence?.type === 'AGENT_ERROR' && <AlertTriangle className="w-3 h-3 text-red-500" />}
+                                             {client.intelligence?.type === 'TOKEN_WARNING' && <Activity className="w-3 h-3 text-orange-500" />}
+                                             {client.intelligence?.type === 'CHURN_RISK' && <TrendingDown className="w-3 h-3 text-orange-500" />}
+                                             {client.intelligence?.type === 'MESSAGE' && <MessageSquare className="w-3 h-3 text-blue-500" />}
+                                             {client.intelligence?.type === 'UPSELL' && <Zap className="w-3 h-3 text-green-500" />}
+                                             {client.intelligence?.type === 'OPTIMAL' && <CheckCircle2 className="w-3 h-3 text-white/20" />}
                                           </div>
-                                          <div className="space-y-0.5">
-                                             <p className={`text-[10px] font-bold uppercase tracking-tight ${
+                                          <div className="space-y-0">
+                                             <p className={`text-[9px] font-bold uppercase tracking-tight line-clamp-1 ${
                                                client.intelligence?.color === 'red' ? 'text-red-400' :
                                                client.intelligence?.color === 'orange' ? 'text-orange-400' :
                                                client.intelligence?.color === 'blue' ? 'text-blue-400' :
@@ -1814,7 +1818,7 @@ export default function NeuralCommandCenterV31() {
                                              }`}>
                                                {client.intelligence.message}
                                              </p>
-                                             <p className="text-[8px] font-mono text-white/20 uppercase tracking-widest italic">
+                                             <p className="text-[7px] font-mono text-white/20 uppercase tracking-widest italic">
                                                {(() => {
                                                  const date = new Date(client.intelligence.created_at);
                                                  const diffMs = new Date().getTime() - date.getTime();
@@ -1828,24 +1832,24 @@ export default function NeuralCommandCenterV31() {
                                           </div>
                                        </div>
                                      ) : (
-                                       <div className="flex items-center gap-3 opacity-20 group-hover:opacity-100 transition-all">
-                                          <Check className="w-3.5 h-3.5 text-green-500" />
-                                          <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Système optimal</span>
+                                       <div className="flex items-center gap-2.5 opacity-20 group-hover:opacity-100 transition-all">
+                                          <Check className="w-3 h-3 text-green-500" />
+                                          <span className="text-[9px] font-bold uppercase tracking-widest text-white/60">Système optimal</span>
                                        </div>
                                      )}
                                   </td>
-                                  <td className="p-6">
-                                     <span className="text-[10px] font-mono font-bold text-white/40 uppercase tracking-[0.2em]">{client.region || 'GLOBAL'}</span>
+                                  <td className="px-6 py-3">
+                                     <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-[0.2em]">{client.region || 'GLOBAL'}</span>
                                   </td>
-                                  <td className="p-6">
-                                     <p className="text-[12px] font-mono font-black text-white">
+                                  <td className="px-6 py-3">
+                                     <p className="text-[11px] font-mono font-black text-white">
                                        {client.monthly_cost
                                          ? `${client.monthly_cost.toLocaleString('fr-FR')} FCFA`
-                                         : '—'
+                                         : '0 FCFA'
                                        }
                                      </p>
                                   </td>
-                                  <td className="p-6 text-right" onClick={(e) => e.stopPropagation()}>
+                                  <td className="px-6 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                                      <div className="relative group/menu">
                                         <button className="p-2 hover:bg-white/10 rounded-lg transition-all text-white/20 hover:text-white">
                                            <MoreHorizontal className="w-4 h-4" />
