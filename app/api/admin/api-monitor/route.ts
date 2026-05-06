@@ -23,30 +23,35 @@ export async function GET(request: Request) {
   
   const availablePlans = Array.from(new Set(entPlans?.map(e => e.package_type).filter(p => p && p !== 'STARTUP'))) as string[]
 
-  // 2. Fetch tasks
-  let query = supabase
-    .from('agent_tasks')
-    .select('api_used, started_at, enterprise_id')
-    .gte('started_at', rangeStart.toISOString())
+  // 2. Fetch tasks from both tables
+  const firstDayOfMonth = new Date();
+  firstDayOfMonth.setDate(1);
+  firstDayOfMonth.setHours(0, 0, 0, 0);
 
-  if (plan) {
-    const { data: entIds } = await supabase
-      .from('enterprises')
-      .select('id')
-      .eq('package_type', plan)
-    
-    const ids = entIds?.map(e => e.id) || []
-    query = query.in('enterprise_id', ids)
-  }
+  const [agentTasksRes, clientTasksRes] = await Promise.all([
+    supabase
+      .from('agent_tasks')
+      .select('api_used, started_at, enterprise_id, tokens_consumed')
+      .gte('started_at', rangeStart.toISOString()),
+    supabase
+      .from('client_agent_tasks')
+      .select('api_used, started_at, enterprise_id, tokens_consumed')
+      .gte('started_at', rangeStart.toISOString())
+  ]);
 
-  const { data: tasks, error } = await query
+  const allTasks = [...(agentTasksRes.data || []), ...(clientTasksRes.data || [])];
+  
+  // Calculate month stats
+  const monthTasks = allTasks.filter(t => new Date(t.started_at) >= firstDayOfMonth);
+  const totalTokensMonth = monthTasks.reduce((sum, t) => sum + (t.tokens_consumed || 0), 0);
+  const totalCallsMonth = monthTasks.length;
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (agentTasksRes.error || clientTasksRes.error) {
+    return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })
   }
 
   // 3. Get dynamic API keys
-  const apiKeys = Array.from(new Set(tasks.map(t => t.api_used).filter(Boolean))) as string[]
+  const apiKeys = Array.from(new Set(allTasks.map(t => t.api_used).filter(Boolean))) as string[]
 
   // 4. Prepare daily data
   const dailyMap: { [date: string]: any } = {}
@@ -55,7 +60,7 @@ export async function GET(request: Request) {
   // Initialize totals
   apiKeys.forEach(k => totals[k] = 0)
 
-  tasks.forEach(task => {
+  allTasks.forEach(task => {
     if (!task.api_used || !task.started_at) return
     
     const date = task.started_at.split('T')[0]
@@ -86,6 +91,8 @@ export async function GET(request: Request) {
     availablePlans,
     dailyData,
     totals,
-    mostUsed
+    mostUsed,
+    totalTokensMonth,
+    totalCallsMonth
   })
 }

@@ -844,30 +844,55 @@ export default function NeuralCommandCenterV31() {
             >
               <div className="flex justify-between items-start relative z-10">
                 <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40">API COMMAND CENTER</span>
-                <div className="flex gap-1 opacity-20">
-                  {['Claude', 'Gemini', 'OpenRouter'].map((api) => (
-                    <div
+                <div className="flex gap-1.5">
+                  {apiMonitor?.apiKeys?.slice(0, 3).map((api: string) => (
+                    <button
                       key={api}
-                      className="px-1.5 py-0.5 rounded text-[7px] font-bold border border-white/10 text-white/30 bg-white/5"
+                      onClick={() => router.push(`/admin/api-audit?model=${api}`)}
+                      className="px-2 py-0.5 rounded text-[8px] font-bold border border-white/10 text-white/60 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all uppercase tracking-tighter"
                     >
-                      {api[0]}
-                    </div>
+                      {api}
+                    </button>
                   ))}
                 </div>
               </div>
-              <div className="space-y-2 relative z-10 py-2">
-                <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] leading-tight">
-                  AUCUN AGENT DÉPLOYÉ CE MOIS
-                </p>
-                <p className="text-[8px] font-medium text-white/20 uppercase tracking-[0.1em] leading-relaxed max-w-[180px]">
-                  Les données apparaîtront dès le premier agent client activé
-                </p>
+
+              <div className="space-y-4 relative z-10 py-1">
+                {(!apiMonitor?.apiKeys || apiMonitor.apiKeys.length === 0) ? (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] leading-tight">
+                      AUCUN AGENT DÉPLOYÉ CE MOIS
+                    </p>
+                    <p className="text-[8px] font-medium text-white/20 uppercase tracking-[0.1em] leading-relaxed max-w-[180px]">
+                      Les données apparaîtront dès le premier agent client activé
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">MONTHLY THROUGHPUT</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-mono font-black text-[#8B5CF6]">
+                          {apiMonitor.totalTokensMonth?.toLocaleString() || '0'}
+                        </span>
+                        <span className="text-[10px] font-bold text-white/20 uppercase">TOKENS</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between pt-2 border-t border-white/[0.03]">
+                      <div className="space-y-0.5">
+                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">TOTAL API CALLS</p>
+                        <p className="text-sm font-mono font-bold text-white/60">{apiMonitor.totalCallsMonth?.toLocaleString() || '0'}</p>
+                      </div>
+                      <div className="text-right space-y-0.5">
+                        <p className="text-[8px] font-bold text-white/20 uppercase tracking-widest">MOST ACTIVE</p>
+                        <p className="text-sm font-mono font-bold text-[#8B5CF6] uppercase">{apiMonitor.mostUsed || '—'}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="pt-6 mt-2 border-t border-white/[0.03] flex items-center justify-between relative z-10">
-                <p className="uppercase tracking-widest text-[8px] font-bold text-white/10">TOKENS CONSUMED (MONTHLY)</p>
-                <span className="text-[10px] font-mono font-bold text-white/20">—</span>
-              </div>
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 rounded-full" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#8B5CF6]/[0.02] blur-3xl -mr-16 -mt-16 rounded-full" />
             </div>
 
             {/* CARD 2 — SYSTEM HEALTH */}
