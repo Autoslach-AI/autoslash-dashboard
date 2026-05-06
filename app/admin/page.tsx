@@ -840,10 +840,10 @@ export default function NeuralCommandCenterV31() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {/* CARD 1 — API COMMAND CENTER */}
             <div 
-              className="p-6 bg-[#111111] border border-white/5 rounded-xl space-y-4 transition-all relative overflow-hidden"
+              className="p-4 bg-[#111111] border border-white/5 rounded-xl space-y-4 transition-all relative overflow-hidden h-[200px]"
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">API COMMAND CENTER</span>
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40 whitespace-nowrap">API COMMAND CENTER</span>
                 <div className="flex gap-1 opacity-20">
                   {['Claude', 'Gemini', 'OpenRouter'].map((api) => (
                     <div
@@ -877,14 +877,14 @@ export default function NeuralCommandCenterV31() {
                   router.push(`/admin/system/${mostCriticalNode.id}`);
                 }
               }}
-              className={`p-6 border rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden ${
+              className={`p-4 border rounded-xl space-y-4 transition-all cursor-pointer group relative overflow-hidden h-[200px] ${
                 healthScore < 70 ? 'bg-red-500/10 border-red-500/50' : 
                 healthScore < 100 ? 'bg-amber-500/10 border-amber-500/50' : 
                 'bg-[#111111] border-white/5 hover:border-white/10'
               }`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className={`text-[9px] font-bold uppercase tracking-[0.2em] ${healthScore < 100 ? 'text-white' : 'text-white/40'}`}>SYSTEM HEALTH</span>
+                <span className={`text-xs font-bold uppercase tracking-[0.2em] whitespace-nowrap ${healthScore < 100 ? 'text-white' : 'text-white/40'}`}>SYSTEM HEALTH</span>
                 <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
                   healthScore === 100 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-500 animate-pulse'
                 }`}>
@@ -927,10 +927,10 @@ export default function NeuralCommandCenterV31() {
                   }
                 }
               }}
-              className={`p-6 bg-[#111111] border border-white/5 ${intelligenceSummary.totalActive > 0 ? 'hover:border-white/10 cursor-pointer' : 'cursor-default'} rounded-xl space-y-4 transition-all group relative overflow-hidden`}
+              className={`p-4 bg-[#111111] border border-white/5 ${intelligenceSummary.totalActive > 0 ? 'hover:border-white/10 cursor-pointer' : 'cursor-default'} rounded-xl space-y-4 transition-all group relative overflow-hidden h-[200px]`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">INTELLIGENCE HUB</span>
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40 whitespace-nowrap">INTELLIGENCE HUB</span>
                 {intelligenceSummary.totalActive > 0 && intelligenceSummary.topSeverity && (
                   <div className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest ${
                     intelligenceSummary.topSeverity === 'CRITICAL' ? 'bg-red-500/20 text-red-500' :
@@ -973,10 +973,10 @@ export default function NeuralCommandCenterV31() {
                   router.push(`/admin/system/${neuralPulse.lastEnterpriseId}`);
                 }
               }}
-              className={`p-6 bg-[#111111] border border-white/5 ${neuralPulse?.totalEvents > 0 ? 'hover:border-white/10 cursor-pointer' : 'cursor-default'} rounded-xl space-y-4 transition-all group relative overflow-hidden`}
+              className={`p-4 bg-[#111111] border border-white/5 ${neuralPulse?.totalEvents > 0 ? 'hover:border-white/10 cursor-pointer' : 'cursor-default'} rounded-xl space-y-4 transition-all group relative overflow-hidden h-[200px]`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">NEURAL PULSE</span>
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40 whitespace-nowrap">NEURAL PULSE</span>
                 <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold transition-all ${
                   neuralPulse?.globalStatus === 'ERROR' ? 'bg-red-500/10 text-red-500' : 
                   neuralPulse?.globalStatus === 'SYNC' ? 'bg-amber-500/10 text-amber-500' :
@@ -1009,14 +1009,14 @@ export default function NeuralCommandCenterV31() {
 
             {/* CARD 5 — COMMERCIAL PIPELINE */}
             <div 
-              className={`p-6 border rounded-xl space-y-4 transition-all relative overflow-hidden group ${
+              className={`p-4 border rounded-xl space-y-4 transition-all relative overflow-hidden group h-[200px] ${
                 (commercialPipeline?.total || 0) === 0 
                 ? 'bg-[#111111] border-[#4ade80]/30 hover:border-[#4ade80]/50' 
                 : 'bg-[#111111] border-orange-500/30 hover:border-orange-500/50'
               }`}
             >
               <div className="flex justify-between items-start relative z-10">
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">COMMERCIAL PIPELINE</span>
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/40 whitespace-nowrap">COMMERCIAL PIPELINE</span>
                 <div className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${
                   (commercialPipeline?.total || 0) === 0 
                   ? 'bg-[#4ade80]/10 text-[#4ade80]' 
