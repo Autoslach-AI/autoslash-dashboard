@@ -1079,92 +1079,81 @@ export default function NeuralCommandCenterV31() {
                   ? 'bg-[#4ade80]/10 text-[#4ade80]' 
                   : 'bg-red-500/10 text-red-500 animate-[pulse_3s_infinite]'
                 }`}>
-                  <div className={`w-1 h-1 rounded-full ${(commercialPipeline?.total || 0) === 0 ? 'bg-[#4ade80]' : 'bg-red-500'}`} />
-                  {(commercialPipeline?.total || 0) === 0 ? 'OPTIMAL' : `${commercialPipeline.total} ACTIONS`}
+                  <div className={`w-1 h-1 rounded-full ${(commercialPipeline?.total || 0) === 0 ? 'bg-[#4ade80]' : 'bg-red-500 animate-pulse'}`} />
+                  {(commercialPipeline?.total || 0) === 0 ? 'PIPELINE OPTIMAL' : `${commercialPipeline.total} ACTIONS`}
                 </div>
               </div>
 
               <div className="relative z-10">
-                {(commercialPipeline?.total || 0) === 0 ? (
-                  <div className="py-8 text-center space-y-1">
-                    <p className="text-[11px] font-black text-[#4ade80] uppercase tracking-[0.2em]">PIPELINE OPTIMAL</p>
-                    <p className="text-white/20 text-[8px] font-bold uppercase tracking-widest">AUCUNE ACTION COMMERCIALE REQUISE</p>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {/* PROSPECTS */}
+                  <div 
+                    onClick={() => {
+                      if (commercialPipeline?.prospects?.count > 0) {
+                         setOracleFilter('PROSPECT');
+                         setSearchQuery('');
+                         document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                    className={`p-2.5 rounded-lg border transition-all ${
+                      commercialPipeline?.prospects?.count > 0 
+                      ? 'bg-black/40 border-green-500/20 hover:bg-black/60 cursor-pointer' 
+                      : 'opacity-40 grayscale pointer-events-none border-white/5'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-bold text-green-400 uppercase tracking-widest">PROSPECTS EN ATTENTE</span>
+                      <span className="text-lg font-mono font-black text-green-400">{commercialPipeline?.prospects?.count}</span>
+                    </div>
+                    <p className="text-[8px] text-white/40 font-mono truncate uppercase">
+                      {commercialPipeline?.prospects?.label}
+                    </p>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3">
-                    {/* PROSPECTS */}
-                    <div 
-                      onClick={() => {
-                        if (commercialPipeline?.prospects?.count > 0) {
-                           setOracleFilter('PROSPECT');
-                           setSearchQuery('');
-                           document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                      className={`p-3 rounded-lg border transition-all ${
-                        commercialPipeline?.prospects?.count > 0 
-                        ? 'bg-black/40 border-green-500/20 hover:bg-black/60 cursor-pointer' 
-                        : 'opacity-40 grayscale pointer-events-none border-white/5'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[9px] font-bold text-green-400 uppercase tracking-widest">PROSPECTS EN ATTENTE</span>
-                        <span className="text-xl font-mono font-black text-green-400">{commercialPipeline?.prospects?.count}</span>
-                      </div>
-                      <p className="text-[8px] text-white/40 font-mono truncate">
-                        {commercialPipeline?.prospects?.items?.[0]?.raw_context?.substring(0, 35) || "Aucun prospect"}
-                      </p>
-                    </div>
 
-                    {/* UPSELL */}
-                    <div 
-                      onClick={() => {
-                        if (commercialPipeline?.upsell?.count > 0) {
-                           setOracleFilter('TOKEN_WARNING');
-                           setSearchQuery('');
-                           document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                      className={`p-3 rounded-lg border transition-all ${
-                        commercialPipeline?.upsell?.count > 0 
-                        ? 'bg-black/40 border-amber-500/20 hover:bg-black/60 cursor-pointer' 
-                        : 'opacity-40 grayscale pointer-events-none border-white/5'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">UPSELL OPPORTUNITIES</span>
-                        <span className="text-xl font-mono font-black text-amber-500">{commercialPipeline?.upsell?.count}</span>
-                      </div>
-                      <p className="text-[8px] text-white/40 font-mono">
-                        Clients proches de la limite tokens
-                      </p>
+                  {/* UPSELL */}
+                  <div 
+                    onClick={() => {
+                      if (commercialPipeline?.upsell?.count > 0 && commercialPipeline?.upsell?.clientId) {
+                         router.push(`/admin/system/${commercialPipeline.upsell.clientId}/settings`);
+                      }
+                    }}
+                    className={`p-2.5 rounded-lg border transition-all ${
+                      commercialPipeline?.upsell?.count > 0 
+                      ? 'bg-black/40 border-amber-500/20 hover:bg-black/60 cursor-pointer' 
+                      : 'opacity-40 grayscale pointer-events-none border-white/5'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">UPSELL OPPORTUNITIES</span>
+                      <span className="text-lg font-mono font-black text-amber-500">{commercialPipeline?.upsell?.count}</span>
                     </div>
-
-                    {/* CHURN */}
-                    <div 
-                      onClick={() => {
-                        if (commercialPipeline?.churn?.count > 0) {
-                           setOracleFilter('CHURN');
-                           setSearchQuery('');
-                           document.getElementById('oracle-section')?.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      }}
-                      className={`p-3 rounded-lg border transition-all ${
-                        commercialPipeline?.churn?.count > 0 
-                        ? 'bg-black/40 border-red-500/20 hover:bg-black/60 cursor-pointer' 
-                        : 'opacity-40 grayscale pointer-events-none border-white/5'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest">CHURN RISKS</span>
-                        <span className="text-xl font-mono font-black text-red-500">{commercialPipeline?.churn?.count}</span>
-                      </div>
-                      <p className="text-[8px] text-white/40 font-mono">
-                        Clients WARNING ou CRITICAL
-                      </p>
-                    </div>
+                    <p className="text-[8px] text-white/40 font-mono uppercase">
+                      {commercialPipeline?.upsell?.label}
+                    </p>
                   </div>
-                )}
+
+                  {/* CHURN */}
+                  <div 
+                    onClick={() => {
+                      if (commercialPipeline?.churn?.count > 0 && commercialPipeline?.churn?.enterpriseId) {
+                         router.push(`/admin/system/${commercialPipeline.churn.enterpriseId}`);
+                      }
+                    }}
+                    className={`p-2.5 rounded-lg border transition-all ${
+                      commercialPipeline?.churn?.count > 0 
+                      ? 'bg-black/40 border-red-500/20 hover:bg-black/60 cursor-pointer' 
+                      : 'opacity-40 grayscale pointer-events-none border-white/5'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9px] font-bold text-red-500 uppercase tracking-widest">CHURN RISKS</span>
+                      <span className="text-lg font-mono font-black text-red-500">{commercialPipeline?.churn?.count}</span>
+                    </div>
+                    <p className="text-[8px] text-white/40 font-mono uppercase">
+                      {commercialPipeline?.churn?.label}
+                    </p>
+                  </div>
+                </div>
               </div>
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] blur-3xl -mr-16 -mt-16 rounded-full" />
             </div>

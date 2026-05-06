@@ -9,33 +9,51 @@ export async function GET() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Prospects en attente (filtrés par is_test = false via la vue v_prospects_all)
+  // 1. Prospects en attente (filtrés par is_test = false via la vue v_prospects_all)
   const { data: prospectLogs, count: prospectsCount } = await supabase
     .from('v_prospects_all')
-    .select('id, raw_context, created_at, client_id', { count: 'exact' })
+    .select('id, name, package_type', { count: 'exact' })
     .order('created_at', { ascending: false })
-    .limit(3);
+    .limit(1);
 
-  const recentProspects = prospectLogs || [];
+  const lastProspect = prospectLogs?.[0] || null;
 
-  // Upsell opportunities
-  const { count: upsellCount } = await supabase
+  // 2. Upsell opportunities (filtrées par is_test = false)
+  const { data: upsellLogs, count: upsellCount } = await supabase
     .from('admin_intelligence_logs')
-    .select('*', { count: 'exact', head: true })
+    .select('id, client_id, enterprises!inner(name)', { count: 'exact' })
     .eq('issue_type', 'UPSELL')
+    .eq('enterprises.is_test', false)
+    .order('created_at', { ascending: false })
+    .limit(1);
 
-  // Churn risks
-  const { count: churnCount } = await supabase
-    .from('enterprises')
-    .select('*', { count: 'exact', head: true })
+  const lastUpsell = upsellLogs?.[0] as any;
+
+  // 3. Churn risks (depuis v_clients_dev comme demandé)
+  const { data: churnLogs, count: churnCount } = await supabase
+    .from('v_clients_dev')
+    .select('id, name, status', { count: 'exact' })
     .in('status', ['WARNING', 'CRITICAL'])
-    .eq('is_test', false)
+    .order('status', { ascending: true })
+    .limit(1);
+
+  const lastChurn = churnLogs?.[0] as any;
 
   return NextResponse.json({
     total: (prospectsCount || 0) + (upsellCount || 0) + (churnCount || 0),
-    prospects: { count: prospectsCount || 0, items: recentProspects || [] },
-    upsell: { count: upsellCount || 0 },
-    churn: { count: churnCount || 0 },
-    isPipelineOptimal: (prospectsCount || 0) + (upsellCount || 0) + (churnCount || 0) === 0
+    prospects: { 
+      count: prospectsCount || 0, 
+      label: lastProspect ? `${lastProspect.name} · ${lastProspect.package_type}` : "Aucun prospect"
+    },
+    upsell: { 
+      count: upsellCount || 0, 
+      label: lastUpsell ? (Array.isArray(lastUpsell.enterprises) ? lastUpsell.enterprises[0]?.name : lastUpsell.enterprises?.name) || "Opportunité" : "Aucune opportunité",
+      clientId: lastUpsell?.client_id
+    },
+    churn: { 
+      count: churnCount || 0, 
+      label: lastChurn ? `${lastChurn.name} · ${lastChurn.status}` : "Aucun risque",
+      enterpriseId: lastChurn?.id
+    }
   })
 }
