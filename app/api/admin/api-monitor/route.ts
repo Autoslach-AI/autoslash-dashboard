@@ -16,13 +16,14 @@ export async function GET(request: Request) {
   const rangeStart = new Date()
   rangeStart.setDate(rangeStart.getDate() - days)
 
-  // 1. Get available plans dynamically from plan_definitions
+  // 1. Get available plans dynamically from plan_definitions (only those that allow agents)
   const { data: planData } = await supabase
     .from('plan_definitions')
-    .select('name')
+    .select('plan_name')
+    .gt('max_agents_allowed', 0)
     .order('price_cents', { ascending: true })
   
-  const availablePlans = planData?.map(p => p.name) || ['STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']
+  const availablePlans = planData?.map(p => p.plan_name) || []
 
   // 2. Fetch tasks from both tables with relational filtering if plan is set
   const firstDayOfMonth = new Date();
