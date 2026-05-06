@@ -239,238 +239,228 @@ export default function FleetPage() {
             </div>
           </div>
 
-          {/* STATS CARDS */}
+          {/* STATS CARDS - EXLM STYLE */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {/* CARD 1: SYSTÈMES ACTIFS */}
-            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#10B981] p-5 rounded-xl relative overflow-hidden group">
-              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
-                <Cpu className="w-6 h-6 text-[#10B981]" />
+            <div className="bg-[#1A1C2E] p-6 rounded-lg relative group transition-all">
+              <p className="text-[10px] font-bold text-[#8C90B5] uppercase tracking-wider mb-8">SYSTÈMES ACTIFS</p>
+              <div className="flex items-end justify-between">
+                <p className="text-4xl font-bold text-white leading-none">{stats.activeSystems}</p>
+                <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                  <Cpu className="w-5 h-5 text-blue-400" />
+                </div>
               </div>
-              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">SYSTÈMES ACTIFS</p>
-              <p className="text-3xl font-black text-[#10B981] uppercase">{stats.activeSystems}</p>
             </div>
 
-            {/* CARD 2: REVENUS TOTAL */}
-            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#3B82F6] p-5 rounded-xl relative overflow-hidden group">
-              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
-                <DollarSign className="w-6 h-6 text-[#3B82F6]" />
+            <div className="bg-[#1C2522] p-6 rounded-lg relative group transition-all">
+              <p className="text-[10px] font-bold text-[#8FB5A8] uppercase tracking-wider mb-8">REVENUS TOTAL</p>
+              <div className="flex items-end justify-between">
+                <p className="text-4xl font-bold text-white leading-none">{(stats.totalRevenue || 0).toLocaleString()}</p>
+                <div className="w-10 h-10 rounded-lg bg-[#4ade80]/10 flex items-center justify-center">
+                  <DollarSign className="w-5 h-5 text-[#4ade80]" />
+                </div>
               </div>
-              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">REVENUS TOTAL</p>
-              <p className="text-3xl font-black text-[#3B82F6] uppercase">{(stats.totalRevenue || 0).toLocaleString()} FCFA</p>
+              <p className="absolute bottom-6 right-6 text-[10px] font-bold text-[#4ade80]/40">FCFA</p>
             </div>
 
-            {/* CARD 3: TOKENS CONSOMMÉS */}
-            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#8B5CF6] p-5 rounded-xl relative overflow-hidden group">
-              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
-                <TrendingUp className="w-6 h-6 text-[#8B5CF6]" />
+            <div className="bg-[#2E241A] p-6 rounded-lg relative group transition-all">
+              <p className="text-[10px] font-bold text-[#B5A18C] uppercase tracking-wider mb-8">TOKENS CONSOMMÉS</p>
+              <div className="flex items-end justify-between">
+                <p className="text-4xl font-bold text-white leading-none">
+                  {stats.totalTokens >= 1000000 
+                    ? (stats.totalTokens / 1000000).toFixed(1)
+                    : (stats.totalTokens / 1000).toFixed(0)}
+                </p>
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-amber-500" />
+                </div>
               </div>
-              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">TOKENS CONSOMMÉS</p>
-              <p className="text-3xl font-black text-[#8B5CF6] uppercase">
-                {stats.totalTokens >= 1000000 
-                  ? `${(stats.totalTokens / 1000000).toFixed(2)}M` 
-                  : `${(stats.totalTokens / 1000).toFixed(0)}K`}
+              <p className="absolute bottom-6 right-6 text-[10px] font-bold text-amber-500/40 uppercase tracking-tighter">
+                {stats.totalTokens >= 1000000 ? 'MILLIONS' : 'K-TOKENS'}
               </p>
             </div>
 
-            {/* CARD 4: ALERTES ACTIVES */}
-            <div className={`bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 p-5 rounded-xl relative overflow-hidden group ${
-              stats.activeAlerts === 0 ? 'border-l-[#10B981]' : 'border-l-[#EF4444]'
-            }`}>
-              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
-                <ShieldAlert className={`w-6 h-6 ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`} />
+            <div className={`p-6 rounded-lg relative group transition-all ${stats.activeAlerts === 0 ? 'bg-[#1C1C1C]' : 'bg-[#2E1A1A]'}`}>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-8">ALERTES ACTIVES</p>
+              <div className="flex items-end justify-between">
+                <p className={`text-4xl font-bold leading-none ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-red-500'}`}>
+                  {stats.activeAlerts === 0 ? '0.0%' : stats.activeAlerts}
+                </p>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${stats.activeAlerts === 0 ? 'bg-[#10B981]/10' : 'bg-red-500/10'}`}>
+                  <ShieldAlert className={`w-5 h-5 ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-red-500'}`} />
+                </div>
               </div>
-              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">ALERTES ACTIVES</p>
-              <p className={`text-3xl font-black uppercase ${
-                stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'
-              }`}>
-                {stats.activeAlerts === 0 ? 'OPTIMAL' : stats.activeAlerts}
-              </p>
             </div>
           </div>
 
-          {/* FILTERS */}
-          <div className="space-y-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-[#10B981] transition-colors" />
-                <input 
-                  type="text"
-                  placeholder="Rechercher par nom, ID, plan, région, secteur..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-[#0D0D0D] border border-[#1A1A1A] rounded-xl px-12 py-3 text-xs font-mono text-white placeholder:text-white/10 outline-none focus:border-[#10B981]/40 transition-all"
-                />
-              </div>
-              <div className="flex gap-2">
+          {/* NAVIGATION BAR - EXLM STYLE */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-2">
+            <div className="flex items-center gap-1 bg-[#1A1A1A] p-1 rounded-lg">
+              <button 
+                onClick={() => setPlanFilter('ALL')}
+                className={`px-4 py-1.5 rounded-md text-[11px] font-bold uppercase transition-all ${planFilter === 'ALL' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+              >
+                ALL NODES
+              </button>
+              {plans.map(plan => (
                 <button 
-                  onClick={() => setPlanFilter('ALL')}
-                  className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border ${planFilter === 'ALL' ? 'bg-white text-black border-white' : 'bg-transparent text-gray-500 border-[#1A1A1A]'}`}
+                  key={plan}
+                  onClick={() => setPlanFilter(plan)}
+                  className={`px-4 py-1.5 rounded-md text-[11px] font-bold uppercase transition-all ${planFilter === plan ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
                 >
-                  ALL NODES
-                </button>
-                {plans.map(plan => (
-                  <button 
-                    key={plan}
-                    onClick={() => setPlanFilter(plan)}
-                    className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border ${planFilter === plan ? 'bg-white text-black border-white' : 'bg-transparent text-gray-500 border-[#1A1A1A]'}`}
-                  >
-                    {plan}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {[
-                { id: 'ALL', label: 'ALL', dot: 'bg-white' },
-                { id: 'STABLE', label: 'STABLE', dot: 'bg-[#10B981]' },
-                { id: 'WARNING', label: 'WARNING', dot: 'bg-amber-500' },
-                { id: 'CRITICAL', label: 'CRITICAL', dot: 'bg-red-500' }
-              ].map(status => (
-                <button 
-                  key={status.id}
-                  onClick={() => setStatusFilter(status.id as StatusType)}
-                  className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border flex items-center gap-2 ${statusFilter === status.id ? 'bg-white/10 text-white border-white/20' : 'bg-transparent text-white/20 border-[#1A1A1A]'}`}
-                >
-                  <div className={`w-1 h-1 rounded-full ${status.dot}`} />
-                  {status.label}
+                  {plan}
                 </button>
               ))}
             </div>
+
+            <div className="flex items-center gap-4 flex-1 max-w-2xl px-4">
+              <div className="relative group w-full">
+                <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-white transition-colors" />
+                <input 
+                  type="text"
+                  placeholder="Universal search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-transparent border-none px-8 py-2 text-[13px] font-medium text-white placeholder:text-gray-600 outline-none"
+                />
+              </div>
+              
+              <div className="flex items-center gap-2 text-gray-500 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap">
+                <span>Filter by status:</span>
+                <div className="flex items-center gap-1 bg-[#1A1A1A] p-1 rounded-lg">
+                  {['ALL', 'STABLE', 'WARNING', 'CRITICAL'].map(status => (
+                    <button 
+                      key={status}
+                      onClick={() => setStatusFilter(status as any)}
+                      className={`px-3 py-1 rounded-md text-[10px] transition-all ${statusFilter === status ? 'bg-[#2A2A2A] text-white' : 'hover:text-white'}`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* TABLE */}
-          <div className="bg-[#0D0D0D] border border-[#1A1A1A] rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[1200px]">
-                <thead>
-                  <tr className="border-b border-[#1A1A1A] bg-white/[0.02]">
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Client Cluster</th>
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Plan</th>
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Fleet Status</th>
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Token Usage</th>
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest text-center">Agents</th>
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Intelligence Mode</th>
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Région</th>
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Secteur</th>
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Monthly Cost</th>
-                    <th className="px-6 py-4 text-[9px] font-mono text-gray-500 uppercase tracking-widest">Date Activation</th>
-                    <th className="px-6 py-4 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1A1A1A]">
-                  {loading ? (
-                    <tr><td colSpan={11} className="px-6 py-20 text-center text-white/20 font-mono text-[10px] tracking-widest">CHARGEMENT DES NŒUDS...</td></tr>
-                  ) : paginatedClients.map(client => {
-                    const usage = client.token_budget > 0 ? (client.total_tokens_consumed / client.token_budget) * 100 : 0;
-                    return (
-                      <tr 
-                        key={client.id}
-                        onMouseMove={handleMouseMove}
-                        onMouseEnter={() => setHoveredClient(client)}
-                        onMouseLeave={() => setHoveredClient(null)}
-                        onClick={() => router.push(`/admin/system/${client.id}`)}
-                        className="group h-[56px] hover:bg-white/[0.02] transition-colors cursor-pointer"
-                      >
-                        <td className="px-6 py-2">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40">
-                              {client.name.substring(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="text-[11px] font-bold text-white group-hover:text-[#10B981] transition-colors leading-none">{client.name}</p>
-                              <p className="text-[8px] font-mono text-white/20 uppercase tracking-tighter mt-1">{client.project_id || `AS-B-2026-${client.id.substring(0,4)}`} • {client.package_type}</p>
-                            </div>
+          {/* TABLE - EXLM STYLE */}
+          <div className="w-full border-t border-[#1A1A1A]">
+            <table className="w-full text-left border-collapse min-w-[1200px]">
+              <thead>
+                <tr className="border-b border-[#1A1A1A]">
+                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight w-[25%] text-left">Nœud Cluster</th>
+                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-left">Région</th>
+                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Cost (FCFA)</th>
+                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Tokens</th>
+                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Agents</th>
+                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Intelligence</th>
+                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#1A1A1A]">
+                {loading ? (
+                  <tr><td colSpan={7} className="px-6 py-20 text-center text-white/10 font-mono text-[10px] tracking-widest">CONNECTING TO NEURAL HUB...</td></tr>
+                ) : paginatedClients.map(client => {
+                  const usage = client.token_budget > 0 ? (client.total_tokens_consumed / client.token_budget) * 100 : 0;
+                  return (
+                    <tr 
+                      key={client.id}
+                      onMouseMove={handleMouseMove}
+                      onMouseEnter={() => setHoveredClient(client)}
+                      onMouseLeave={() => setHoveredClient(null)}
+                      onClick={() => router.push(`/admin/system/${client.id}`)}
+                      className="group h-[64px] hover:bg-white/[0.02] transition-all cursor-pointer"
+                    >
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-bold text-white/40">
+                            {client.name.substring(0, 1).toUpperCase()}
                           </div>
-                        </td>
-                        <td className="px-6 py-2">
-                          <span className={`text-[9px] font-black tracking-tight border px-2 py-0.5 rounded ${
-                            client.package_type === 'ELITE' ? 'text-purple-400 border-purple-400/20 bg-purple-400/5' :
-                            client.package_type === 'ENTERPRISE' ? 'text-blue-400 border-blue-400/20 bg-blue-400/5' :
-                            'text-emerald-400 border-emerald-400/20 bg-emerald-400/5'
-                          }`}>
-                            {client.package_type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-2">
-                          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border text-[9px] font-black ${
-                            client.status === 'CRITICAL' ? 'text-red-500 border-red-500/20 bg-red-500/5' :
-                            client.status === 'WARNING' ? 'text-amber-500 border-amber-500/20 bg-amber-500/5' :
-                            'text-[#10B981] border-[#10B981]/20 bg-[#10B981]/5'
-                          }`}>
-                            <div className="w-1 h-1 rounded-full bg-current" />
-                            {client.status}
-                          </div>
-                        </td>
-                        <td className="px-6 py-2">
-                          <div className="w-32 space-y-1">
-                            <div className="flex justify-between text-[8px] font-mono text-white/20">
-                              <span>{usage.toFixed(1)}%</span>
-                              <span>{Math.round(client.total_tokens_consumed/1000)}K</span>
-                            </div>
-                            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                              <div className={`h-full ${usage > 90 ? 'bg-red-500' : usage > 70 ? 'bg-amber-500' : 'bg-[#10B981]'}`} style={{ width: `${Math.min(usage, 100)}%` }} />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-2 text-center text-[10px] font-bold text-white/60">{client.agent_count}</td>
-                        <td className="px-6 py-2">
-                          {client.intelligence ? (
-                            <div className="flex items-center gap-2 cursor-pointer group/intel" onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(client.intelligence?.severity_level === 'CRITICAL' ? `/admin/system/${client.id}/agents` : `/admin/system/${client.id}`);
-                            }}>
-                              <AlertTriangle className={`w-3.5 h-3.5 ${
-                                client.intelligence.severity_level === 'CRITICAL' ? 'text-red-500' : 
-                                client.intelligence.severity_level === 'WARNING' ? 'text-amber-500' : 'text-blue-400'
-                              }`} />
-                              <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-white/60 uppercase leading-none">{client.intelligence.issue_type}</span>
-                                <span className="text-[10px] text-white/20 truncate max-w-[120px]">{client.intelligence.raw_context}</span>
-                              </div>
-                            </div>
-                          ) : (
+                          <div>
                             <div className="flex items-center gap-2">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-[#10B981]/40" />
-                              <span className="text-[10px] text-white/10 uppercase font-mono tracking-widest">SECURE</span>
+                              <p className="text-[13px] font-bold text-white group-hover:text-[#10B981] transition-colors">{client.name}</p>
+                              <span className="text-[9px] font-bold text-[#10B981] bg-[#10B981]/10 px-1.5 py-0.5 rounded uppercase tracking-tighter">Live</span>
                             </div>
+                            <p className="text-[10px] font-medium text-gray-600 uppercase tracking-tight">{client.project_id || `ID-${client.id.substring(0,8)}`}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        <span className="text-[12px] font-medium text-gray-400">{client.region}</span>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <p className="text-[13px] font-bold text-white">{(client.monthly_cost || 0).toLocaleString()}</p>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <p className="text-[13px] font-bold text-white">{(client.total_tokens_consumed / 1000).toFixed(1)}K</p>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <p className="text-[13px] font-bold text-white">{client.agent_count}</p>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {client.intelligence ? (
+                            <>
+                              <span className="text-[9px] font-black text-gray-600 uppercase">{client.intelligence.issue_type}</span>
+                              <AlertTriangle className={`w-3 h-3 ${client.intelligence.severity_level === 'CRITICAL' ? 'text-red-500' : 'text-amber-500'}`} />
+                            </>
+                          ) : (
+                            <CheckCircle2 className="w-3 h-3 text-[#10B981] opacity-40" />
                           )}
-                        </td>
-                        <td className="px-6 py-2 text-[10px] text-white/40">{client.region}</td>
-                        <td className="px-6 py-2 text-[10px] text-white/40">{client.sector}</td>
-                        <td className="px-6 py-2">
-                          <p className="text-[11px] font-mono font-bold text-white">{(client.monthly_cost || 0).toLocaleString()} FCFA</p>
-                        </td>
-                        <td className="px-6 py-2 text-[10px] font-mono text-white/20">
-                          {new Date(client.activated_at || client.created_at).toLocaleDateString('fr-FR')}
-                        </td>
-                        <td className="px-6 py-2">
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <span className={`px-3 py-1 rounded text-[11px] font-bold uppercase tracking-tighter ${
+                            client.status === 'CRITICAL' ? 'bg-red-500/10 text-red-500' :
+                            client.status === 'WARNING' ? 'bg-amber-500/10 text-amber-500' :
+                            'bg-[#10B981]/10 text-[#10B981]'
+                          }`}>
+                            {client.status}
+                          </span>
                           <button 
-                            onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === client.id ? null : client.id); }}
-                            className="p-1.5 hover:bg-white/10 rounded-lg text-white/30 hover:text-white transition-all"
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              setMousePos({ x: e.clientX, y: e.clientY });
+                              setActiveMenuId(activeMenuId === client.id ? null : client.id); 
+                            }}
+                            className="p-1 hover:bg-white/5 rounded text-gray-600 hover:text-white transition-colors"
                           >
                             <MoreHorizontal className="w-4 h-4" />
                           </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
 
-            {/* PAGINATION */}
-            <div className="px-8 py-4 border-t border-[#1A1A1A] flex items-center justify-between bg-white/[0.01]">
-              <p className="text-[10px] font-mono text-white/10 italic">AFFICHAGE {paginatedClients.length} SUR {filteredClients.length} SYSTÈMES</p>
-              <div className="flex items-center gap-1.5">
-                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="p-1.5 rounded-lg border border-[#1A1A1A] text-white/20 hover:text-white disabled:opacity-30">
+            {/* PAGINATION - EXLM STYLE */}
+            <div className="px-4 py-6 border-t border-[#1A1A1A] flex items-center justify-between">
+              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+                Showing {paginatedClients.length} of {filteredClients.length} nodes
+              </p>
+              <div className="flex items-center gap-1">
+                <button 
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  className="w-8 h-8 flex items-center justify-center rounded bg-[#1A1A1A] text-gray-500 hover:text-white disabled:opacity-20"
+                >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                {Array.from({ length: totalPages }).map((_, i) => (
-                  <button key={i} onClick={() => setCurrentPage(i+1)} className={`w-8 h-8 rounded-lg text-[10px] font-mono font-bold ${currentPage === i+1 ? 'bg-white text-black' : 'text-white/20 hover:bg-white/5'}`}>
-                    {i+1}
+                {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => (
+                  <button 
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`w-8 h-8 rounded text-[11px] font-bold transition-all ${currentPage === i + 1 ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+                  >
+                    {i + 1}
                   </button>
                 ))}
-                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="p-1.5 rounded-lg border border-[#1A1A1A] text-white/20 hover:text-white disabled:opacity-30">
+                <button 
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  className="w-8 h-8 flex items-center justify-center rounded bg-[#1A1A1A] text-gray-500 hover:text-white disabled:opacity-20"
+                >
                   <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
@@ -478,74 +468,69 @@ export default function FleetPage() {
           </div>
         </div>
 
-        {/* HOVER CONTEXT CARD */}
+        {/* HOVER CONTEXT CARD - P2P STYLE */}
         <AnimatePresence>
           {hoveredClient && (
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
               transition={{ duration: 0.15 }}
               style={{
                 position: 'fixed',
-                left: mousePos.x + 16,
-                top: mousePos.y + 16,
+                left: mousePos.x + 20,
+                top: mousePos.y - 100,
                 zIndex: 9999,
                 pointerEvents: 'none'
               }}
-              className="w-[280px] bg-[#111111] border border-[#2A2A2A] rounded-xl p-4 shadow-2xl backdrop-blur-xl space-y-4"
+              className="w-[320px] bg-[#0F1014] border border-[#2A2A2A] rounded-xl p-6 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
             >
-              <div className="space-y-1">
-                <p className="text-sm font-black text-white leading-none">{hoveredClient.name}</p>
-                <p className="text-[10px] font-mono text-[#10B981] uppercase tracking-tighter">{hoveredClient.project_id || `AS-B-2026-${hoveredClient.id.substring(0,4)}`}</p>
-              </div>
-
-              <div className="flex gap-2">
-                <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-black text-white/60 uppercase">{hoveredClient.package_type}</span>
-                <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase ${
-                  hoveredClient.status === 'CRITICAL' ? 'text-red-500 border-red-500/20 bg-red-500/10' : 'text-[#10B981] border-[#10B981]/20 bg-[#10B981]/10'
-                }`}>{hoveredClient.status}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-white/20">
-                    <Briefcase className="w-3 h-3" />
-                    <span className="text-[8px] font-bold uppercase tracking-widest">SECTEUR</span>
+               <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="text-2xl font-bold text-white tracking-tight">{hoveredClient.name}</h4>
+                      <p className="text-[12px] font-medium text-gray-500">{hoveredClient.package_type}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-[#10B981] text-[11px] font-bold uppercase tracking-widest">{hoveredClient.project_id}</span>
+                       <span className="text-gray-600 text-[11px]">•</span>
+                       <span className="text-gray-600 text-[11px] uppercase tracking-tighter">{hoveredClient.sector}</span>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-white/60 uppercase">{hoveredClient.sector}</p>
-                </div>
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-white/20">
-                    <Globe className="w-3 h-3" />
-                    <span className="text-[8px] font-bold uppercase tracking-widest">RÉGION</span>
-                  </div>
-                  <p className="text-[10px] text-white/60 uppercase">{hoveredClient.region}</p>
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-[9px] font-mono text-white/40 uppercase">
-                  <span>TOKEN USAGE</span>
-                  <span>{((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100).toFixed(1)}%</span>
-                </div>
-                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#10B981]" style={{ width: `${Math.min((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100, 100)}%` }} />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded bg-white/5">
-                    <Brain className="w-3 h-3 text-purple-400" />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">NEURAL USAGE</p>
+                      <p className="text-[11px] font-bold text-white">{((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100).toFixed(1)}%</p>
+                    </div>
+                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#10B981]" style={{ width: `${Math.min((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100, 100)}%` }} />
+                    </div>
                   </div>
-                  <span className="text-[10px] font-bold text-white/60">{hoveredClient.agent_count} AGENTS</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[#10B981]">
-                  <span className="text-[9px] font-black uppercase tracking-widest">OUVRIR</span>
-                  <ArrowUpRight className="w-3 h-3" />
-                </div>
-              </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                    <div className="flex flex-col">
+                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">TOTAL AGENTS</p>
+                       <p className="text-lg font-bold text-white">{hoveredClient.agent_count}</p>
+                    </div>
+                    <div className="text-right">
+                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">STATUS</p>
+                       <p className={`text-[11px] font-bold uppercase ${hoveredClient.status === 'CRITICAL' ? 'text-red-500' : 'text-[#10B981]'}`}>{hoveredClient.status}</p>
+                    </div>
+                  </div>
+
+                  {hoveredClient.intelligence && (
+                    <div className="bg-red-500/5 border border-red-500/10 p-3 rounded-lg">
+                       <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">{hoveredClient.intelligence.issue_type}</p>
+                       <p className="text-[11px] text-red-500/60 leading-tight line-clamp-2">{hoveredClient.intelligence.raw_context}</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[11px] font-bold text-[#10B981] group cursor-pointer pt-2">
+                    <span className="tracking-widest uppercase">Open neural pathway</span>
+                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                  </div>
+               </div>
             </motion.div>
           )}
         </AnimatePresence>
