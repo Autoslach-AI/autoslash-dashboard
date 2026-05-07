@@ -162,7 +162,12 @@ export default function FleetPage() {
         .select('plan_name')
         .order('plan_name');
       
-      if (plansData) setPlans(plansData.map((p: any) => p.plan_name));
+      if (plansData && plansData.length > 0) {
+        setPlans(plansData.map((p: any) => p.plan_name));
+      } else {
+        // Fallback to requested plans if table is empty
+        setPlans(['STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']);
+      }
 
       // 2. Fetch clients
       const { data: clientsData, error: clientError } = await supabase
