@@ -440,7 +440,7 @@ export default function FleetPage() {
           </div>
 
           {/* TABLE - EXLM STYLE */}
-          <div className="w-full border-t border-[#1A1A1A]">
+          <div className="w-full border-t border-[#1A1A1A] overflow-x-auto custom-scrollbar">
             <table className="w-full text-left border-collapse min-w-[1400px]">
               <thead>
                 <tr className="border-b border-[#1A1A1A]">
@@ -520,7 +520,7 @@ export default function FleetPage() {
                                  style={{ width: `${Math.min(usage, 100)}%` }}
                                />
                             </div>
-                            <span className="text-[9px] font-mono font-bold text-gray-500">{usage.toFixed(1)}% ({ (client.total_tokens_consumed || 0).toLocaleString('fr-FR') })</span>
+                            <span className="text-[9px] font-mono font-bold text-gray-500">{Math.round(usage)}%</span>
                          </div>
                       </td>
                       <td className="px-4 py-2 text-right">
@@ -538,14 +538,16 @@ export default function FleetPage() {
                                <span className={`text-[9px] font-black uppercase tracking-widest ${
                                  intelligence?.severity_level === 'CRITICAL' ? 'text-red-500' :
                                  intelligence?.severity_level === 'WARNING' ? 'text-amber-500' :
-                                 intelligence ? 'text-[#3B82F6]' : 'text-gray-600'
+                                 intelligence ? 'text-[#3B82F6]' : 'text-gray-600/40'
                                }`}>
                                  {intelligence?.issue_type || 'SYSTÈME OPTIMAL'}
                                </span>
                             </div>
+                          {intelligence && (
                             <span className="text-[8px] text-gray-600 font-medium line-clamp-1 max-w-[180px] group-hover/intel:text-white transition-colors">
-                               {intelligence?.raw_context || 'Operational parameters normal'}
+                               {intelligence.raw_context}
                             </span>
+                          )}
                          </button>
                       </td>
                       <td className="px-4 py-2">
@@ -652,7 +654,7 @@ export default function FleetPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">NEURAL USAGE</p>
-                      <p className="text-[11px] font-bold text-white">{((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100).toFixed(1)}% ({ (hoveredClient.total_tokens_consumed || 0).toLocaleString('fr-FR') })</p>
+                      <p className="text-[11px] font-bold text-white">{Math.round((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100)}%</p>
                     </div>
                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
                       <div className="h-full bg-[#10B981]" style={{ width: `${Math.min((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100, 100)}%` }} />
