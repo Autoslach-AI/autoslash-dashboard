@@ -131,7 +131,7 @@ export default function FleetPage() {
   const router = useRouter();
   const { user, profile } = useUser();
   const [clients, setClients] = useState<ClientNode[]>([]);
-  const [plans, setPlans] = useState<string[]>(['STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']);
+  const [plans, setPlans] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanType>('ALL');
@@ -157,17 +157,12 @@ export default function FleetPage() {
     setLoading(true);
     try {
       // 1. Fetch plans
-      const { data: plansData } = await supabase
+      const { data: planData } = await supabase
         .from('plan_definitions')
         .select('plan_name')
-        .order('plan_name');
-      
-      if (plansData && plansData.length > 0) {
-        setPlans(plansData.map((p: any) => p.plan_name));
-      } else {
-        // Fallback to requested plans if table is empty
-        setPlans(['STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']);
-      }
+        .order('base_price_fcfa', { ascending: true });
+
+      if (planData) setPlans(planData.map((p: any) => p.plan_name));
 
       // 2. Fetch clients
       const { data: clientsData, error: clientError } = await supabase
