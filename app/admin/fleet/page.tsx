@@ -358,7 +358,7 @@ export default function FleetPage() {
               </div>
               <div className="pt-4 border-t border-white/[0.03]">
                 <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-                  MAINTENANCE : {stats.avgMaintenance.toLocaleString('fr-FR')} FCFA/MOIS MOYEN
+                  MOYENNE : {stats.avgMaintenance.toLocaleString('fr-FR')} FCFA/CLIENT
                 </p>
               </div>
             </div>
@@ -520,7 +520,7 @@ export default function FleetPage() {
                                  style={{ width: `${Math.min(usage, 100)}%` }}
                                />
                             </div>
-                            <span className="text-[9px] font-mono font-bold text-gray-500">{usage.toFixed(1)}%</span>
+                            <span className="text-[9px] font-mono font-bold text-gray-500">{usage.toFixed(1)}% ({ (client.total_tokens_consumed || 0).toLocaleString('fr-FR') })</span>
                          </div>
                       </td>
                       <td className="px-4 py-2 text-right">
@@ -652,7 +652,7 @@ export default function FleetPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">NEURAL USAGE</p>
-                      <p className="text-[11px] font-bold text-white">{((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100).toFixed(1)}%</p>
+                      <p className="text-[11px] font-bold text-white">{((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100).toFixed(1)}% ({ (hoveredClient.total_tokens_consumed || 0).toLocaleString('fr-FR') })</p>
                     </div>
                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
                       <div className="h-full bg-[#10B981]" style={{ width: `${Math.min((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100, 100)}%` }} />
