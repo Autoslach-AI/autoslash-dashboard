@@ -1683,7 +1683,7 @@ export default function NeuralCommandCenterV31() {
                 </div>
 
                 {/* SEARCH & FILTERS BAR */}
-                <div className="flex flex-col md:flex-row items-center gap-3 p-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl mb-6">
+                <div className="flex flex-col md:flex-row items-center gap-3 p-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl mb-12">
                    {/* SEARCH BAR */}
                    <div className="flex-1 flex items-center gap-3 px-3">
                       <Search className="w-4 h-4 text-white/20" />
