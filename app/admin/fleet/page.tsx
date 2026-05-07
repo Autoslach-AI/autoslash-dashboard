@@ -279,7 +279,7 @@ export default function FleetPage() {
       }}
     >
       <div className="flex-1 flex flex-col min-h-screen bg-[#050505] overflow-y-auto custom-scrollbar relative">
-        <div className="px-8 py-6 space-y-12">
+        <div className="px-8 py-10 flex flex-col gap-12">
           {/* STATS CARDS - ADMIN DASHBOARD STYLE */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* CARD 1: SYSTÈMES ACTIFS */}
@@ -292,7 +292,7 @@ export default function FleetPage() {
                 </div>
               </div>
               <div className="flex items-end justify-between mb-4">
-                <p className="text-4xl font-black text-[#10B981] leading-none">{stats.activeSystems}</p>
+                <p className="text-2xl font-black text-[#10B981] leading-none">{stats.activeSystems}</p>
                 <Cpu className="w-5 h-5 text-gray-800 group-hover:text-[#10B981]/40 transition-colors" />
               </div>
               <div className="pt-4 border-t border-white/[0.03]">
@@ -310,7 +310,7 @@ export default function FleetPage() {
                 </div>
               </div>
               <div className="flex items-end justify-between mb-4">
-                <p className="text-4xl font-black text-[#3B82F6] leading-none">{(stats.totalRevenue || 0).toLocaleString('fr-FR')} FCFA</p>
+                <p className="text-2xl font-black text-[#3B82F6] leading-none">{(stats.totalRevenue || 0).toLocaleString('fr-FR')} FCFA</p>
                 <DollarSign className="w-5 h-5 text-gray-800 group-hover:text-[#3B82F6]/40 transition-colors" />
               </div>
               <div className="pt-4 border-t border-white/[0.03]">
@@ -328,7 +328,7 @@ export default function FleetPage() {
                 </div>
               </div>
               <div className="flex items-end justify-between mb-4">
-                <p className="text-4xl font-black text-[#8B5CF6] leading-none">{(stats.totalTokens || 0).toLocaleString('fr-FR')}</p>
+                <p className="text-2xl font-black text-[#8B5CF6] leading-none">{(stats.totalTokens || 0).toLocaleString('fr-FR')}</p>
                 <TrendingUp className="w-5 h-5 text-gray-800 group-hover:text-[#8B5CF6]/40 transition-colors" />
               </div>
               <div className="pt-4 border-t border-white/[0.03]">
@@ -346,7 +346,7 @@ export default function FleetPage() {
                 </div>
               </div>
               <div className="flex items-end justify-between mb-4">
-                <p className={`text-4xl font-black leading-none ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
+                <p className={`text-2xl font-black leading-none ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
                   {stats.activeAlerts}
                 </p>
                 <ShieldAlert className={`w-5 h-5 group-hover:opacity-100 transition-opacity ${stats.activeAlerts === 0 ? 'text-gray-800' : 'text-[#EF4444]/40'}`} />
@@ -360,7 +360,7 @@ export default function FleetPage() {
           </div>
 
           {/* NAVIGATION BAR - SIMPLE VERSION */}
-          <div className="flex flex-col md:flex-row items-center gap-3 p-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg mb-6">
+          <div className="flex flex-col md:flex-row items-center gap-3 p-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg">
             {/* SEARCH */}
             <div className="flex-1 flex items-center gap-3 px-3">
               <Search className="w-4 h-4 text-gray-500 group-focus-within:text-[#10B981] transition-colors" />

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ChevronRight, 
+  ChevronLeft,
   MoreHorizontal, 
   Settings, 
   Search, 
@@ -120,13 +121,21 @@ export default function DoubleRibbonIntelligent({
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-[#4ade80]/20 transition-colors z-[110]"
         />
         <div className="w-full h-full flex flex-col items-center px-4">
-          {/* BRAND AREA */}
-          <div className="flex items-center gap-3 text-white/80 mb-12 px-4 w-full">
+        {/* BRAND AREA */}
+        <div className="flex items-center justify-between gap-3 text-white/80 mb-12 px-4 w-full">
+          <div className="flex items-center gap-3">
             <div className="w-6 h-6 rounded-md bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
               {BrandIcon ? <BrandIcon className="w-3.5 h-3.5 text-white/40" /> : <Settings className="w-3.5 h-3.5 text-white/40" />}
             </div>
             {!isPrimaryCollapsed && <span className="text-[11px] font-bold tracking-tight uppercase truncate">{brandName}</span>}
           </div>
+          <button 
+            onClick={() => setIsPrimaryCollapsed(!isPrimaryCollapsed)}
+            className="w-6 h-6 rounded bg-white/5 border border-white/10 flex items-center justify-center hover:border-[#4ade80]/40 transition-all text-white/20 hover:text-[#4ade80]"
+          >
+             {isPrimaryCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+          </button>
+        </div>
 
           {/* NAVIGATION */}
           <nav className="space-y-4 flex-1 w-full overflow-y-auto no-scrollbar">
@@ -244,37 +253,8 @@ export default function DoubleRibbonIntelligent({
           isResizing ? '' : 'transition-all duration-500'
         }`}
       >
-        
-        {/* HEADER */}
-        <header className="h-14 border-b border-white/5 flex items-center justify-between px-8 bg-black/40 backdrop-blur-xl shrink-0">
-           <div className="flex items-center gap-6">
-              <button 
-                onClick={() => setIsPrimaryCollapsed(!isPrimaryCollapsed)}
-                className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:border-[#4ade80]/40 transition-all text-white/20 hover:text-[#4ade80]"
-              >
-                 {isPrimaryCollapsed ? <ChevronRight className="w-4 h-4 ml-1" /> : <ChevronRight className="w-4 h-4 rotate-180" />}
-              </button>
-           </div>
-           <div className="flex items-center gap-4">
-              <Search className="w-3.5 h-3.5 text-white/20" />
-              <button 
-                onClick={() => {
-                  if (onExit) {
-                    onExit();
-                  } else {
-                    router.push('/');
-                  }
-                  setIsSecondaryOpen(false);
-                }}
-                className="px-4 py-1.5 border border-white/10 rounded-md text-[9px] font-bold uppercase tracking-widest text-white/40 hover:text-white/80 hover:border-white/20 transition-all"
-              >
-                Exit
-              </button>
-           </div>
-        </header>
-
         {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
            {children}
         </div>
       </main>
