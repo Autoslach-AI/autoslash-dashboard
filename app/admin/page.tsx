@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, 
@@ -191,6 +191,70 @@ const CHART_DATA = [
   { name: 'May 12', value: 700 },
   { name: 'May 17', value: 500 },
 ];
+
+// Helper Dropdown Component
+const Dropdown = ({ label, options, value, onChange }: { 
+  label: string, 
+  options: string[], 
+  value: string, 
+  onChange: (val: string) => void 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-3 bg-[#0A0A0A] border border-[#2A2A2A] px-3 py-2 rounded-lg text-[10px] font-bold tracking-widest text-white uppercase hover:border-[#10B981]/40 transition-all min-w-[140px] justify-between group"
+      >
+        <span className={`truncate ${value !== 'ALL' && value !== 'ALL NODES' ? 'text-[#10B981]' : ''}`}>
+          {value === 'ALL' || value === 'ALL NODES' ? label : value}
+        </span>
+        <ChevronDown className="w-3 h-3 opacity-20 group-hover:opacity-100 transition-opacity" />
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            className="absolute top-full right-0 mt-2 w-full min-w-[160px] bg-[#111111] border border-[#2A2A2A] rounded-lg shadow-2xl z-[100] py-2 max-h-[280px] overflow-y-auto custom-scrollbar"
+          >
+            <button 
+              onClick={() => { onChange('ALL'); setIsOpen(false); }}
+              className={`w-full px-4 py-2.5 flex items-center justify-between text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === 'ALL' || value === 'ALL NODES' ? 'text-[#10B981]' : 'text-white/40'}`}
+            >
+              <span>{label}</span>
+              {(value === 'ALL' || value === 'ALL NODES') && <Check className="w-3 h-3 text-[#10B981]" />}
+            </button>
+            <div className="h-[1px] bg-[#2A2A2A] my-1 mx-2" />
+            {options.map((opt: string) => (
+              <button 
+                key={opt}
+                onClick={() => { onChange(opt); setIsOpen(false); }}
+                className={`w-full px-4 py-2.5 flex items-center justify-between text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === opt ? 'text-[#10B981]' : 'text-white/40'}`}
+              >
+                <span>{opt}</span>
+                {value === opt && <Check className="w-3 h-3 text-[#10B981]" />}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 export default function NeuralCommandCenterV31() {
   const { user, profile, loading: authLoading } = useUser();
@@ -1618,90 +1682,36 @@ export default function NeuralCommandCenterV31() {
                   </div>
                 </div>
 
-                {/* SEARCH & FILTERS LAYER */}
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-4 px-6 bg-white/[0.01] border border-white/5 rounded-2xl relative overflow-hidden">
-                   {/* Scanning Beam Animation */}
-                   <AnimatePresence>
-                      {isScanning && (
-                         <motion.div 
-                           initial={{ x: '-100%' }}
-                           animate={{ x: '100%' }}
-                           transition={{ duration: 0.6, ease: "linear", repeat: Infinity }}
-                           className="absolute inset-0 bg-gradient-to-r from-transparent via-[#4ade80]/10 to-transparent pointer-events-none z-0"
-                         />
-                      )}
-                   </AnimatePresence>
-
+                {/* SEARCH & FILTERS BAR */}
+                <div className="flex flex-col md:flex-row items-center gap-3 p-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-xl mb-6">
                    {/* SEARCH BAR */}
-                   <div className="flex-1 w-full relative z-10">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20">
-                         <Search className="w-4 h-4" />
-                      </div>
+                   <div className="flex-1 flex items-center gap-3 px-3">
+                      <Search className="w-4 h-4 text-white/20" />
                       <input 
                         type="text"
                         placeholder="Rechercher par nom, ID, statut..."
                         value={searchQuery}
-                        onChange={(e) => {
-                          setSearchQuery(e.target.value);
-                          // Local search handled by filteredClients
-                        }}
-                        className="w-full bg-[#111111] border border-[#333333] rounded-xl py-3.5 pl-12 pr-4 text-xs font-mono text-white placeholder:text-gray-500 focus:border-white/20 transition-all outline-none"
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="flex-1 bg-transparent border-none py-2 text-xs font-mono text-white placeholder:text-gray-600 outline-none"
                       />
                    </div>
-                </div>
 
-                {/* PLAN FILTERS - SÉPARÉS */}
-                <div className="flex flex-wrap gap-2 px-6 py-4 border-b border-white/5">
-                   {(['ALL NODES', 'STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE'] as const).map((planLabel) => {
-                      const planValue = planLabel === 'ALL NODES' ? 'ALL' : planLabel;
-                      const isActive = planFilter === planValue;
-                      return (
-                         <button 
-                           key={planLabel}
-                           onClick={() => setPlanFilter(planValue as any)}
-                           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
-                             isActive 
-                             ? 'bg-white text-black border-white' 
-                             : 'bg-transparent text-gray-400 border-[#333333] hover:border-gray-500'
-                           }`}
-                         >
-                           {planLabel}
-                         </button>
-                      );
-                   })}
-                </div>
+                   {/* DROPDOWNS */}
+                   <div className="flex items-center gap-2 pr-1">
+                      <Dropdown 
+                        label="ALL NODES"
+                        options={['STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']}
+                        value={planFilter === 'ALL' ? 'ALL NODES' : planFilter}
+                        onChange={(val) => setPlanFilter(val === 'ALL NODES' ? 'ALL' : val as any)}
+                      />
 
-                {/* STATUS TABS */}
-                <div className="flex flex-wrap gap-2 p-6">
-                   {([
-                      { id: 'ALL', label: 'ALL', color: 'white' },
-                      { id: 'CRITICAL', label: 'CRITICAL', color: '#ef4444' },
-                      { id: 'WARNING', label: 'WARNING', color: '#fbbf24' },
-                      { id: 'STABLE', label: 'STABLE', color: '#4ade80' },
-                      { id: 'MESSAGES', label: 'MESSAGES', color: '#3b82f6' }
-                   ] as const).map((f) => {
-                      const count = f.id === 'ALL' 
-                          ? fleetData?.clients?.length 
-                          : f.id === 'MESSAGES'
-                            ? fleetData?.clients?.filter((c: any) => c.unread_messages > 0).length
-                            : fleetData?.clients?.filter((c: any) => c.status === f.id).length;
-                      
-                      return (
-                         <button 
-                           key={f.id}
-                           onClick={() => setOracleFilter(f.id as any)}
-                           className={`px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2.5 border ${
-                             oracleFilter === f.id 
-                             ? 'bg-white/10 text-white border-white/20' 
-                             : 'bg-black/40 text-white/20 border-white/5 hover:border-white/10'
-                           }`}
-                         >
-                           <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: f.color }} />
-                           {f.label} 
-                           {count > 0 && <span className="opacity-40 tabular-nums font-mono text-[9px]">[{count}]</span>}
-                         </button>
-                      );
-                   })}
+                      <Dropdown 
+                        label="ALL STATUS"
+                        options={['CRITICAL', 'WARNING', 'STABLE', 'MESSAGES']}
+                        value={oracleFilter === 'ALL' ? 'ALL STATUS' : oracleFilter}
+                        onChange={(val) => setOracleFilter(val === 'ALL STATUS' ? 'ALL' : val as any)}
+                      />
+                   </div>
                 </div>
 
                 <div className="bg-[#0a0a0a] border border-white/5 rounded-2xl overflow-hidden shadow-2xl relative">
