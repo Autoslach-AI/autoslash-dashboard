@@ -142,12 +142,19 @@ export default function FleetPage() {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [stats, setStats] = useState({
     activeSystems: 0,
+    stableCount: 0,
+    warningCount: 0,
+    criticalCount: 0,
     totalRevenue: 0,
+    avgMaintenance: 0,
     totalTokens: 0,
-    activeAlerts: 0
+    totalBudget: 0,
+    activeAlerts: 0,
+    criticalAlerts: 0,
+    warningAlerts: 0
   });
 
-  const pageSize = 20;
+  const pageSize = 30;
 
   useEffect(() => {
     fetchData();
@@ -216,11 +223,28 @@ export default function FleetPage() {
       setClients(processed);
 
       // Calculate Stats
+      const stable = processed.filter((c: any) => c.status === 'STABLE').length;
+      const warning = processed.filter((c: any) => c.status === 'WARNING').length;
+      const critical = processed.filter((c: any) => c.status === 'CRITICAL').length;
+      const totalRev = processed.reduce((acc: number, c: any) => acc + (c.monthly_cost || 0), 0);
+      const totalTok = processed.reduce((acc: number, c: any) => acc + (c.total_tokens_consumed || 0), 0);
+      const totalBud = processed.reduce((acc: number, c: any) => acc + (c.token_budget || 0), 0);
+      
+      const critAlerts = logsData?.filter((l: any) => l.severity_level === 'CRITICAL').length || 0;
+      const warnAlerts = logsData?.filter((l: any) => l.severity_level === 'WARNING').length || 0;
+
       setStats({
         activeSystems: processed.length,
-        totalRevenue: processed.reduce((acc: number, c: any) => acc + (c.monthly_cost || 0), 0),
-        totalTokens: processed.reduce((acc: number, c: any) => acc + (c.total_tokens_consumed || 0), 0),
-        activeAlerts: logsData?.length || 0
+        stableCount: stable,
+        warningCount: warning,
+        criticalCount: critical,
+        totalRevenue: totalRev,
+        avgMaintenance: processed.length > 0 ? Math.round(totalRev / processed.length) : 0,
+        totalTokens: totalTok,
+        totalBudget: totalBud,
+        activeAlerts: logsData?.length || 0,
+        criticalAlerts: critAlerts,
+        warningAlerts: warnAlerts
       });
 
     } catch (err) {
@@ -231,20 +255,33 @@ export default function FleetPage() {
   }
 
   const filteredClients = useMemo(() => {
-    return clients.filter(c => {
-      const q = searchQuery.toLowerCase();
-      const matchesSearch = 
-        c.name.toLowerCase().includes(q) ||
-        c.project_id?.toLowerCase().includes(q) ||
-        c.package_type.toLowerCase().includes(q) ||
-        c.region.toLowerCase().includes(q) ||
-        c.sector.toLowerCase().includes(q);
-      
-      const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
-      const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
+    const statusPriority: Record<string, number> = {
+      'CRITICAL': 3,
+      'WARNING': 2,
+      'STABLE': 1
+    };
 
-      return matchesSearch && matchesPlan && matchesStatus;
-    });
+    return clients
+      .filter(c => {
+        const q = searchQuery.toLowerCase();
+        const matchesSearch = 
+          c.name.toLowerCase().includes(q) ||
+          c.project_id?.toLowerCase().includes(q) ||
+          c.package_type.toLowerCase().includes(q) ||
+          c.region.toLowerCase().includes(q) ||
+          c.sector.toLowerCase().includes(q);
+        
+        const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
+        const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
+
+        return matchesSearch && matchesPlan && matchesStatus;
+      })
+      .sort((a, b) => {
+        const prioA = statusPriority[a.status] || 0;
+        const prioB = statusPriority[b.status] || 0;
+        if (prioA !== prioB) return prioB - prioA;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
   }, [clients, searchQuery, planFilter, statusFilter]);
 
   const paginatedClients = filteredClients.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -300,7 +337,9 @@ export default function FleetPage() {
                 <Cpu className="w-5 h-5 text-gray-800 group-hover:text-[#10B981]/40 transition-colors" />
               </div>
               <div className="pt-4 border-t border-white/[0.03]">
-                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">LATTICE INFRASTRUCTURE OPTIMAL</p>
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+                  {stats.stableCount} STABLE · {stats.warningCount} WARNING · {stats.criticalCount} CRITICAL
+                </p>
               </div>
             </div>
 
@@ -318,7 +357,9 @@ export default function FleetPage() {
                 <DollarSign className="w-5 h-5 text-gray-800 group-hover:text-[#3B82F6]/40 transition-colors" />
               </div>
               <div className="pt-4 border-t border-white/[0.03]">
-                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">REVENUE STREAM SYNCHRONIZED</p>
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+                  MAINTENANCE : {stats.avgMaintenance.toLocaleString('fr-FR')} FCFA/MOIS MOYEN
+                </p>
               </div>
             </div>
 
@@ -336,7 +377,9 @@ export default function FleetPage() {
                 <TrendingUp className="w-5 h-5 text-gray-800 group-hover:text-[#8B5CF6]/40 transition-colors" />
               </div>
               <div className="pt-4 border-t border-white/[0.03]">
-                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">NEURAL THROUGHPUT ANALYSIS</p>
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+                  {stats.totalBudget > 0 ? Math.round((stats.totalTokens / stats.totalBudget) * 100) : 0}% DU BUDGET TOTAL UTILISÉ
+                </p>
               </div>
             </div>
 
@@ -357,7 +400,9 @@ export default function FleetPage() {
               </div>
               <div className="pt-4 border-t border-white/[0.03]">
                 <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
-                  {stats.activeAlerts === 0 ? 'SECURITY PROTOCOL OPTIMAL' : 'THREATS DETECTED — ACTION REQUIRED'}
+                  {stats.activeAlerts === 0 
+                    ? 'AUCUNE ALERTE ACTIVE' 
+                    : `${stats.criticalAlerts} CRITIQUE · ${stats.warningAlerts} WARNING`}
                 </p>
               </div>
             </div>
@@ -396,23 +441,27 @@ export default function FleetPage() {
 
           {/* TABLE - EXLM STYLE */}
           <div className="w-full border-t border-[#1A1A1A]">
-            <table className="w-full text-left border-collapse min-w-[1200px]">
+            <table className="w-full text-left border-collapse min-w-[1400px]">
               <thead>
                 <tr className="border-b border-[#1A1A1A]">
-                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight w-[25%] text-left">Nœud Cluster</th>
-                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-left">Région</th>
-                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Cost (FCFA)</th>
-                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Tokens</th>
-                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Agents</th>
-                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Intelligence</th>
-                  <th className="px-4 py-6 text-[11px] font-medium text-gray-500 uppercase tracking-tight text-right">Status</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest w-[20%] text-left">Nœud Cluster</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest text-left">Plan</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest text-left">Fleet Status</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest text-left">Token Usage</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest text-right">Agents</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest text-left">Intelligence Mode</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest text-left">Région · Secteur</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest text-right">Cost (FCFA)</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest text-right">Date Activation</th>
+                  <th className="px-4 py-6 text-[10px] font-bold text-gray-600 uppercase tracking-widest text-center w-[40px]">⋯</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1A1A1A]">
                 {loading ? (
-                  <tr><td colSpan={7} className="px-6 py-20 text-center text-white/10 font-mono text-[10px] tracking-widest">CONNECTING TO NEURAL HUB...</td></tr>
+                  <tr><td colSpan={10} className="px-6 py-20 text-center text-white/10 font-mono text-[10px] tracking-widest">CONNECTING TO NEURAL HUB...</td></tr>
                 ) : paginatedClients.map(client => {
                   const usage = client.token_budget > 0 ? (client.total_tokens_consumed / client.token_budget) * 100 : 0;
+                  const intelligence = client.intelligence;
                   return (
                     <tr 
                       key={client.id}
@@ -420,7 +469,7 @@ export default function FleetPage() {
                       onMouseEnter={() => setHoveredClient(client)}
                       onMouseLeave={() => setHoveredClient(null)}
                       onClick={() => router.push(`/admin/system/${client.id}`)}
-                      className="group h-[64px] hover:bg-white/[0.02] transition-all cursor-pointer"
+                      className="group h-[72px] hover:bg-white/[0.02] transition-all cursor-pointer"
                     >
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-3">
@@ -429,46 +478,95 @@ export default function FleetPage() {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <p className="text-[13px] font-bold text-white group-hover:text-[#10B981] transition-colors">{client.name}</p>
-                              <span className="text-[9px] font-bold text-[#10B981] bg-[#10B981]/10 px-1.5 py-0.5 rounded uppercase tracking-tighter">Live</span>
+                              <p className="text-[12px] font-bold text-white group-hover:text-[#10B981] transition-colors">{client.name}</p>
+                              <span className="text-[8px] font-bold text-[#10B981] bg-[#10B981]/10 px-1.5 py-0.5 rounded uppercase tracking-tighter">Live</span>
                             </div>
-                            <p className="text-[10px] font-medium text-gray-600 uppercase tracking-tight">{client.project_id || `ID-${client.id.substring(0,8)}`}</p>
+                            <p className="text-[9px] font-medium text-gray-600 uppercase tracking-tight">{client.project_id || `ID-${client.id.substring(0,8)}`}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-2">
-                        <span className="text-[12px] font-medium text-gray-400">{client.region}</span>
+                        <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest ${
+                          client.package_type === 'STARTUP' ? 'bg-gray-500/10 text-gray-500' :
+                          client.package_type === 'BUSINESS' ? 'bg-[#3B82F6]/10 text-[#3B82F6]' :
+                          client.package_type === 'ENTERPRISE' ? 'bg-[#10B981]/10 text-[#10B981]' :
+                          client.package_type === 'ELITE' ? 'bg-[#F59E0B]/10 text-[#F59E0B]' :
+                          'bg-white/5 text-white/40'
+                        }`}>
+                          {client.package_type}
+                        </span>
                       </td>
-                      <td className="px-4 py-2 text-right">
-                        <p className="text-[13px] font-bold text-white">{(client.monthly_cost || 0).toLocaleString()}</p>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <p className="text-[13px] font-bold text-white">{(client.total_tokens_consumed / 1000).toFixed(1)}K</p>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <p className="text-[13px] font-bold text-white">{client.agent_count}</p>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {client.intelligence ? (
-                            <>
-                              <span className="text-[9px] font-black text-gray-600 uppercase">{client.intelligence.issue_type}</span>
-                              <AlertTriangle className={`w-3 h-3 ${client.intelligence.severity_level === 'CRITICAL' ? 'text-red-500' : 'text-amber-500'}`} />
-                            </>
-                          ) : (
-                            <CheckCircle2 className="w-3 h-3 text-[#10B981] opacity-40" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <span className={`px-3 py-1 rounded text-[11px] font-bold uppercase tracking-tighter ${
-                            client.status === 'CRITICAL' ? 'bg-red-500/10 text-red-500' :
-                            client.status === 'WARNING' ? 'bg-amber-500/10 text-amber-500' :
-                            'bg-[#10B981]/10 text-[#10B981]'
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-1.5 h-1.5 rounded-full ${
+                            client.status === 'CRITICAL' ? 'bg-red-500' :
+                            client.status === 'WARNING' ? 'bg-amber-500' :
+                            'bg-[#10B981]'
+                          }`} />
+                          <span className={`text-[10px] font-bold uppercase tracking-tight ${
+                            client.status === 'CRITICAL' ? 'text-red-500' :
+                            client.status === 'WARNING' ? 'text-amber-500' :
+                            'text-[#10B981]'
                           }`}>
                             {client.status}
                           </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2">
+                         <div className="flex flex-col gap-1 w-32">
+                            <div className="h-[2px] w-full bg-white/5 rounded-full overflow-hidden">
+                               <div 
+                                 className={`h-full transition-all duration-1000 ${usage > 90 ? 'bg-red-500' : usage > 70 ? 'bg-amber-500' : 'bg-[#10B981]'}`}
+                                 style={{ width: `${Math.min(usage, 100)}%` }}
+                               />
+                            </div>
+                            <span className="text-[9px] font-mono font-bold text-gray-500">{usage.toFixed(1)}%</span>
+                         </div>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <p className="text-[12px] font-bold text-white tabular-nums">{client.agent_count}</p>
+                      </td>
+                      <td className="px-4 py-2">
+                         <button 
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             if (intelligence) router.push(`/admin/system/${client.id}/intelligence`);
+                           }}
+                           className="flex flex-col items-start gap-0.5 group/intel"
+                         >
+                            <div className="flex items-center gap-1.5">
+                               <span className={`text-[9px] font-black uppercase tracking-widest ${
+                                 intelligence?.severity_level === 'CRITICAL' ? 'text-red-500' :
+                                 intelligence?.severity_level === 'WARNING' ? 'text-amber-500' :
+                                 intelligence ? 'text-[#3B82F6]' : 'text-gray-600'
+                               }`}>
+                                 {intelligence?.issue_type || 'SYSTÈME OPTIMAL'}
+                               </span>
+                            </div>
+                            <span className="text-[8px] text-gray-600 font-medium line-clamp-1 max-w-[180px] group-hover/intel:text-white transition-colors">
+                               {intelligence?.raw_context || 'Operational parameters normal'}
+                            </span>
+                         </button>
+                      </td>
+                      <td className="px-4 py-2">
+                         <div className="flex flex-col">
+                            <span className="text-[11px] font-bold text-white tracking-tight">{client.region}</span>
+                            <span className="text-[9px] font-medium text-gray-600 uppercase tracking-tighter">{client.sector}</span>
+                         </div>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <p className="text-[12px] font-black text-white tabular-nums">{(client.monthly_cost || 0).toLocaleString('fr-FR')} <span className="text-[9px] text-gray-600">FCFA</span></p>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                         <p className="text-[10px] font-bold text-gray-500 font-mono">
+                            {client.activated_at 
+                              ? new Date(client.activated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                              : new Date(client.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                            }
+                         </p>
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center justify-center">
                           <button 
                             onClick={(e) => { 
                               e.stopPropagation(); 
