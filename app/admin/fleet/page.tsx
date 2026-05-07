@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   AlertTriangle,
   CheckCircle2,
+  Check,
   Bell,
   Power,
   TrendingUp,
@@ -99,21 +100,24 @@ const Dropdown = ({ label, options, value, onChange }: {
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
-            className="absolute top-full right-0 mt-1 w-full min-w-[160px] bg-[#0A0A0A] border border-[#2A2A2A] rounded shadow-2xl z-[100] py-1 max-h-[240px] overflow-y-auto custom-scrollbar"
+            className="absolute top-full right-0 mt-2 w-full min-w-[160px] bg-[#111111] border border-[#2A2A2A] rounded-lg shadow-2xl z-[100] py-2 max-h-[280px] overflow-y-auto custom-scrollbar"
           >
             <button 
               onClick={() => { onChange('ALL'); setIsOpen(false); }}
-              className={`w-full px-4 py-2 text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === 'ALL' ? 'text-[#10B981]' : 'text-white/40'}`}
+              className={`w-full px-4 py-2 flex items-center justify-between text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === 'ALL' ? 'text-[#10B981]' : 'text-white/40'}`}
             >
-              {label}
+              <span>{label}</span>
+              {value === 'ALL' && <Check className="w-3 h-3" />}
             </button>
+            <div className="h-[1px] bg-[#2A2A2A] my-1 mx-2" />
             {options.map((opt: string) => (
               <button 
                 key={opt}
                 onClick={() => { onChange(opt); setIsOpen(false); }}
-                className={`w-full px-4 py-2 text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === opt ? 'text-[#10B981]' : 'text-white/40'}`}
+                className={`w-full px-4 py-2 flex items-center justify-between text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === opt ? 'text-[#10B981]' : 'text-white/40'}`}
               >
-                {opt}
+                <span>{opt}</span>
+                {value === opt && <Check className="w-3 h-3" />}
               </button>
             ))}
           </motion.div>
