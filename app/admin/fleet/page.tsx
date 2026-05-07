@@ -278,7 +278,7 @@ export default function FleetPage() {
       }}
     >
       <div className="flex-1 flex flex-col min-h-screen bg-[#050505] overflow-y-auto custom-scrollbar relative">
-        <div className="p-8 space-y-8">
+        <div className="px-8 py-6 space-y-8">
           {/* HEADER */}
           <div className="flex items-center justify-between">
             <div className="space-y-1">
@@ -300,67 +300,87 @@ export default function FleetPage() {
             </div>
           </div>
 
-          {/* STATS CARDS - EXLM STYLE */}
+          {/* STATS CARDS - ADMIN DASHBOARD STYLE */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* CARD 1: SYSTÈMES ACTIFS */}
-            <div className="bg-[rgba(16,185,129,0.15)] border border-[rgba(16,185,129,0.2)] p-5 rounded-xl relative group transition-all">
-              <p className="text-[10px] font-bold text-[rgba(16,185,129,0.6)] uppercase tracking-widest mb-8">SYSTÈMES ACTIFS</p>
-              <div className="flex items-end justify-between">
-                <p className="text-4xl font-black text-[#10B981] leading-none">{stats.activeSystems}</p>
-                <div className="opacity-30">
-                  <Cpu className="w-6 h-6 text-[#10B981]" />
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] p-6 rounded-lg relative overflow-hidden group transition-all">
+              <div className="flex justify-between items-start mb-6">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">SYSTÈMES ACTIFS</p>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[8px] font-black text-white/40 uppercase tracking-widest">
+                  <RefreshCcw className="w-2.5 h-2.5 animate-spin-slow" />
+                  LIVE
                 </div>
+              </div>
+              <div className="flex items-end justify-between mb-4">
+                <p className="text-4xl font-black text-[#10B981] leading-none">{stats.activeSystems}</p>
+                <Cpu className="w-5 h-5 text-gray-800 group-hover:text-[#10B981]/40 transition-colors" />
+              </div>
+              <div className="pt-4 border-t border-white/[0.03]">
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">LATTICE INFRASTRUCTURE OPTIMAL</p>
               </div>
             </div>
 
             {/* CARD 2: REVENUS TOTAL */}
-            <div className="bg-[rgba(59,130,246,0.15)] border border-[rgba(59,130,246,0.2)] p-5 rounded-xl relative group transition-all">
-              <p className="text-[10px] font-bold text-[rgba(59,130,246,0.6)] uppercase tracking-widest mb-8">REVENUS TOTAL</p>
-              <div className="flex items-end justify-between">
-                <p className="text-4xl font-black text-[#3B82F6] leading-none">{(stats.totalRevenue || 0).toLocaleString('fr-FR')} FCFA</p>
-                <div className="opacity-30">
-                  <DollarSign className="w-6 h-6 text-[#3B82F6]" />
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] p-6 rounded-lg relative overflow-hidden group transition-all">
+              <div className="flex justify-between items-start mb-6">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">REVENUS TOTAL</p>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[8px] font-black text-white/40 uppercase tracking-widest">
+                  <RefreshCcw className="w-2.5 h-2.5 animate-spin-slow" />
+                  LIVE
                 </div>
+              </div>
+              <div className="flex items-end justify-between mb-4">
+                <p className="text-4xl font-black text-[#3B82F6] leading-none">{(stats.totalRevenue || 0).toLocaleString('fr-FR')} FCFA</p>
+                <DollarSign className="w-5 h-5 text-gray-800 group-hover:text-[#3B82F6]/40 transition-colors" />
+              </div>
+              <div className="pt-4 border-t border-white/[0.03]">
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">REVENUE STREAM SYNCHRONIZED</p>
               </div>
             </div>
 
             {/* CARD 3: TOKENS CONSOMMÉS */}
-            <div className="bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.2)] p-5 rounded-xl relative group transition-all">
-              <p className="text-[10px] font-bold text-[rgba(139,92,246,0.6)] uppercase tracking-widest mb-8">TOKENS CONSOMMÉS</p>
-              <div className="flex items-end justify-between">
-                <p className="text-4xl font-black text-[#8B5CF6] leading-none">{(stats.totalTokens || 0).toLocaleString('fr-FR')}</p>
-                <div className="opacity-30">
-                  <TrendingUp className="w-6 h-6 text-[#8B5CF6]" />
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] p-6 rounded-lg relative overflow-hidden group transition-all">
+              <div className="flex justify-between items-start mb-6">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">TOKENS CONSOMMÉS</p>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[8px] font-black text-white/40 uppercase tracking-widest">
+                  <RefreshCcw className="w-2.5 h-2.5 animate-spin-slow" />
+                  LIVE
                 </div>
+              </div>
+              <div className="flex items-end justify-between mb-4">
+                <p className="text-4xl font-black text-[#8B5CF6] leading-none">{(stats.totalTokens || 0).toLocaleString('fr-FR')}</p>
+                <TrendingUp className="w-5 h-5 text-gray-800 group-hover:text-[#8B5CF6]/40 transition-colors" />
+              </div>
+              <div className="pt-4 border-t border-white/[0.03]">
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">NEURAL THROUGHPUT ANALYSIS</p>
               </div>
             </div>
 
             {/* CARD 4: ALERTES ACTIVES */}
-            <div className={`p-5 rounded-xl border relative group transition-all ${
-              stats.activeAlerts === 0 
-                ? 'bg-[rgba(16,185,129,0.15)] border-[rgba(16,185,129,0.2)]' 
-                : 'bg-[rgba(239,68,68,0.15)] border-[rgba(239,68,68,0.2)]'
-            }`}>
-              <p className={`text-[10px] font-bold uppercase tracking-widest mb-8 ${
-                stats.activeAlerts === 0 ? 'text-[rgba(16,185,129,0.6)]' : 'text-[rgba(239,68,68,0.6)]'
-              }`}>ALERTES ACTIVES</p>
-              <div className="flex items-end justify-between">
-                <p className={`text-4xl font-black leading-none ${
-                  stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'
-                }`}>
+            <div className="bg-[#0A0A0A] border border-[#1A1A1A] p-6 rounded-lg relative overflow-hidden group transition-all">
+              <div className="flex justify-between items-start mb-6">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ALERTES ACTIVES</p>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[8px] font-black text-white/40 uppercase tracking-widest">
+                  <RefreshCcw className="w-2.5 h-2.5 animate-spin-slow" />
+                  LIVE
+                </div>
+              </div>
+              <div className="flex items-end justify-between mb-4">
+                <p className={`text-4xl font-black leading-none ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`}>
                   {stats.activeAlerts}
                 </p>
-                <div className="opacity-30">
-                  <ShieldAlert className={`w-6 h-6 ${
-                    stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'
-                  }`} />
-                </div>
+                <ShieldAlert className={`w-5 h-5 group-hover:opacity-100 transition-opacity ${stats.activeAlerts === 0 ? 'text-gray-800' : 'text-[#EF4444]/40'}`} />
+              </div>
+              <div className="pt-4 border-t border-white/[0.03]">
+                <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">
+                  {stats.activeAlerts === 0 ? 'SECURITY PROTOCOL OPTIMAL' : 'THREATS DETECTED — ACTION REQUIRED'}
+                </p>
               </div>
             </div>
           </div>
 
           {/* NAVIGATION BAR - SIMPLE VERSION */}
-          <div className="flex flex-col md:flex-row items-center gap-3 p-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg">
+          <div className="flex flex-col md:flex-row items-center gap-3 p-2 bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg mb-6">
             {/* SEARCH */}
             <div className="flex-1 flex items-center gap-3 px-3">
               <Search className="w-4 h-4 text-gray-500 group-focus-within:text-[#10B981] transition-colors" />
