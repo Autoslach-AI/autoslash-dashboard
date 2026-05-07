@@ -194,7 +194,7 @@ export default function FleetPage() {
         .from('admin_intelligence_logs')
         .select('client_id, issue_type, raw_context, severity_level, created_at')
         .eq('is_test', false)
-        .neq('issue_type', 'NEW_PROSPECT')
+        .not('issue_type', 'eq', 'NEW_PROSPECT')
         .order('created_at', { ascending: false });
 
       const logsMap: Record<string, any> = {};
@@ -209,6 +209,7 @@ export default function FleetPage() {
 
       logsData?.forEach((log: any) => {
         const existing = logsMap[log.client_id];
+        // If no log yet or this log has higher priority for the same client
         if (!existing || (priority[log.issue_type] || 0) > (priority[existing.issue_type] || 0)) {
           logsMap[log.client_id] = log;
         }
@@ -230,8 +231,10 @@ export default function FleetPage() {
       const totalTok = processed.reduce((acc: number, c: any) => acc + (c.total_tokens_consumed || 0), 0);
       const totalBud = processed.reduce((acc: number, c: any) => acc + (c.token_budget || 0), 0);
       
-      const critAlerts = logsData?.filter((l: any) => l.severity_level === 'CRITICAL').length || 0;
-      const warnAlerts = logsData?.filter((l: any) => l.severity_level === 'WARNING').length || 0;
+      // Alerts exclude NEW_PROSPECT (already filtered in query) AND UPSELL
+      const alertsOnly = logsData?.filter((l: any) => l.issue_type !== 'UPSELL') || [];
+      const critAlerts = alertsOnly.filter((l: any) => l.severity_level === 'CRITICAL').length;
+      const warnAlerts = alertsOnly.filter((l: any) => l.severity_level === 'WARNING').length;
 
       setStats({
         activeSystems: processed.length,
@@ -242,7 +245,7 @@ export default function FleetPage() {
         avgMaintenance: processed.length > 0 ? Math.round(totalRev / processed.length) : 0,
         totalTokens: totalTok,
         totalBudget: totalBud,
-        activeAlerts: logsData?.length || 0,
+        activeAlerts: alertsOnly.length,
         criticalAlerts: critAlerts,
         warningAlerts: warnAlerts
       });
