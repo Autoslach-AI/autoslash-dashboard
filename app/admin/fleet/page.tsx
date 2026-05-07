@@ -208,9 +208,8 @@ export default function FleetPage() {
       };
 
       logsData?.forEach((log: any) => {
-        const existing = logsMap[log.client_id];
-        // If no log yet or this log has higher priority for the same client
-        if (!existing || (priority[log.issue_type] || 0) > (priority[existing.issue_type] || 0)) {
+        // Enforce latest log enrichment by taking the first encountered (query is ordered by date desc)
+        if (!logsMap[log.client_id]) {
           logsMap[log.client_id] = log;
         }
       });
@@ -530,28 +529,21 @@ export default function FleetPage() {
                         <p className="text-[12px] font-bold text-white tabular-nums">{client.agent_count}</p>
                       </td>
                       <td className="px-4 py-2">
-                         <button 
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             if (intelligence) router.push(`/admin/system/${client.id}/intelligence`);
-                           }}
-                           className="flex flex-col items-start gap-0.5 group/intel"
-                         >
-                            <div className="flex items-center gap-1.5">
-                               <span className={`text-[9px] font-black uppercase tracking-widest ${
-                                 intelligence?.severity_level === 'CRITICAL' ? 'text-red-500' :
-                                 intelligence?.severity_level === 'WARNING' ? 'text-amber-500' :
-                                 intelligence ? 'text-[#3B82F6]' : 'text-gray-600/40'
-                               }`}>
-                                 {intelligence?.issue_type || 'SYSTÈME OPTIMAL'}
-                               </span>
-                            </div>
-                          {intelligence && (
-                            <span className="text-[8px] text-gray-600 font-medium line-clamp-1 max-w-[180px] group-hover/intel:text-white transition-colors">
-                               {intelligence.raw_context}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (intelligence) router.push(`/admin/system/${client.id}/intelligence`);
+                          }}
+                          className="flex flex-col items-start gap-0.5 group/intel"
+                        >
+                          {intelligence ? (
+                            <span className="text-[10px] font-bold" style={{ color: intelligence.severity_level === 'CRITICAL' ? '#EF4444' : intelligence.severity_level === 'WARNING' ? '#F59E0B' : '#10B981' }}>
+                              {intelligence.raw_context}
                             </span>
+                          ) : (
+                            <span className="text-[10px] font-bold" style={{ color: '#4B5563' }}>SYSTÈME OPTIMAL</span>
                           )}
-                         </button>
+                        </button>
                       </td>
                       <td className="px-4 py-2">
                          <div className="flex flex-col">
