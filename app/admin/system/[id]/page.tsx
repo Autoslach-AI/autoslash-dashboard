@@ -61,25 +61,24 @@ export default function ClientIsolatedSystemPage() {
       if (entData) {
         setClientData(entData);
 
-        // Fetch max agents from plan_definitions
-        const { data: planData } = await supabase
+        // 1. Lire max_agents depuis plan_definitions
+        const { data: planDef } = await supabase
           .from('plan_definitions')
-          .select('max_agents_allowed, next_plan_name')
+          .select('max_agents_allowed')
           .eq('plan_name', entData.package_type)
-          .maybeSingle();
-        
-        setMaxAgents(planData?.max_agents_allowed || 0);
-        // Storing next plan in clientData for the locked card message
-        setClientData((prev: any) => ({ ...prev, next_plan_name: planData?.next_plan_name }));
+          .single();
+
+        const maxAgentsValue = planDef?.max_agents_allowed ?? 0;
+        setMaxAgents(maxAgentsValue);
       }
 
-      // Fetch agents
+      // 2. Lire agents depuis table agents
       const { data: agentsData } = await supabase
         .from('agents')
         .select('id, name, status, primary_api, neural_load, current_task')
         .eq('enterprise_id', id);
-      
-      setAgents(agentsData || []);
+
+      setAgents(agentsData ?? []);
 
       setBooting(false);
 
@@ -309,121 +308,76 @@ export default function ClientIsolatedSystemPage() {
               <Lock className="w-10 h-10 mb-4 text-[#4B5563]" />
               <h4 className="text-[12px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4">AUCUN AGENT — PLAN STARTUP</h4>
               <button 
+                onClick={() => router.push(`/admin/system/${id}/settings`)}
                 className="px-8 py-3 bg-[#10B981] text-black font-black text-[11px] uppercase tracking-[0.2em] rounded-lg hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]"
               >
                 UPGRADER LE PLAN
               </button>
             </div>
+          ) : agents.length === 0 ? (
+            <div className={`grid gap-px bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden ${
+              maxAgents >= 3 ? 'grid-cols-3' : maxAgents === 2 ? 'grid-cols-2' : 'grid-cols-1'
+            }`}>
+              {Array.from({ length: maxAgents }).map((_, i) => (
+                <div 
+                  key={`empty-${i}`} 
+                  onClick={() => router.push(`/admin/system/${id}/agents`)}
+                  className="bg-[#0D0D0D] p-12 border border-dashed border-[#10B981]/20 flex flex-col items-center justify-center text-center group/config cursor-pointer hover:bg-[#10B981]/5 transition-all min-h-[300px]"
+                >
+                  <Plus className="w-8 h-8 text-[#10B981] mb-6 opacity-40 group-hover/config:opacity-100 transition-opacity" />
+                  <button className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.2em] px-5 py-2.5 border border-[#10B981]/10 rounded-lg group-hover/config:bg-[#10B981] group-hover/config:text-black transition-all">
+                    + CONFIGURER CET AGENT
+                  </button>
+                </div>
+              ))}
+            </div>
           ) : (
             <div className={`grid gap-px bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl overflow-hidden ${
-              maxAgents >= 3 || agents.length >= 3 ? 'grid-cols-3' : (maxAgents === 2 || agents.length === 2) ? 'grid-cols-2' : 'grid-cols-1'
+              agents.length >= 3 ? 'grid-cols-3' : agents.length === 2 ? 'grid-cols-2' : 'grid-cols-1'
             }`}>
-              {Array.from({ length: Math.max(3, maxAgents) }).map((_, i) => {
-                const agent = agents[i];
-                const slotNumber = i + 1;
-                const isLocked = slotNumber > maxAgents;
+              {agents.map((agent) => {
+                const neuralLoad = agent.neural_load || 0;
+                const loadColor = neuralLoad <= 50 ? '#10B981' : neuralLoad <= 80 ? '#F59E0B' : '#EF4444';
                 
-                if (agent) {
-                  const neuralLoad = agent.neural_load || 0;
-                  const loadColor = neuralLoad <= 50 ? '#10B981' : neuralLoad <= 80 ? '#F59E0B' : '#EF4444';
-                  const lastTask = tasksStream.find(t => t.agent_id === agent.id);
-
-                  return (
-                    <div 
-                      key={agent.id} 
-                      onClick={() => router.push(`/admin/system/${id}/agents`)}
-                      className="bg-[#0D0D0D] p-6 hover:bg-[#111827] transition-all group/agent cursor-pointer relative"
-                    >
-                      {/* TOOLTIP ON HOVER */}
-                      <div className="absolute inset-0 z-20 bg-[#111827] p-6 opacity-0 group-hover/agent:opacity-100 pointer-events-none transition-opacity duration-150">
-                        <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-2">
-                          <Activity className="w-3.5 h-3.5 text-[#10B981]" />
-                          <span className="text-[10px] font-black text-white uppercase tracking-widest">DERNIÈRE ACTIVITE</span>
-                        </div>
-                        {lastTask ? (
-                          <div className="space-y-3">
-                            <p className="text-[11px] text-white/80 font-medium line-clamp-2">{lastTask.task_description}</p>
-                            <div className="grid grid-cols-2 gap-2 pt-2">
-                              <div className="flex flex-col">
-                                <span className="text-[7px] text-white/30 uppercase font-bold">TYPE</span>
-                                <span className="text-[9px] text-[#10B981] font-mono leading-none">{lastTask.task_type}</span>
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-[7px] text-white/30 uppercase font-bold">DATE</span>
-                                <span className="text-[9px] text-white font-mono leading-none">{new Date(lastTask.started_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                              </div>
-                            </div>
-                            <div className={`mt-2 inline-block px-2 py-0.5 rounded text-[7px] font-black uppercase ${
-                              lastTask.status === 'COMPLETED' ? 'bg-[#10B981]/10 text-[#10B981]' : 'bg-[#F59E0B]/10 text-[#F59E0B]'
-                            }`}>
-                              STATUT: {lastTask.status}
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-[10px] font-mono text-white/20 uppercase">AUCUNE DONNÉE RÉCENTE</p>
-                        )}
-                      </div>
-
-                      <div className="flex justify-between items-start mb-6">
-                        <span className="text-[8px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.name.replace(/\s+/g, '_').toUpperCase()}]</span>
-                        <div className="flex items-center gap-1.5">
-                          <div className={`w-1.5 h-1.5 rounded-full ${agent.status?.toLowerCase() === 'active' ? 'bg-[#10B981]' : 'bg-[#6B7280]'}`} />
-                          <span className={`text-[8px] font-bold uppercase tracking-widest ${agent.status?.toLowerCase() === 'active' ? 'text-[#10B981]' : 'text-[#6B7280]'}`}>
-                            {agent.status?.toLowerCase() === 'active' ? '● ACTIVE' : '● STANDBY'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="mb-8">
-                        <h4 className="text-[18px] font-black text-white uppercase tracking-tighter mb-1">{agent.name}</h4>
-                        <p className="text-[9px] font-mono text-white/30 uppercase tracking-[0.2em]">{agent.primary_api || 'LLM_UNIT'}</p>
-                      </div>
-
-                      <div className="space-y-2 mb-8">
-                        <div className="flex justify-between text-[8px] font-bold text-[#6B7280] uppercase tracking-widest font-mono">
-                          <span>NEURAL_LOAD</span>
-                          <span style={{ color: loadColor }}>{neuralLoad}%</span>
-                        </div>
-                        <div className="h-[2px] w-full bg-white/5 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full transition-all duration-1000" 
-                            style={{ width: `${neuralLoad}%`, backgroundColor: loadColor }} 
-                          />
-                        </div>
-                      </div>
-
-                      <div className="pt-6 border-t border-white/5">
-                        <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight line-clamp-1">
-                          {agent.current_task ? agent.current_task.substring(0, 35) + '...' : 'EN ATTENTE DE MISSION'}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                }
-
-                if (isLocked) {
-                  return (
-                    <div 
-                      key={`locked-${i}`} 
-                      className="bg-[#080808] p-8 border border-[#1a1a1a] flex flex-col items-center justify-center text-center opacity-40 group/locked relative overflow-hidden"
-                    >
-                      <LockIcon className="w-6 h-6 text-[#4B5563] mb-3" />
-                      <span className="text-[9px] font-black text-[#4B5563] uppercase tracking-[0.2em]">SLOT VERROUILLÉ</span>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-                    </div>
-                  );
-                }
-
                 return (
                   <div 
-                    key={`empty-${i}`} 
+                    key={agent.id} 
                     onClick={() => router.push(`/admin/system/${id}/agents`)}
-                    className="bg-[#0D0D0D] p-8 border border-dashed border-[#10B981]/20 flex flex-col items-center justify-center text-center group/config cursor-pointer hover:bg-[#10B981]/5 transition-all"
+                    className="bg-[#0D0D0D] p-6 hover:bg-[#111827] transition-all group/agent cursor-pointer relative border border-transparent hover:border-white/5"
                   >
-                    <Plus className="w-8 h-8 text-[#10B981] mb-4 opacity-40 group-hover/config:opacity-100 transition-opacity" />
-                    <button className="text-[10px] font-black text-[#10B981] uppercase tracking-[0.2em] px-4 py-2 border border-[#10B981]/10 rounded-lg group-hover/config:bg-[#10B981] group-hover/config:text-black transition-all">
-                      + CONFIGURER
-                    </button>
+                    <div className="flex justify-between items-start mb-6">
+                      <span className="text-[8px] font-mono text-[#6B7280] uppercase tracking-widest">[{agent.name.replace(/\s+/g, '_').toUpperCase()}]</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className={`w-1.5 h-1.5 rounded-full ${agent.status?.toLowerCase() === 'active' ? 'bg-[#10B981]' : 'bg-[#6B7280]'}`} />
+                        <span className={`text-[8px] font-bold uppercase tracking-widest ${agent.status?.toLowerCase() === 'active' ? 'text-[#10B981]' : 'text-[#6B7280]'}`}>
+                          {agent.status?.toLowerCase() === 'active' ? '● ACTIVE' : '● STANDBY'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-8">
+                      <h4 className="text-[18px] font-black text-white uppercase tracking-tighter mb-1">{agent.name}</h4>
+                      <p className="text-[9px] font-mono text-white/30 uppercase tracking-[0.2em]">{agent.primary_api || 'LLM_UNIT'}</p>
+                    </div>
+
+                    <div className="space-y-2 mb-8">
+                      <div className="flex justify-between text-[8px] font-bold text-[#6B7280] uppercase tracking-widest font-mono">
+                        <span>NEURAL_LOAD</span>
+                        <span style={{ color: loadColor }}>{neuralLoad}%</span>
+                      </div>
+                      <div className="h-[2px] w-full bg-white/5 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full transition-all duration-1000" 
+                          style={{ width: `${neuralLoad}%`, backgroundColor: loadColor }} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-white/5">
+                      <p className="text-[9px] font-mono text-[#4B5563] uppercase tracking-tight line-clamp-1">
+                        {agent.current_task ? agent.current_task : 'EN ATTENTE DE MISSION'}
+                      </p>
+                    </div>
                   </div>
                 );
               })}
