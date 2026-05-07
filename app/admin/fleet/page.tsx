@@ -104,20 +104,20 @@ const Dropdown = ({ label, options, value, onChange }: {
           >
             <button 
               onClick={() => { onChange('ALL'); setIsOpen(false); }}
-              className={`w-full px-4 py-2 flex items-center justify-between text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === 'ALL' ? 'text-[#10B981]' : 'text-white/40'}`}
+              className={`w-full px-4 py-2.5 flex items-center justify-between text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === 'ALL' ? 'text-[#10B981]' : 'text-white/40'}`}
             >
               <span>{label}</span>
-              {value === 'ALL' && <Check className="w-3 h-3" />}
+              {value === 'ALL' && <Check className="w-3 h-3 text-[#10B981]" />}
             </button>
             <div className="h-[1px] bg-[#2A2A2A] my-1 mx-2" />
             {options.map((opt: string) => (
               <button 
                 key={opt}
                 onClick={() => { onChange(opt); setIsOpen(false); }}
-                className={`w-full px-4 py-2 flex items-center justify-between text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === opt ? 'text-[#10B981]' : 'text-white/40'}`}
+                className={`w-full px-4 py-2.5 flex items-center justify-between text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === opt ? 'text-[#10B981]' : 'text-white/40'}`}
               >
                 <span>{opt}</span>
-                {value === opt && <Check className="w-3 h-3" />}
+                {value === opt && <Check className="w-3 h-3 text-[#10B981]" />}
               </button>
             ))}
           </motion.div>
@@ -131,7 +131,7 @@ export default function FleetPage() {
   const router = useRouter();
   const { user, profile } = useUser();
   const [clients, setClients] = useState<ClientNode[]>([]);
-  const [plans, setPlans] = useState<string[]>([]);
+  const [plans, setPlans] = useState<string[]>(['STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanType>('ALL');
