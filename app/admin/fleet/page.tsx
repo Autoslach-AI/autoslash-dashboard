@@ -239,52 +239,62 @@ export default function FleetPage() {
             </div>
           </div>
 
-          {/* STATS CARDS - OPTION A */}
+          {/* STATS CARDS - EXLM STYLE */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {/* CARD 1: SYSTÈMES ACTIFS */}
-            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#10B981] p-5 rounded-xl relative overflow-hidden group">
-              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
-                <Cpu className="w-5 h-5 text-[#10B981]" />
+            <div className="bg-[rgba(16,185,129,0.15)] border border-[rgba(16,185,129,0.2)] p-5 rounded-xl relative group transition-all">
+              <p className="text-[10px] font-bold text-[rgba(16,185,129,0.6)] uppercase tracking-widest mb-8">SYSTÈMES ACTIFS</p>
+              <div className="flex items-end justify-between">
+                <p className="text-4xl font-black text-[#10B981] leading-none">{stats.activeSystems}</p>
+                <div className="opacity-30">
+                  <Cpu className="w-6 h-6 text-[#10B981]" />
+                </div>
               </div>
-              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">SYSTÈMES ACTIFS</p>
-              <p className="text-3xl font-black text-[#10B981] uppercase">{stats.activeSystems}</p>
             </div>
 
             {/* CARD 2: REVENUS TOTAL */}
-            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#3B82F6] p-5 rounded-xl relative overflow-hidden group">
-              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
-                <DollarSign className="w-5 h-5 text-[#3B82F6]" />
+            <div className="bg-[rgba(59,130,246,0.15)] border border-[rgba(59,130,246,0.2)] p-5 rounded-xl relative group transition-all">
+              <p className="text-[10px] font-bold text-[rgba(59,130,246,0.6)] uppercase tracking-widest mb-8">REVENUS TOTAL</p>
+              <div className="flex items-end justify-between">
+                <p className="text-4xl font-black text-[#3B82F6] leading-none">{(stats.totalRevenue || 0).toLocaleString('fr-FR')} FCFA</p>
+                <div className="opacity-30">
+                  <DollarSign className="w-6 h-6 text-[#3B82F6]" />
+                </div>
               </div>
-              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">REVENUS TOTAL</p>
-              <p className="text-3xl font-black text-[#3B82F6] uppercase">{(stats.totalRevenue || 0).toLocaleString('fr-FR')} FCFA</p>
             </div>
 
             {/* CARD 3: TOKENS CONSOMMÉS */}
-            <div className="bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 border-l-[#8B5CF6] p-5 rounded-xl relative overflow-hidden group">
-              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
-                <TrendingUp className="w-5 h-5 text-[#8B5CF6]" />
+            <div className="bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.2)] p-5 rounded-xl relative group transition-all">
+              <p className="text-[10px] font-bold text-[rgba(139,92,246,0.6)] uppercase tracking-widest mb-8">TOKENS CONSOMMÉS</p>
+              <div className="flex items-end justify-between">
+                <p className="text-4xl font-black text-[#8B5CF6] leading-none">{(stats.totalTokens || 0).toLocaleString('fr-FR')}</p>
+                <div className="opacity-30">
+                  <TrendingUp className="w-6 h-6 text-[#8B5CF6]" />
+                </div>
               </div>
-              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">TOKENS CONSOMMÉS</p>
-              <p className="text-3xl font-black text-[#8B5CF6] uppercase">
-                {stats.totalTokens >= 1000000 
-                  ? `${(stats.totalTokens / 1000000).toFixed(2)}M` 
-                  : stats.totalTokens.toLocaleString('fr-FR')}
-              </p>
             </div>
 
             {/* CARD 4: ALERTES ACTIVES */}
-            <div className={`bg-[#0A0A0A] border border-[#1A1A1A] border-l-4 p-5 rounded-xl relative overflow-hidden group ${
-              stats.activeAlerts === 0 ? 'border-l-[#10B981]' : 'border-l-[#EF4444]'
+            <div className={`p-5 rounded-xl border relative group transition-all ${
+              stats.activeAlerts === 0 
+                ? 'bg-[rgba(16,185,129,0.15)] border-[rgba(16,185,129,0.2)]' 
+                : 'bg-[rgba(239,68,68,0.15)] border-[rgba(239,68,68,0.2)]'
             }`}>
-              <div className="absolute top-4 right-4 opacity-20 group-hover:opacity-40 transition-opacity">
-                <ShieldAlert className={`w-5 h-5 ${stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'}`} />
+              <p className={`text-[10px] font-bold uppercase tracking-widest mb-8 ${
+                stats.activeAlerts === 0 ? 'text-[rgba(16,185,129,0.6)]' : 'text-[rgba(239,68,68,0.6)]'
+              }`}>ALERTES ACTIVES</p>
+              <div className="flex items-end justify-between">
+                <p className={`text-4xl font-black leading-none ${
+                  stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'
+                }`}>
+                  {stats.activeAlerts}
+                </p>
+                <div className="opacity-30">
+                  <ShieldAlert className={`w-6 h-6 ${
+                    stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'
+                  }`} />
+                </div>
               </div>
-              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mb-4">ALERTES ACTIVES</p>
-              <p className={`text-3xl font-black uppercase ${
-                stats.activeAlerts === 0 ? 'text-[#10B981]' : 'text-[#EF4444]'
-              }`}>
-                {stats.activeAlerts === 0 ? 'OPTIMAL' : stats.activeAlerts}
-              </p>
             </div>
           </div>
 
