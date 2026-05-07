@@ -62,6 +62,67 @@ interface ClientNode {
   };
 }
 
+// Helper Dropdown Component
+const Dropdown = ({ label, options, value, onChange }: { 
+  label: string, 
+  options: string[], 
+  value: string, 
+  onChange: (val: string) => void 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-3 bg-[#0A0A0A] border border-[#2A2A2A] px-3 py-1.5 rounded text-[10px] font-bold tracking-widest text-white uppercase hover:border-[#10B981]/40 transition-all min-w-[120px] justify-between group"
+      >
+        <span className={`truncate ${value !== 'ALL' ? 'text-[#10B981]' : ''}`}>
+          {value === 'ALL' ? label : value}
+        </span>
+        <span className="text-[8px] opacity-40 group-hover:opacity-100 transition-opacity">▼</span>
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 5 }}
+            className="absolute top-full right-0 mt-1 w-full min-w-[160px] bg-[#0A0A0A] border border-[#2A2A2A] rounded shadow-2xl z-[100] py-1 max-h-[240px] overflow-y-auto custom-scrollbar"
+          >
+            <button 
+              onClick={() => { onChange('ALL'); setIsOpen(false); }}
+              className={`w-full px-4 py-2 text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === 'ALL' ? 'text-[#10B981]' : 'text-white/40'}`}
+            >
+              {label}
+            </button>
+            {options.map((opt: string) => (
+              <button 
+                key={opt}
+                onClick={() => { onChange(opt); setIsOpen(false); }}
+                className={`w-full px-4 py-2 text-left text-[10px] font-bold tracking-widest uppercase hover:bg-white/5 transition-all ${value === opt ? 'text-[#10B981]' : 'text-white/40'}`}
+              >
+                {opt}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 export default function FleetPage() {
   const router = useRouter();
   const { user, profile } = useUser();
@@ -71,6 +132,9 @@ export default function FleetPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<PlanType>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusType>('ALL');
+  const [regionFilter, setRegionFilter] = useState<string>('ALL');
+  const [sectorFilter, setSectorFilter] = useState<string>('ALL');
+  const [activeTab, setActiveTab] = useState<'FLEET' | 'PROSPECTS'>('FLEET');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [hoveredClient, setHoveredClient] = useState<ClientNode | null>(null);
@@ -165,6 +229,16 @@ export default function FleetPage() {
     }
   }
 
+  const regions = useMemo(() => {
+    const r = new Set(clients.map(c => c.region));
+    return Array.from(r).filter(Boolean).sort();
+  }, [clients]);
+
+  const sectors = useMemo(() => {
+    const s = new Set(clients.map(c => c.sector));
+    return Array.from(s).filter(Boolean).sort();
+  }, [clients]);
+
   const filteredClients = useMemo(() => {
     return clients.filter(c => {
       const q = searchQuery.toLowerCase();
@@ -177,10 +251,12 @@ export default function FleetPage() {
       
       const matchesPlan = planFilter === 'ALL' || c.package_type === planFilter;
       const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
+      const matchesRegion = regionFilter === 'ALL' || c.region === regionFilter;
+      const matchesSector = sectorFilter === 'ALL' || c.sector === sectorFilter;
 
-      return matchesSearch && matchesPlan && matchesStatus;
+      return matchesSearch && matchesPlan && matchesStatus && matchesRegion && matchesSector;
     });
-  }, [clients, searchQuery, planFilter, statusFilter]);
+  }, [clients, searchQuery, planFilter, statusFilter, regionFilter, sectorFilter]);
 
   const paginatedClients = filteredClients.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(filteredClients.length / pageSize);
@@ -298,52 +374,82 @@ export default function FleetPage() {
             </div>
           </div>
 
-          {/* NAVIGATION BAR - EXLM STYLE */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-2">
-            <div className="flex items-center gap-1 bg-[#1A1A1A] p-1 rounded-lg">
+          {/* NAVIGATION BAR - COMPACT VERSION */}
+          <div className="flex flex-col md:flex-row items-center gap-6 py-2 border-b border-[#1A1A1A]">
+            {/* TABS */}
+            <div className="flex items-center gap-8 h-12">
               <button 
-                onClick={() => setPlanFilter('ALL')}
-                className={`px-4 py-1.5 rounded-md text-[11px] font-bold uppercase transition-all ${planFilter === 'ALL' ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
+                onClick={() => setActiveTab('FLEET')}
+                className={`h-full px-2 text-[11px] font-bold uppercase tracking-[0.2em] transition-all relative ${
+                  activeTab === 'FLEET' ? 'text-white' : 'text-gray-500 hover:text-white'
+                }`}
               >
-                ALL NODES
+                FLEET
+                {activeTab === 'FLEET' && (
+                  <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#10B981]" />
+                )}
               </button>
-              {plans.map(plan => (
-                <button 
-                  key={plan}
-                  onClick={() => setPlanFilter(plan)}
-                  className={`px-4 py-1.5 rounded-md text-[11px] font-bold uppercase transition-all ${planFilter === plan ? 'bg-white text-black' : 'text-gray-500 hover:text-white'}`}
-                >
-                  {plan}
-                </button>
-              ))}
+              <button 
+                onClick={() => setActiveTab('PROSPECTS')}
+                className={`h-full px-2 text-[11px] font-bold uppercase tracking-[0.2em] transition-all relative ${
+                  activeTab === 'PROSPECTS' ? 'text-white' : 'text-gray-500 hover:text-white'
+                }`}
+              >
+                PROSPECTS
+                {activeTab === 'PROSPECTS' && (
+                  <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#10B981]" />
+                )}
+              </button>
             </div>
 
-            <div className="flex items-center gap-4 flex-1 max-w-2xl px-4">
-              <div className="relative group w-full">
-                <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-white transition-colors" />
-                <input 
-                  type="text"
-                  placeholder="Universal search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent border-none px-8 py-2 text-[13px] font-medium text-white placeholder:text-gray-600 outline-none"
-                />
-              </div>
+            {/* SEPARATEUR */}
+            <div className="w-[1px] h-6 bg-[#2A2A2A] hidden md:block" />
+
+            {/* SEARCH */}
+            <div className="flex-1 flex items-center gap-3 group">
+              <Search className="w-4 h-4 text-gray-500 group-focus-within:text-[#10B981] transition-colors" />
+              <input 
+                type="text"
+                placeholder="Rechercher..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none text-[11px] font-bold tracking-widest text-white placeholder:text-gray-600 outline-none w-full"
+              />
+            </div>
+
+            {/* DROPDOWNS */}
+            <div className="flex items-center gap-3">
+              <Dropdown 
+                label="All Nodes" 
+                options={plans} 
+                value={planFilter} 
+                onChange={setPlanFilter} 
+              />
+              <Dropdown 
+                label="All Status" 
+                options={['STABLE', 'WARNING', 'CRITICAL']} 
+                value={statusFilter} 
+                onChange={(val) => setStatusFilter(val as StatusType)} 
+              />
+              <Dropdown 
+                label="Région" 
+                options={regions} 
+                value={regionFilter} 
+                onChange={setRegionFilter} 
+              />
+              <Dropdown 
+                label="Secteur" 
+                options={sectors} 
+                value={sectorFilter} 
+                onChange={setSectorFilter} 
+              />
               
-              <div className="flex items-center gap-2 text-gray-500 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap">
-                <span>Filter by status:</span>
-                <div className="flex items-center gap-1 bg-[#1A1A1A] p-1 rounded-lg">
-                  {['ALL', 'STABLE', 'WARNING', 'CRITICAL'].map(status => (
-                    <button 
-                      key={status}
-                      onClick={() => setStatusFilter(status as any)}
-                      className={`px-3 py-1 rounded-md text-[10px] transition-all ${statusFilter === status ? 'bg-[#2A2A2A] text-white' : 'hover:text-white'}`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <button 
+                onClick={() => fetchData()}
+                className="p-2 hover:bg-white/5 rounded text-gray-600 hover:text-[#10B981] transition-all"
+              >
+                <RefreshCcw className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
