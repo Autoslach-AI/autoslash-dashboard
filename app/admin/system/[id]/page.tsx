@@ -52,33 +52,31 @@ export default function ClientIsolatedSystemPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data: entData } = await supabase
+      const { data: enterprise } = await supabase
         .from('enterprises')
         .select('*, token_budget, total_tokens_consumed, last_event_text, last_event_at')
         .eq('id', id)
         .single();
       
-      if (entData) {
-        setClientData(entData);
+      if (enterprise) {
+        setClientData(enterprise);
 
-        // 1. Lire max_agents depuis plan_definitions
         const { data: planDef } = await supabase
           .from('plan_definitions')
           .select('max_agents_allowed')
-          .eq('plan_name', entData.package_type)
-          .single();
+          .eq('plan_name', enterprise.package_type)
+          .single()
 
-        const maxAgentsValue = planDef?.max_agents_allowed ?? 0;
+        const maxAgentsValue = enterprise.max_agents_override ?? planDef?.max_agents_allowed ?? 0
         setMaxAgents(maxAgentsValue);
+
+        const { data: agentsData } = await supabase
+          .from('agents')
+          .select('id, name, status, primary_api, neural_load, current_task')
+          .eq('enterprise_id', enterprise.enterprise_id)
+
+        setAgents(agentsData ?? []);
       }
-
-      // 2. Lire agents depuis table agents
-      const { data: agentsData } = await supabase
-        .from('agents')
-        .select('id, name, status, primary_api, neural_load, current_task')
-        .eq('enterprise_id', id);
-
-      setAgents(agentsData ?? []);
 
       setBooting(false);
 
