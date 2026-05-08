@@ -635,52 +635,52 @@ export default function FleetPage() {
                 zIndex: 9999,
                 pointerEvents: 'none'
               }}
-              className="w-[320px] bg-[#0F1014] border border-[#2A2A2A] rounded-xl p-6 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
+              className="w-[260px] bg-[#0F1014] border border-[#2A2A2A] rounded-xl p-3 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
             >
-               <div className="space-y-6">
+               <div className="space-y-2">
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-2xl font-bold text-white tracking-tight">{hoveredClient.name}</h4>
-                      <p className="text-[12px] font-medium text-gray-500">{hoveredClient.package_type}</p>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <h4 className="text-sm font-bold text-white tracking-tight">{hoveredClient.name}</h4>
+                      <p className="text-xs font-medium text-gray-500">{hoveredClient.package_type}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                       <span className="text-[#10B981] text-[11px] font-bold uppercase tracking-widest">{hoveredClient.project_id}</span>
-                       <span className="text-gray-600 text-[11px]">•</span>
-                       <span className="text-gray-600 text-[11px] uppercase tracking-tighter">{hoveredClient.sector}</span>
+                       <span className="text-[#10B981] text-xs font-bold uppercase tracking-widest">{hoveredClient.project_id}</span>
+                       <span className="text-gray-600 text-xs">•</span>
+                       <span className="text-gray-600 text-xs uppercase tracking-tighter">{hoveredClient.sector}</span>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">NEURAL USAGE</p>
-                      <p className="text-[11px] font-bold text-white">{Math.round((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100)}%</p>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">NEURAL USAGE</p>
+                      <p className="text-sm font-bold text-white">{Math.round((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100)}%</p>
                     </div>
                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
                       <div className="h-full bg-[#10B981]" style={{ width: `${Math.min((hoveredClient.total_tokens_consumed / (hoveredClient.token_budget || 1)) * 100, 100)}%` }} />
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
                     <div className="flex flex-col">
-                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">TOTAL AGENTS</p>
-                       <p className="text-lg font-bold text-white">{hoveredClient.agent_count}</p>
+                       <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">TOTAL AGENTS</p>
+                       <p className="text-sm font-bold text-white">{hoveredClient.agent_count}</p>
                     </div>
                     <div className="text-right">
-                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">STATUS</p>
-                       <p className={`text-[11px] font-bold uppercase ${hoveredClient.status === 'CRITICAL' ? 'text-red-500' : 'text-[#10B981]'}`}>{hoveredClient.status}</p>
+                       <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">STATUS</p>
+                       <p className={`text-sm font-bold uppercase ${hoveredClient.status === 'CRITICAL' ? 'text-red-500' : 'text-[#10B981]'}`}>{hoveredClient.status}</p>
                     </div>
                   </div>
 
                   {hoveredClient.intelligence && (
-                    <div className="bg-red-500/5 border border-red-500/10 p-3 rounded-lg">
-                       <p className="text-[9px] font-black text-red-500 uppercase tracking-widest mb-1">{hoveredClient.intelligence.issue_type}</p>
-                       <p className="text-[11px] text-red-500/60 leading-tight line-clamp-2">{hoveredClient.intelligence.raw_context}</p>
+                    <div className="bg-red-500/5 border border-red-500/10 p-2 rounded-lg">
+                       <p className="text-xs font-black text-red-500 uppercase tracking-widest mb-0.5">{hoveredClient.intelligence.issue_type}</p>
+                       <p className="text-sm text-red-500/60 leading-tight line-clamp-2">{hoveredClient.intelligence.raw_context}</p>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between text-[11px] font-bold text-[#10B981] group cursor-pointer pt-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-[#10B981] group cursor-pointer pt-1 py-1.5">
                     <span className="tracking-widest uppercase">Open neural pathway</span>
-                    <ArrowUpRight className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                    <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
                   </div>
                </div>
             </motion.div>
