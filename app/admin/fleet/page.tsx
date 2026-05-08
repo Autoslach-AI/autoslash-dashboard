@@ -222,6 +222,12 @@ export default function FleetPage() {
       setClients(processed);
 
       // Calculate Stats
+      const realClientIds = (clientsData || []).map((c: any) => c.id);
+      const alertsForStats = (logsData || []).filter((l: any) => 
+        realClientIds.includes(l.client_id) && 
+        l.issue_type !== 'UPSELL'
+      );
+
       const stable = processed.filter((c: any) => c.status === 'STABLE').length;
       const warning = processed.filter((c: any) => c.status === 'WARNING').length;
       const critical = processed.filter((c: any) => c.status === 'CRITICAL').length;
@@ -229,10 +235,9 @@ export default function FleetPage() {
       const totalTok = processed.reduce((acc: number, c: any) => acc + (c.total_tokens_consumed || 0), 0);
       const totalBud = processed.reduce((acc: number, c: any) => acc + (c.token_budget || 0), 0);
       
-      // Alerts exclude NEW_PROSPECT (already filtered in query) AND UPSELL
-      const alertsOnly = logsData?.filter((l: any) => l.issue_type !== 'UPSELL') || [];
-      const critAlerts = alertsOnly.filter((l: any) => l.severity_level === 'CRITICAL').length;
-      const warnAlerts = alertsOnly.filter((l: any) => l.severity_level === 'WARNING').length;
+      const alertCount = alertsForStats.length;
+      const critAlerts = alertsForStats.filter((l: any) => l.severity_level === 'CRITICAL').length;
+      const warnAlerts = alertsForStats.filter((l: any) => l.severity_level === 'WARNING').length;
 
       setStats({
         activeSystems: processed.length,
@@ -243,7 +248,7 @@ export default function FleetPage() {
         avgMaintenance: processed.length > 0 ? Math.round(totalRev / processed.length) : 0,
         totalTokens: totalTok,
         totalBudget: totalBud,
-        activeAlerts: alertsOnly.length,
+        activeAlerts: alertCount,
         criticalAlerts: critAlerts,
         warningAlerts: warnAlerts
       });
