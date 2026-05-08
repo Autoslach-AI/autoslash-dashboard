@@ -193,7 +193,6 @@ export default function FleetPage() {
       const { data: logsData } = await supabase
         .from('admin_intelligence_logs')
         .select('client_id, issue_type, raw_context, severity_level, created_at')
-        .eq('is_test', false)
         .not('issue_type', 'eq', 'NEW_PROSPECT')
         .order('created_at', { ascending: false });
 
