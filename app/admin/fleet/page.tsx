@@ -179,16 +179,6 @@ export default function FleetPage() {
 
       if (clientError) throw clientError;
 
-      // 3. Fetch agent counts
-      const { data: agentCountsData } = await supabase
-        .from('agents')
-        .select('enterprise_id')
-
-      const countMap = agentCountsData?.reduce((acc: Record<string, number>, a: any) => {
-        acc[a.enterprise_id] = (acc[a.enterprise_id] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
-
       // 4. Fetch intelligence logs with priority
       const { data: logsData } = await supabase
         .from('admin_intelligence_logs')
@@ -212,6 +202,15 @@ export default function FleetPage() {
           logsMap[log.client_id] = log;
         }
       });
+
+      const { data: agentCounts } = await supabase
+        .from('agents')
+        .select('enterprise_id')
+
+      const countMap = agentCounts?.reduce((acc: Record<string, number>, a: any) => {
+        acc[a.enterprise_id] = (acc[a.enterprise_id] || 0) + 1
+        return acc
+      }, {}) ?? {}
 
       const processed = (clientsData || []).map((c: any) => ({
         ...c,
