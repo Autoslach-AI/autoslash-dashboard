@@ -21,7 +21,7 @@ import {
 export default function ClientIsolatedSystemPage() {
   const params = useParams();
   const router = useRouter();
-  const enterpriseId = params.id as string;
+  const id = params?.id as string;
   const [booting, setBooting] = useState(true);
   const [clientData, setClientData] = useState<any>(null);
   const [agents, setAgents] = useState<any[]>([]);
@@ -35,7 +35,7 @@ export default function ClientIsolatedSystemPage() {
     const { data } = await supabase
       .from('client_agent_tasks')
       .select('agent_id, task_type, task_description, complexity, api_used, status, started_at, output_summary')
-      .eq('enterprise_id', enterpriseId)
+      .eq('enterprise_id', id)
       .order('started_at', { ascending: false })
       .limit(10);
     if (data) setTasksStream(data);
@@ -45,7 +45,7 @@ export default function ClientIsolatedSystemPage() {
     const { count } = await supabase
       .from('client_agent_tasks')
       .select('*', { count: 'exact', head: true })
-      .eq('enterprise_id', enterpriseId)
+      .eq('enterprise_id', id)
       .eq('status', 'PROCESSING');
     setProcessingCount(count || 0);
   };
@@ -55,16 +55,11 @@ export default function ClientIsolatedSystemPage() {
       const { data: enterprise } = await supabase
         .from('enterprises')
         .select('*, token_budget, total_tokens_consumed, last_event_text, last_event_at')
-        .eq('id', enterpriseId)
+        .eq('id', id)
         .single();
       
       if (enterprise) {
         setClientData(enterprise);
-
-        const { data: agentsData } = await supabase
-          .from('agents')
-          .select('id, name, status, primary_api, neural_load, current_task')
-          .eq('enterprise_id', enterpriseId)
 
         const { data: planDef } = await supabase
           .from('plan_definitions')
@@ -72,11 +67,14 @@ export default function ClientIsolatedSystemPage() {
           .eq('plan_name', enterprise.package_type)
           .single()
 
-        const maxAgents = enterprise.max_agents_override 
-          ?? planDef?.max_agents_allowed 
-          ?? 0
-        
-        setMaxAgents(maxAgents);
+        const maxAgentsValue = enterprise.max_agents_override ?? planDef?.max_agents_allowed ?? 0
+        setMaxAgents(maxAgentsValue);
+
+        const { data: agentsData } = await supabase
+          .from('agents')
+          .select('id, name, status, primary_api, neural_load, current_task')
+          .eq('enterprise_id', enterprise.enterprise_id)
+
         setAgents(agentsData ?? []);
       }
 
@@ -94,7 +92,7 @@ export default function ClientIsolatedSystemPage() {
       fetchProcessingCount();
     }, 30000);
     return () => clearInterval(interval);
-  }, [enterpriseId]);
+  }, [id]);
 
   const getPlanColor = (plan: string) => {
     switch (plan?.toUpperCase()) {
@@ -308,7 +306,7 @@ export default function ClientIsolatedSystemPage() {
               <Lock className="w-10 h-10 mb-4 text-[#4B5563]" />
               <h4 className="text-[12px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4">AUCUN AGENT — PLAN STARTUP</h4>
               <button 
-                onClick={() => router.push(`/admin/system/${enterpriseId}/settings`)}
+                onClick={() => router.push(`/admin/system/${id}/settings`)}
                 className="px-8 py-3 bg-[#10B981] text-black font-black text-[11px] uppercase tracking-[0.2em] rounded-lg hover:scale-105 active:scale-95 transition-all shadow-[0_0_30px_rgba(16,185,129,0.3)]"
               >
                 UPGRADER LE PLAN
@@ -321,7 +319,7 @@ export default function ClientIsolatedSystemPage() {
               {Array.from({ length: maxAgents }).map((_, i) => (
                 <div 
                   key={`empty-${i}`} 
-                  onClick={() => router.push(`/admin/system/${enterpriseId}/agents`)}
+                  onClick={() => router.push(`/admin/system/${id}/agents`)}
                   className="bg-[#0D0D0D] p-12 border border-dashed border-[#10B981]/20 flex flex-col items-center justify-center text-center group/config cursor-pointer hover:bg-[#10B981]/5 transition-all min-h-[300px]"
                 >
                   <Plus className="w-8 h-8 text-[#10B981] mb-6 opacity-40 group-hover/config:opacity-100 transition-opacity" />
@@ -342,7 +340,7 @@ export default function ClientIsolatedSystemPage() {
                 return (
                   <div 
                     key={agent.id} 
-                    onClick={() => router.push(`/admin/system/${enterpriseId}/agents`)}
+                    onClick={() => router.push(`/admin/system/${id}/agents`)}
                     className="bg-[#0D0D0D] p-6 hover:bg-[#111827] transition-all group/agent cursor-pointer relative border border-transparent hover:border-white/5"
                   >
                     <div className="flex justify-between items-start mb-6">
@@ -425,7 +423,7 @@ export default function ClientIsolatedSystemPage() {
                 return (
                   <div 
                     key={task.id || i} 
-                    onClick={() => router.push(`/admin/system/${enterpriseId}/agents`)}
+                    onClick={() => router.push(`/admin/system/${id}/agents`)}
                     className="p-4 border-b border-[#1a1a1a] last:border-0 hover:bg-[#111827] transition-all group/task cursor-pointer overflow-hidden"
                   >
                     <div className="flex gap-2 items-center mb-1.5 whitespace-nowrap overflow-hidden">
