@@ -192,28 +192,21 @@ export default function ClientSystemLayout({ children }: { children: React.React
 
   useEffect(() => {
     async function fetchClient() {
-      const { data, error } = await supabase
-        .from('enterprises')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      const { data: agentsData } = await supabase
-        .from('agents')
-        .select('*')
-        .eq('enterprise_id', id);
+      if (!id) return;
       
-      if (data) {
+      const res = await fetch(`/api/admin/enterprise/${id}`);
+      const { enterprise, agents: agentsData } = await res.json();
+      
+      if (enterprise) {
         setClientData({
-          projectId: data.id,
-          companyName: data.name,
-          level: data.package_type === 'ENTERPRISE' ? 'Projet Entreprise' : 
-                 data.package_type === 'BUSINESS' ? 'Projet Business' : 'Projet Startup',
-        agents: agentsData?.map((a: any) => a.id) || [],
-          brandColor: data.brand_color || "#4ade80"
+          projectId: enterprise.id,
+          companyName: enterprise.name,
+          level: enterprise.package_type === 'ENTERPRISE' ? 'Projet Entreprise' : 
+                 enterprise.package_type === 'BUSINESS' ? 'Projet Business' : 'Projet Startup',
+          agents: agentsData?.map((a: any) => a.id) || [],
+          brandColor: enterprise.brand_color || "#4ade80"
         });
       } else {
-        // Fallback or handle error
         setClientData({
           projectId: id,
           companyName: "Disconnected Node",
