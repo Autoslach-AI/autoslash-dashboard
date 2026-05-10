@@ -52,35 +52,17 @@ export default function ClientIsolatedSystemPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const { data: enterprise } = await supabase
-        .from('enterprises')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
+      const res = await fetch(`/api/admin/enterprise/${id}`);
+      const { enterprise, agents: agentsData, planDef } = await res.json();
+
       if (enterprise) {
         setClientData(enterprise);
-
-        const { data: planDef } = await supabase
-          .from('plan_definitions')
-          .select('max_agents_allowed')
-          .eq('plan_name', enterprise.package_type)
-          .single()
-
-        const maxAgentsValue = enterprise.max_agents_override ?? planDef?.max_agents_allowed ?? 0
+        const maxAgentsValue = enterprise.max_agents_override ?? planDef?.max_agents_allowed ?? 0;
         setMaxAgents(maxAgentsValue);
-
-        const { data: agentsData } = await supabase
-          .from('agents')
-          .select('id, name, status, primary_api, neural_load, current_task')
-          .eq('enterprise_id', enterprise.id)
-
         setAgents(agentsData ?? []);
       }
 
       setBooting(false);
-
-      // Initial fetches
       fetchTasksStream();
       fetchProcessingCount();
     }
