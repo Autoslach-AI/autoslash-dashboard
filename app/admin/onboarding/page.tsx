@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ArrowRight, Check, FileText } from 'lucide-react';
+import { Search, ArrowRight, Check, FileText, Calendar, DollarSign } from 'lucide-react';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -44,7 +44,6 @@ export default function OnboardingPage() {
 
   const handleSync = async () => {
     setSaving(true);
-
     await fetch(`/api/admin/prospect/update`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -53,7 +52,6 @@ export default function OnboardingPage() {
         ...edits
       })
     });
-
     setStep(3);
     setTimeout(() => {
       router.push(`/admin/system/${prospect.enterprise_id}`);
@@ -75,6 +73,15 @@ export default function OnboardingPage() {
       ? JSON.parse(prospect.assets_urls)
       : prospect.assets_urls)
     : [];
+
+  // Extraire rendez-vous depuis message ELITE
+  const extractRdv = (message: string) => {
+    if (!message) return null;
+    const match = message.match(/Rendez-vous\s*:\s*(.+)/i);
+    return match ? match[1].trim() : null;
+  };
+
+  const rdv = prospect?.package_type === 'ELITE' ? extractRdv(prospect?.message) : null;
 
   return (
     <div className="min-h-screen bg-[#080808] text-white flex items-center justify-center p-8">
@@ -127,7 +134,7 @@ export default function OnboardingPage() {
                   value={queryName}
                   onChange={(e) => setQueryName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Nom de l'entreprise — ex: wébflach"
+                  placeholder="Nom de l'entreprise — ex: Flow AI"
                   className="w-full bg-[#111] border border-white/10 rounded-xl pl-12 pr-4 py-4 text-[12px] font-mono text-white focus:border-[#10B981]/40 outline-none transition-all"
                 />
               </div>
@@ -146,22 +153,43 @@ export default function OnboardingPage() {
 
         {/* ÉTAPE 2 — VÉRIFICATION */}
         {step === 2 && prospect && (
-          <div className="space-y-6">
+          <div className="space-y-5">
 
-            {/* PLAN BADGE */}
+            {/* HEADER PROSPECT */}
             <div className="flex items-center justify-between p-4 bg-[#111] border border-white/5 rounded-xl">
               <div>
                 <p className="text-[9px] font-mono text-white/30 uppercase tracking-widest mb-1">{prospect.project_id}</p>
-                <p className="text-[16px] font-black text-white uppercase">{prospect.name}</p>
+                <p className="text-[18px] font-black text-white uppercase">{prospect.name}</p>
               </div>
-              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
-                style={{
-                  backgroundColor: `${getPlanColor(prospect.package_type)}20`,
-                  color: getPlanColor(prospect.package_type),
-                  border: `1px solid ${getPlanColor(prospect.package_type)}40`
-                }}>
-                {prospect.package_type}
-              </span>
+              <div className="flex flex-col items-end gap-2">
+                <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+                  style={{
+                    backgroundColor: `${getPlanColor(prospect.package_type)}20`,
+                    color: getPlanColor(prospect.package_type),
+                    border: `1px solid ${getPlanColor(prospect.package_type)}40`
+                  }}>
+                  {prospect.package_type}
+                </span>
+                <span className="text-[9px] font-mono text-white/30">
+                  {new Date(prospect.created_at).toLocaleDateString('fr-FR', {
+                    day: '2-digit', month: 'long', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                  })}
+                </span>
+              </div>
+            </div>
+
+            {/* INFOS NON EDITABLES */}
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: 'Email', value: prospect.email },
+                { label: 'Téléphone', value: prospect.phone },
+              ].map(({ label, value }) => (
+                <div key={label} className="p-3 bg-[#111] border border-white/5 rounded-lg">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1">{label}</p>
+                  <p className="text-[10px] font-mono text-white/60">{value || '—'}</p>
+                </div>
+              ))}
             </div>
 
             {/* INFOS EDITABLES */}
@@ -172,30 +200,56 @@ export default function OnboardingPage() {
                 { label: 'Région', key: 'region' },
               ].map(({ label, key }) => (
                 <div key={key} className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-[#10B981]">{label}</label>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-[#10B981]">{label} ✎</label>
                   <input
                     type="text"
                     value={edits[key] || ''}
                     onChange={(e) => setEdits({ ...edits, [key]: e.target.value })}
-                    className="w-full bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-[11px] font-mono text-white focus:border-[#10B981]/40 outline-none"
+                    className="w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white focus:border-[#10B981]/40 outline-none"
                   />
                 </div>
               ))}
-              <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Email</label>
-                <p className="text-[11px] font-mono text-white/40 px-3 py-2">{prospect.email}</p>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Téléphone</label>
-                <p className="text-[11px] font-mono text-white/40 px-3 py-2">{prospect.phone}</p>
-              </div>
             </div>
+
+            {/* ELITE — BUDGET + RDV */}
+            {prospect.package_type === 'ELITE' && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 bg-[#F59E0B]/5 border border-[#F59E0B]/20 rounded-lg flex items-center gap-3">
+                  <DollarSign className="w-4 h-4 text-[#F59E0B]" />
+                  <div>
+                    <p className="text-[8px] font-black uppercase tracking-widest text-[#F59E0B]/60 mb-1">Budget</p>
+                    <p className="text-[11px] font-black text-[#F59E0B]">
+                      {prospect.monthly_cost > 0
+                        ? new Intl.NumberFormat('fr-FR').format(prospect.monthly_cost) + ' FCFA'
+                        : '—'}
+                    </p>
+                  </div>
+                </div>
+                {rdv && (
+                  <div className="p-3 bg-[#F59E0B]/5 border border-[#F59E0B]/20 rounded-lg flex items-center gap-3">
+                    <Calendar className="w-4 h-4 text-[#F59E0B]" />
+                    <div>
+                      <p className="text-[8px] font-black uppercase tracking-widest text-[#F59E0B]/60 mb-1">Rendez-vous</p>
+                      <p className="text-[11px] font-black text-[#F59E0B]">{rdv}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TEMPLATE ID — sauf ELITE et CONTACT */}
+            {prospect.template_id && prospect.package_type !== 'ELITE' && (
+              <div className="p-3 bg-[#111] border border-white/5 rounded-lg flex items-center justify-between">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Template</p>
+                <p className="text-[10px] font-mono text-[#10B981]">{prospect.template_id}</p>
+              </div>
+            )}
 
             {/* MESSAGE */}
             {prospect.message && (
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Message du prospect</label>
-                <div className="bg-[#111] border border-white/5 rounded-lg p-3 max-h-32 overflow-y-auto">
+                <div className="bg-[#111] border border-white/5 rounded-lg p-3 max-h-40 overflow-y-auto">
                   <p className="text-[10px] font-mono text-white/50 leading-relaxed whitespace-pre-wrap">{prospect.message}</p>
                 </div>
               </div>
@@ -214,7 +268,7 @@ export default function OnboardingPage() {
                     >
                       <FileText className="w-3 h-3 text-[#10B981]" />
                       <span className="text-[10px] font-mono text-white/40 group-hover:text-white/70 truncate">
-                        {url.split('/').pop()}
+                        {decodeURIComponent(url.split('/').pop() || '')}
                       </span>
                     </a>
                   ))}
@@ -224,18 +278,18 @@ export default function OnboardingPage() {
 
             {/* NOTES INTERNES */}
             <div className="space-y-1">
-              <label className="text-[9px] font-black uppercase tracking-widest text-[#10B981]">Notes internes</label>
+              <label className="text-[9px] font-black uppercase tracking-widest text-[#10B981]">Notes internes ✎</label>
               <textarea
                 value={edits.custom_notes || ''}
                 onChange={(e) => setEdits({ ...edits, custom_notes: e.target.value })}
-                placeholder="Notes pour ce prospect signé..."
+                placeholder="Notes internes sur ce prospect..."
                 rows={3}
-                className="w-full bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none"
+                className="w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none"
               />
             </div>
 
             {/* ACTIONS */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setStep(1)}
                 className="px-6 py-3 border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-all"
