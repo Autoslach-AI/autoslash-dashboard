@@ -55,15 +55,22 @@ export default function ClientIsolatedSystemPage() {
 
     async function fetchData() {
       if (!id) return;
+      
+      try {
+        const res = await fetch(`/api/admin/enterprise/${id}`);
+        console.log('API status:', res.status, 'URL:', `/api/admin/enterprise/${id}`);
+        const json = await res.json();
+        console.log('API response:', json);
+        const { enterprise, agents: agentsData, planDef } = json;
 
-      const res = await fetch(`/api/admin/enterprise/${id}`);
-      const { enterprise, agents: agentsData, planDef } = await res.json();
-
-      if (enterprise) {
-        setClientData(enterprise);
-        const maxAgentsValue = enterprise.max_agents_override ?? planDef?.max_agents_allowed ?? 0;
-        setMaxAgents(maxAgentsValue);
-        setAgents(agentsData ?? []);
+        if (enterprise) {
+          setClientData(enterprise);
+          const maxAgentsValue = enterprise.max_agents_override ?? planDef?.max_agents_allowed ?? 0;
+          setMaxAgents(maxAgentsValue);
+          setAgents(agentsData ?? []);
+        }
+      } catch (err) {
+        console.error('fetchData error:', err);
       }
 
       setBooting(false);
