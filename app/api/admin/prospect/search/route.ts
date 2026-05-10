@@ -7,12 +7,14 @@ const supabase = createClient(
 );
 
 export async function GET(request: NextRequest) {
-  const q = request.nextUrl.searchParams.get('q') || '';
+  const id = request.nextUrl.searchParams.get('id') || '';
+  const name = request.nextUrl.searchParams.get('name') || '';
 
   const { data: prospect } = await supabase
     .from('enterprises')
     .select('*')
-    .or(`project_id.ilike.%${q}%,name.ilike.%${q}%,email.ilike.%${q}%`)
+    .ilike('project_id', `%${id}%`)
+    .ilike('name', `%${name}%`)
     .eq('status', 'PROSPECT')
     .order('created_at', { ascending: false })
     .limit(1)

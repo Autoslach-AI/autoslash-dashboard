@@ -7,7 +7,8 @@ import { Search, ArrowRight, Check, FileText } from 'lucide-react';
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
-  const [query, setQuery] = useState('');
+  const [queryId, setQueryId] = useState('');
+  const [queryName, setQueryName] = useState('');
   const [searching, setSearching] = useState(false);
   const [prospect, setProspect] = useState<any>(null);
   const [error, setError] = useState('');
@@ -15,12 +16,15 @@ export default function OnboardingPage() {
   const [edits, setEdits] = useState<any>({});
 
   const handleSearch = async () => {
-    if (!query.trim()) return;
+    if (!queryId.trim() || !queryName.trim()) {
+      setError('Les 2 champs sont obligatoires — ID et Nom de l\'entreprise.');
+      return;
+    }
     setSearching(true);
     setError('');
     setProspect(null);
 
-    const res = await fetch(`/api/admin/prospect/search?q=${encodeURIComponent(query)}`);
+    const res = await fetch(`/api/admin/prospect/search?id=${encodeURIComponent(queryId)}&name=${encodeURIComponent(queryName)}`);
     const data = await res.json();
 
     if (data.prospect) {
@@ -33,7 +37,7 @@ export default function OnboardingPage() {
       });
       setStep(2);
     } else {
-      setError('Aucun prospect trouvé. Vérifiez l\'ID, le nom ou l\'email.');
+      setError('Aucun prospect trouvé. Vérifiez l\'ID ET le nom — les 2 doivent correspondre.');
     }
     setSearching(false);
   };
@@ -105,21 +109,33 @@ export default function OnboardingPage() {
         {/* ÉTAPE 1 — RECHERCHE */}
         {step === 1 && (
           <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="ID prospect (AS-B-2026-0001), nom ou email..."
-                className="w-full bg-[#111] border border-white/10 rounded-xl pl-12 pr-4 py-4 text-[12px] font-mono text-white focus:border-[#10B981]/40 outline-none transition-all"
-              />
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                <input
+                  type="text"
+                  value={queryId}
+                  onChange={(e) => setQueryId(e.target.value)}
+                  placeholder="ID prospect — ex: AS-B-2026-0001"
+                  className="w-full bg-[#111] border border-white/10 rounded-xl pl-12 pr-4 py-4 text-[12px] font-mono text-white focus:border-[#10B981]/40 outline-none transition-all"
+                />
+              </div>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                <input
+                  type="text"
+                  value={queryName}
+                  onChange={(e) => setQueryName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder="Nom de l'entreprise — ex: wébflach"
+                  className="w-full bg-[#111] border border-white/10 rounded-xl pl-12 pr-4 py-4 text-[12px] font-mono text-white focus:border-[#10B981]/40 outline-none transition-all"
+                />
+              </div>
             </div>
             {error && <p className="text-[10px] text-red-400 font-mono text-center">{error}</p>}
             <button
               onClick={handleSearch}
-              disabled={searching || !query.trim()}
+              disabled={searching || !queryId.trim() || !queryName.trim()}
               className="w-full py-4 bg-[#10B981] text-black font-black text-[11px] uppercase tracking-[0.2em] rounded-xl hover:bg-[#0ea572] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
             >
               {searching ? 'RECHERCHE EN COURS...' : 'SCANNER LE PROSPECT'}
