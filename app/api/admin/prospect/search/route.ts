@@ -24,5 +24,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ prospect: null });
   }
 
-  return NextResponse.json({ prospect });
+  // Récupérer les infos du template si présent
+  let template = null;
+  if (prospect.template_id) {
+    const { data: templateData } = await supabase
+      .from('templates')
+      .select('id, title, price_fcfa, metadata')
+      .eq('id', prospect.template_id)
+      .single();
+    template = templateData;
+  }
+
+  return NextResponse.json({ prospect, template });
 }

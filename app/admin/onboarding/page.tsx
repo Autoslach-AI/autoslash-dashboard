@@ -11,6 +11,7 @@ export default function OnboardingPage() {
   const [queryName, setQueryName] = useState('');
   const [searching, setSearching] = useState(false);
   const [prospect, setProspect] = useState<any>(null);
+  const [template, setTemplate] = useState<any>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [edits, setEdits] = useState<any>({});
@@ -29,6 +30,7 @@ export default function OnboardingPage() {
 
     if (data.prospect) {
       setProspect(data.prospect);
+      setTemplate(data.template || null);
       setEdits({
         name: data.prospect.name,
         sector: data.prospect.sector,
@@ -248,11 +250,22 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* TEMPLATE ID — sauf ELITE et CONTACT */}
-            {prospect.template_id && prospect.package_type !== 'ELITE' && (
-              <div className="p-3 bg-[#111] border border-white/5 rounded-lg flex items-center justify-between">
-                <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Template</p>
-                <p className="text-[10px] font-mono text-[#10B981]">{prospect.template_id}</p>
+            {/* TEMPLATE choisi — sauf ELITE et CONTACT */}
+            {template && prospect.package_type !== 'ELITE' && (
+              <div className="p-3 bg-[#111] border border-white/5 rounded-lg space-y-2">
+                <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Template choisi</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold text-white">{template.title}</p>
+                  <p className="text-[11px] font-black text-[#10B981]">
+                    {new Intl.NumberFormat('fr-FR').format(template.price_fcfa)} FCFA
+                  </p>
+                </div>
+                {template.metadata?.url && (
+                  <a href={template.metadata.url} target="_blank" rel="noopener noreferrer"
+                    className="text-[9px] font-mono text-[#10B981]/60 hover:text-[#10B981] transition-all truncate block">
+                    {template.metadata.url}
+                  </a>
+                )}
               </div>
             )}
 
