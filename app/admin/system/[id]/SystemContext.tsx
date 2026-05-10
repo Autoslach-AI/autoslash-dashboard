@@ -32,20 +32,11 @@ export function SystemProvider({ children, enterpriseId }: { children: React.Rea
         return;
       }
 
-      const { data, error } = await supabase
-        .from('enterprises')
-        .select('*')
-        .eq('id', enterpriseId)
-        .single();
+      const res = await fetch(`/api/admin/enterprise/${enterpriseId}`);
+      const { enterprise, agents: agentsData } = await res.json();
 
-      const { data: agentsData } = await supabase
-        .from('agents')
-        .select('*')
-        .eq('enterprise_id', enterpriseId);
-
-      if (data) {
-        setEnterpriseData(data);
-        // Initialize agents state if needed
+      if (enterprise) {
+        setEnterpriseData(enterprise);
         const newAgentsState: Record<string, AgentState> = {};
         agentsData?.forEach((agent: any) => {
           newAgentsState[agent.id] = {
