@@ -1718,19 +1718,21 @@ export default function NeuralCommandCenterV31() {
                    <table className="w-full text-left border-collapse">
                       <thead>
                          <tr className="border-b border-white/10 bg-[#111111]">
-                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">CLIENT CLUSTER</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">NŒUD CLUSTER</th>
+                             <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">PLAN</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">FLEET STATUS</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">TOKEN USAGE</th>
+                             <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">AGENTS</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">INTELLIGENCE MODE</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">REGION</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">MONTHLY COST</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">RÉGION · SECTEUR</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">COST (FCFA)</th>
                             <th className="px-6 py-4 w-12 text-right"></th>
                          </tr>
                       </thead>
                       <tbody className="divide-y divide-white/5">
                          {filteredClients.length === 0 ? (
                             <tr>
-                               <td colSpan={7} className="p-20 text-center">
+                               <td colSpan={9} className="p-20 text-center">
                                   <div className="space-y-4">
                                      <div className="w-12 h-12 rounded-full border border-white/5 bg-white/[0.02] flex items-center justify-center mx-auto opacity-20">
                                         <Shield className="w-6 h-6 text-[#ef4444]" />
@@ -1756,10 +1758,32 @@ export default function NeuralCommandCenterV31() {
                                         </div>
                                         <div className="space-y-0.5">
                                            <p className="text-[12px] font-bold text-white group-hover:text-[#4ade80] transition-colors whitespace-normal break-words">{client.name}</p>
-                                           <p className="text-[8px] text-white/20 font-mono tracking-tighter uppercase">{client.project_id || client.id.substring(0, 8)} • {client.package_type}</p>
-                                        </div>
-                                     </div>
-                                  </td>
+                                           <p className="text-[8px] text-white/20 font-mono tracking-tighter uppercase">{client.project_id || client.id.substring(0, 8)}</p>
+                                         </div>
+                                      </div>
+                                   </td>
+                                   <td className="px-6 py-3">
+                                      <div 
+                                        className="px-2 py-0.5 rounded text-[8px] font-bold border border-white/10 uppercase tracking-widest w-fit"
+                                        style={{ 
+                                          backgroundColor: `${
+                                            client.package_type === 'ELITE' ? '#F59E0B' : 
+                                            client.package_type === 'ENTERPRISE' ? '#10B981' : 
+                                            client.package_type === 'BUSINESS' ? '#3B82F6' : '#6B7280'
+                                          }20`,
+                                          color: client.package_type === 'ELITE' ? '#F59E0B' : 
+                                                 client.package_type === 'ENTERPRISE' ? '#10B981' : 
+                                                 client.package_type === 'BUSINESS' ? '#3B82F6' : '#6B7280',
+                                          borderColor: `${
+                                            client.package_type === 'ELITE' ? '#F59E0B' : 
+                                            client.package_type === 'ENTERPRISE' ? '#10B981' : 
+                                            client.package_type === 'BUSINESS' ? '#3B82F6' : '#6B7280'
+                                          }30`
+                                        }}
+                                      >
+                                        {client.package_type}
+                                      </div>
+                                   </td>
                                   <td className="px-6 py-3">
                                      <div className={`px-2.5 py-1 rounded-full border w-fit flex items-center gap-1.5 ${
                                        client.status === 'CRITICAL' ? 'bg-red-500/10 border-red-500/20 text-red-500' :
@@ -1786,6 +1810,19 @@ export default function NeuralCommandCenterV31() {
                                                'bg-green-500'
                                              }`}
                                            />
+                                        </div>
+                                     </div>
+                                  </td>
+                                  <td className="px-6 py-3">
+                                     <div className="flex items-center gap-2">
+                                        <p className="text-[10px] font-mono font-bold text-white">{client.agent_count || 0}</p>
+                                        <div className="flex -space-x-1">
+                                           {[...Array(Math.min(client.agent_count || 0, 3))].map((_, i) => (
+                                              <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#4ade80]" />
+                                           ))}
+                                           {(client.agent_count || 0) > 3 && (
+                                              <span className="text-[6px] text-white/40 pl-1">+{(client.agent_count || 0) - 3}</span>
+                                           )}
                                         </div>
                                      </div>
                                   </td>
@@ -1845,7 +1882,7 @@ export default function NeuralCommandCenterV31() {
                                   <td className="px-6 py-3">
                                      <span className="text-[9px] font-mono font-bold text-white/40 uppercase tracking-[0.2em]">{client.region || 'GLOBAL'}</span>
                                   </td>
-                                  <td className="px-6 py-3">
+                                  <td className="px-6 py-3 text-right">
                                      <p className="text-[11px] font-mono font-black text-white">
                                        {client.monthly_cost
                                          ? `${client.monthly_cost.toLocaleString('fr-FR')} FCFA`
