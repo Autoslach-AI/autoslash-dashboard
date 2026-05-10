@@ -25,24 +25,13 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const fetchFullConfig = async () => {
     try {
       // 1. Fetch Business Config (Mandatory V3.2)
-      const { data: entData, error: entError } = await supabase
-        .from('business_config')
-        .select('*')
-        .limit(1)
-        .single();
-
-      if (entError && entError.code !== 'PGRST116') {
-        console.warn("SQL_IDENTITY_NODE_UNREACHABLE: business_config table may be missing or restricted.");
-      }
+      const entData: any = {
+        business_name: 'Autoslash AI',
+        accent_color: '#10B981'
+      };
 
       // 2. Fetch Universal Inventory (Mandatory V3.2)
-      const { data: invData, error: invError } = await supabase
-        .from('universal_inventory')
-        .select('*');
-
-      if (invError) {
-        console.warn("SQL_INVENTORY_NODE_UNREACHABLE: universal_inventory table may be missing.");
-      }
+      const invData: any[] = [];
 
       // 3. Fetch Strategic Memory (Mandatory V3.2) - All entries for Hub
       const { data: memData, error: memError } = await supabase
@@ -113,51 +102,17 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const updateConfig = async (newConfig: Partial<ClientConfig>) => {
-    if (newConfig.identity) {
-      // Mapping to V3.2 business_config
-      const { data: current } = await supabase.from('business_config').select('id').limit(1).single();
-      
-      const payload = {
-        business_name: newConfig.identity.name,
-        industry_type: newConfig.identity.slogan,
-        accent_color: newConfig.identity.accentColor,
-        updated_at: new Date().toISOString()
-      };
-
-      if (current?.id) {
-        await supabase.from('business_config').update(payload).eq('id', current.id);
-      } else {
-        await supabase.from('business_config').insert(payload);
-      }
-    }
+    console.log('Config update — table supprimée');
     await fetchFullConfig();
   };
 
   const updateAgent = async (agentId: string, updates: any) => {
-    const { data: current } = await supabase.from('business_config').select('id').limit(1).single();
-    const colName = agentId === 'support' ? 'system_instructions_support' : 'system_instructions_dev';
-    
-    if (colName && current?.id) {
-      await supabase.from('business_config').update({
-        [colName]: updates.instructions,
-        updated_at: new Date().toISOString()
-      }).eq('id', current.id);
-    }
-    
+    console.log('Config update — table supprimée');
     await fetchFullConfig();
   };
 
   const updateInventory = async (items: any[]) => {
-    for (const item of items) {
-      await supabase.from('universal_inventory').upsert({
-        id: item.id && item.id.length > 10 ? item.id : undefined,
-        item_name: item.title,
-        category: item.category,
-        price: parseFloat(item.price) || 0,
-        description: item.description || '',
-        is_active: item.status !== 'Out of Stock'
-      });
-    }
+    console.log('Config update — table supprimée');
     await fetchFullConfig();
   };
 
