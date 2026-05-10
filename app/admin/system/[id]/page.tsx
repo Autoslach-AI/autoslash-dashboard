@@ -51,7 +51,11 @@ export default function ClientIsolatedSystemPage() {
   };
 
   useEffect(() => {
+    if (!id) return;
+
     async function fetchData() {
+      if (!id) return;
+
       const res = await fetch(`/api/admin/enterprise/${id}`);
       const { enterprise, agents: agentsData, planDef } = await res.json();
 
