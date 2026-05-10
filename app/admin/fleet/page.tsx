@@ -214,7 +214,7 @@ export default function FleetPage() {
 
       const processed = (clientsData || []).map((c: any) => ({
         ...c,
-        agent_count: countMap?.[c.enterprise_id] || 0,
+        agent_count: countMap?.[c.id] || 0,
         intelligence: logsMap[c.id] || null
       }));
 
