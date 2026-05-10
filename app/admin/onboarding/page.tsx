@@ -192,6 +192,7 @@ export default function OnboardingPage() {
             {/* INFOS NON EDITABLES */}
             <div className="grid grid-cols-2 gap-2">
               {[
+                { label: 'Contact', value: prospect.contact_name },
                 { label: 'Email', value: prospect.email },
                 { label: 'Téléphone', value: prospect.phone },
               ].map(({ label, value }) => (
