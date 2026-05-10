@@ -10,11 +10,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { data: enterprise } = await supabase
+  const { data: enterprise, error: entError } = await supabase
     .from('enterprises')
     .select('*')
-    .eq('id', params.id)
+    .eq('enterprise_id', params.id)
     .single();
+
+  console.log('enterprise_id searched:', params.id);
+  console.log('enterprise result:', enterprise);
+  console.log('enterprise error:', entError);
 
   const { data: agents } = await supabase
     .from('agents')
@@ -27,5 +31,5 @@ export async function GET(
     .eq('plan_name', enterprise?.package_type)
     .single();
 
-  return NextResponse.json({ enterprise, agents, planDef });
+  return NextResponse.json({ enterprise, agents, planDef, debug: { entError, params_id: params.id } });
 }
