@@ -73,7 +73,7 @@ export default function ClientIsolatedSystemPage() {
         const { data: agentsData } = await supabase
           .from('agents')
           .select('id, name, status, primary_api, neural_load, current_task')
-          .eq('enterprise_id', enterprise.enterprise_id)
+          .eq('enterprise_id', enterprise.id)
 
         setAgents(agentsData ?? []);
       }
