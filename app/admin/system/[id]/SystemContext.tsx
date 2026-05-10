@@ -34,18 +34,20 @@ export function SystemProvider({ children, enterpriseId }: { children: React.Rea
 
       const { data, error } = await supabase
         .from('enterprises')
-        .select(`
-          *,
-          agents(*)
-        `)
+        .select('*')
         .eq('id', enterpriseId)
         .single();
+
+      const { data: agentsData } = await supabase
+        .from('agents')
+        .select('*')
+        .eq('enterprise_id', enterpriseId);
 
       if (data) {
         setEnterpriseData(data);
         // Initialize agents state if needed
         const newAgentsState: Record<string, AgentState> = {};
-        data.agents?.forEach((agent: any) => {
+        agentsData?.forEach((agent: any) => {
           newAgentsState[agent.id] = {
             name: agent.name,
             isActive: agent.status === 'active'

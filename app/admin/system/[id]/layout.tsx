@@ -194,12 +194,14 @@ export default function ClientSystemLayout({ children }: { children: React.React
     async function fetchClient() {
       const { data, error } = await supabase
         .from('enterprises')
-        .select(`
-          *,
-          agents(*)
-        `)
+        .select('*')
         .eq('id', id)
         .single();
+
+      const { data: agentsData } = await supabase
+        .from('agents')
+        .select('*')
+        .eq('enterprise_id', id);
       
       if (data) {
         setClientData({
@@ -207,7 +209,7 @@ export default function ClientSystemLayout({ children }: { children: React.React
           companyName: data.name,
           level: data.package_type === 'ENTERPRISE' ? 'Projet Entreprise' : 
                  data.package_type === 'BUSINESS' ? 'Projet Business' : 'Projet Startup',
-          agents: data.agents?.map((a: any) => a.id) || [],
+        agents: agentsData?.map((a: any) => a.id) || [],
           brandColor: data.brand_color || "#4ade80"
         });
       } else {
