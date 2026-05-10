@@ -81,7 +81,17 @@ export default function OnboardingPage() {
     return match ? match[1].trim() : null;
   };
 
+  const extractBudget = (message: string) => {
+    if (!message) return null;
+    const match = message.match(/Budget\s*:\s*([^\n]+)/i);
+    return match ? match[1].trim() : null;
+  };
+
   const rdv = prospect?.package_type === 'ELITE' ? extractRdv(prospect?.message) : null;
+
+  const budgetFromMessage = prospect?.package_type === 'ELITE' 
+    ? extractBudget(prospect?.message) 
+    : null;
 
   return (
     <div className="min-h-screen bg-[#080808] text-white flex items-center justify-center p-8">
@@ -221,7 +231,7 @@ export default function OnboardingPage() {
                     <p className="text-[11px] font-black text-[#F59E0B]">
                       {prospect.monthly_cost > 0
                         ? new Intl.NumberFormat('fr-FR').format(prospect.monthly_cost) + ' FCFA'
-                        : '—'}
+                        : budgetFromMessage || '—'}
                     </p>
                   </div>
                 </div>
