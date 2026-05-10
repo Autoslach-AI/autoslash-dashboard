@@ -54,7 +54,7 @@ export default function ClientIsolatedSystemPage() {
     async function fetchData() {
       const { data: enterprise } = await supabase
         .from('enterprises')
-        .select('*, token_budget, total_tokens_consumed, last_event_text, last_event_at')
+        .select('*')
         .eq('id', id)
         .single();
       
