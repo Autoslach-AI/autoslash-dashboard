@@ -61,11 +61,16 @@ export default function ClientIsolatedSystemPage() {
       if (enterprise) {
         setClientData(enterprise);
 
-        const { data: planDef } = await supabase
+        const { data: planDef, error: planError } = await supabase
           .from('plan_definitions')
           .select('max_agents_allowed')
           .eq('plan_name', enterprise.package_type)
           .single()
+
+        console.log('package_type:', enterprise.package_type)
+        console.log('planDef:', planDef)
+        console.log('planError:', planError)
+        console.log('max_agents_override:', enterprise.max_agents_override)
 
         const maxAgentsValue = enterprise.max_agents_override ?? planDef?.max_agents_allowed ?? 0
         setMaxAgents(maxAgentsValue);
