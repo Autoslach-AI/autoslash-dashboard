@@ -17,6 +17,7 @@ export default function OnboardingPage() {
   const [edits, setEdits] = useState<any>({});
   const [editingName, setEditingName] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
   const [expandedField, setExpandedField] = useState<string | null>(null);
 
   const handleSearch = async () => {
@@ -306,7 +307,7 @@ export default function OnboardingPage() {
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Message du prospect</label>
                 <div
                   onClick={() => setExpandedField(expandedField === 'message' ? null : 'message')}
-                  className={`bg-[#111] border border-white/5 rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${expandedField === 'message' ? 'fixed top-[10%] left-[50%] translate-x-[-50%] w-[600px] max-h-[70vh] z-50 overflow-y-auto rounded-xl shadow-2xl border border-white/10' : 'max-h-24 overflow-hidden'}`}
+                  className={`bg-[#111] border border-white/5 rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${expandedField === 'message' ? 'fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] w-[560px] max-h-[50vh] z-50 overflow-y-auto rounded-xl shadow-2xl border border-white/10 bg-[#111]' : 'max-h-24 overflow-hidden'}`}
                 >
                   {expandedField === 'message' && (
                     <div className="flex justify-between items-center mb-3">
@@ -342,14 +343,34 @@ export default function OnboardingPage() {
 
             {/* NOTES INTERNES */}
             <div className="space-y-1">
-              <label className="text-[9px] font-black uppercase tracking-widest text-[#10B981]">Notes internes ✎</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[9px] font-black uppercase tracking-widest text-[#10B981]">Notes internes</label>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setEditingNotes(!editingNotes)}
+                    className="text-[#10B981]/40 hover:text-[#10B981] transition-all"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => setExpandedField(expandedField === 'notes' ? null : 'notes')}
+                    className="text-white/20 hover:text-white/60 transition-all text-[10px]"
+                  >
+                    ⤢
+                  </button>
+                </div>
+              </div>
               <textarea
                 value={edits.custom_notes || ''}
                 onChange={(e) => setEdits({...edits, custom_notes: e.target.value})}
-                onClick={() => setExpandedField(expandedField === 'notes' ? null : 'notes')}
                 placeholder="Notes internes sur ce prospect..."
-                className={`w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none transition-all ${expandedField === 'notes' ? 'fixed top-[10%] left-[50%] translate-x-[-50%] w-[600px] z-50 rounded-xl shadow-2xl border border-[#10B981]/20' : ''}`}
-                rows={expandedField === 'notes' ? 20 : 3}
+                readOnly={!editingNotes}
+                className={`w-full bg-[#111] border rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 outline-none resize-none transition-all
+                  ${editingNotes ? 'border-[#10B981]/40' : 'border-white/5 cursor-default'}
+                  ${expandedField === 'notes' 
+                    ? 'fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] w-[560px] h-[40vh] z-50 rounded-xl shadow-2xl border border-[#10B981]/20 bg-[#111]' 
+                    : ''}`}
+                rows={3}
               />
             </div>
 
