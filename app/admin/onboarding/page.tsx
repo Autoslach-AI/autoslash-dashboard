@@ -208,7 +208,6 @@ export default function OnboardingPage() {
             {/* INFOS EDITABLES */}
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'Nom', key: 'name' },
                 { label: 'Secteur', key: 'sector' },
                 { label: 'Région', key: 'region' },
               ].map(({ label, key }) => (
@@ -260,10 +259,11 @@ export default function OnboardingPage() {
                     {new Intl.NumberFormat('fr-FR').format(template.price_fcfa)} FCFA
                   </p>
                 </div>
-                {template.metadata?.url && (
-                  <a href={template.metadata.url} target="_blank" rel="noopener noreferrer"
-                    className="text-[9px] font-mono text-[#10B981]/60 hover:text-[#10B981] transition-all truncate block">
-                    {template.metadata.url}
+                {template.preview_url && (
+                  <a href={template.preview_url} target="_blank" rel="noopener noreferrer"
+                    className="text-[9px] font-mono text-[#10B981]/60 hover:text-[#10B981] transition-all truncate block"
+                  >
+                    🔗 {template.preview_url}
                   </a>
                 )}
               </div>

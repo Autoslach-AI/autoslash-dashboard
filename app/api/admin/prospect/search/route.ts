@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
   if (prospect.template_id) {
     const { data: templateData } = await supabase
       .from('templates')
-      .select('id, title, price_fcfa, metadata')
+      .select('id, title, price_fcfa, preview_url, image_url')
       .eq('id', prospect.template_id)
       .single();
     template = templateData;
