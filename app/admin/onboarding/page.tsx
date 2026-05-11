@@ -235,24 +235,16 @@ export default function OnboardingPage() {
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1">Téléphone</p>
                 <p className="text-[11px] font-mono text-white/60">{prospect.phone || '—'}</p>
               </div>
-            </div>
 
-            {/* INFOS EDITABLES */}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Secteur', key: 'sector' },
-                { label: 'Région', key: 'region' },
-              ].map(({ label, key }) => (
-                <div key={key} className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-[#10B981]">{label} ✎</label>
-                  <input
-                    type="text"
-                    value={edits[key] || ''}
-                    onChange={(e) => setEdits({ ...edits, [key]: e.target.value })}
-                    className="w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white focus:border-[#10B981]/40 outline-none"
-                  />
-                </div>
-              ))}
+              <div className="p-3 bg-[#111] border border-white/5 rounded-lg">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1">Secteur</p>
+                <p className="text-[10px] font-mono text-white/60">{prospect.sector || '—'}</p>
+              </div>
+
+              <div className="p-3 bg-[#111] border border-white/5 rounded-lg">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1">Région</p>
+                <p className="text-[10px] font-mono text-white/60">{prospect.region || '—'}</p>
+              </div>
             </div>
 
             {/* ELITE — BUDGET + RDV */}
@@ -307,7 +299,7 @@ export default function OnboardingPage() {
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Message du prospect</label>
                 <div
                   onClick={() => setExpandedField(expandedField === 'message' ? null : 'message')}
-                  className={`bg-[#111] border border-white/5 rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${expandedField === 'message' ? 'fixed inset-4 z-50 overflow-y-auto' : 'max-h-24 overflow-hidden'}`}
+                  className={`bg-[#111] border border-white/5 rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${expandedField === 'message' ? 'fixed inset-x-[20%] inset-y-[15%] z-50 overflow-y-auto rounded-xl shadow-2xl' : 'max-h-24 overflow-hidden'}`}
                 >
                   {expandedField === 'message' && (
                     <div className="flex justify-between items-center mb-3">
@@ -349,7 +341,7 @@ export default function OnboardingPage() {
                 onChange={(e) => setEdits({...edits, custom_notes: e.target.value})}
                 onClick={() => setExpandedField(expandedField === 'notes' ? null : 'notes')}
                 placeholder="Notes internes sur ce prospect..."
-                className={`w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none transition-all ${expandedField === 'notes' ? 'fixed inset-4 z-50 h-auto min-h-[80vh]' : 'rows-3'}`}
+                className={`w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none transition-all ${expandedField === 'notes' ? 'fixed inset-x-[20%] inset-y-[15%] z-50 rounded-xl shadow-2xl' : ''}`}
                 rows={expandedField === 'notes' ? 20 : 3}
               />
             </div>
