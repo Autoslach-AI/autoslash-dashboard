@@ -1,167 +1,243 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { 
-  User, 
-  Globe, 
-  Mail, 
-  MapPin, 
-  CreditCard, 
-  ShieldCheck,
-  Palette,
-  Image as ImageIcon,
-  CheckCircle2
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { FileText, Calendar, DollarSign, Check, AlertTriangle } from 'lucide-react';
 
-interface ClientData {
-  projectId: string;
-  companyName: string;
-  level: string;
-  description: string;
-  brandColor: string;
-  agents: string[];
-}
-
-export default function ClientProfilePage() {
+export default function ProfilePage() {
   const params = useParams();
-  const id = params?.id as string;
-  const [clientData, setClientData] = useState<ClientData | null>(null);
+  const router = useRouter();
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id as string;
+  
+  const [enterprise, setEnterprise] = useState<any>(null);
+  const [template, setTemplate] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [activating, setActivating] = useState(false);
+  const [activated, setActivated] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(`client_${id}`);
-    if (stored) {
-      setClientData(JSON.parse(stored));
-    } else {
-      // Fallback
-      setClientData({
-        projectId: id,
-        companyName: "Nexus Dynamics Corportation",
-        level: "Projet Entreprise",
-        description: "Leading enterprise solutions in neural lattice technology and data synchronization.",
-        brandColor: "#4ade80",
-        agents: []
-      });
+    if (!id) return;
+    async function fetchData() {
+      const res = await fetch(`/api/admin/enterprise/${id}`);
+      const { enterprise, planDef } = await res.json();
+      setEnterprise(enterprise);
+
+      if (enterprise?.template_id) {
+        const tRes = await fetch(`/api/admin/template/${enterprise.template_id}`);
+        const tData = await tRes.json();
+        setTemplate(tData.template);
+      }
+      setLoading(false);
     }
+    fetchData();
   }, [id]);
 
-  if (!clientData) return null;
+  const handleActivate = async () => {
+    if (!enterprise) return;
+    setActivating(true);
+    
+    await fetch(`/api/admin/enterprise/activate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enterprise_id: id })
+    });
+
+    setActivated(true);
+    setActivating(false);
+    setTimeout(() => {
+      router.refresh();
+    }, 1500);
+  };
+
+  const getPlanColor = (plan: string) => {
+    switch (plan?.toUpperCase()) {
+      case 'STARTUP': return '#6B7280';
+      case 'BUSINESS': return '#3B82F6';
+      case 'ENTERPRISE': return '#10B981';
+      case 'ELITE': return '#F59E0B';
+      default: return '#6B7280';
+    }
+  };
+
+  const extractRdv = (message: string) => {
+    if (!message) return null;
+    const match = message.match(/Rendez-vous\s*:\s*(.+)/i);
+    return match ? match[1].trim() : null;
+  };
+
+  const extractBudget = (message: string) => {
+    if (!message) return null;
+    const match = message.match(/Budget\s*:\s*([^\n]+)/i);
+    return match ? match[1].trim() : null;
+  };
+
+  const assets = enterprise?.assets_urls
+    ? (typeof enterprise.assets_urls === 'string'
+      ? JSON.parse(enterprise.assets_urls)
+      : enterprise.assets_urls)
+    : [];
+
+  const rdv = enterprise?.package_type === 'ELITE' ? extractRdv(enterprise?.message) : null;
+  const budgetFromMessage = enterprise?.package_type === 'ELITE' ? extractBudget(enterprise?.message) : null;
+
+  if (loading) return (
+    <div className="min-h-screen bg-[#080808] flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-white/5 border-t-[#10B981] rounded-full animate-spin" />
+    </div>
+  );
+
+  const isProspect = enterprise?.status === 'PROSPECT';
 
   return (
-    <div className="p-12 lg:p-20 space-y-12">
-      {/* PROFILE HEADER */}
-      <div className="relative group">
-         <div className="h-64 rounded-[3rem] bg-gradient-to-br from-[#111111] via-black to-black border border-white/5 overflow-hidden relative">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '32px 32px' }} />
-            <div className="absolute top-8 right-8 flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl">
-               <div className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse" />
-               <span className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none">Sync_Active</span>
-            </div>
-         </div>
-         
-         <div className="px-12 -mt-20 relative z-10 flex flex-col sm:flex-row items-end gap-8">
-            <div className="w-40 h-40 rounded-[2.5rem] bg-black border-4 border-[#050505] shadow-2xl flex items-center justify-center relative overflow-hidden group/logo">
-               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover/logo:opacity-100 transition-opacity" />
-               <ImageIcon className="w-12 h-12 text-white/10 group-hover/logo:text-white/40 transition-all group-hover/logo:scale-110" />
-               {/* Color indicator */}
-               <div 
-                 className="absolute bottom-4 right-4 w-4 h-4 rounded-full border-2 border-[#050505] shadow-[0_0_15px_rgba(0,0,0,0.5)]" 
-                 style={{ backgroundColor: clientData.brandColor }}
-               />
-            </div>
-            <div className="pb-4 space-y-2 flex-1">
-               <div className="flex items-center gap-4">
-                  <h1 className="text-4xl font-black text-white uppercase tracking-tighter">{clientData.companyName}</h1>
-                  <CheckCircle2 className="w-6 h-6 text-[#4ade80]" />
-               </div>
-               <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2 text-white/40 font-mono text-[10px] uppercase tracking-widest">
-                     <ShieldCheck className="w-3.5 h-3.5" />
-                     {clientData.level}
-                  </div>
-                  <div className="flex items-center gap-2 text-white/20 font-mono text-[10px] uppercase tracking-widest">
-                     <Globe className="w-3.5 h-3.5" />
-                     nexus-global.io
-                  </div>
-               </div>
-            </div>
-            <div className="pb-4">
-               <button className="px-8 py-3 bg-white text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.03] transition-all active:scale-95">Edit Identity</button>
-            </div>
-         </div>
-      </div>
+    <div className="min-h-screen bg-[#080808] text-white p-8">
+      <div className="max-w-3xl mx-auto space-y-6">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-         {/* LEFT INFO */}
-         <div className="lg:col-span-2 space-y-12">
-            <div className="p-10 bg-[#0a0a0a] border border-white/5 rounded-[2.5rem] space-y-8">
-               <div className="flex items-center gap-4">
-                  <User className="w-5 h-5 text-[#4ade80]" />
-                  <h3 className="text-xs font-black uppercase tracking-[0.3em] text-white/60">Company Intelligence</h3>
-               </div>
-               
-               <div className="space-y-10">
-                  <div className="space-y-4">
-                     <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Project_Biographic_Core</label>
-                     <p className="text-lg text-white/60 leading-relaxed font-mono">
-                        {clientData.description || "No biographic data injected into the neural core yet."}
-                     </p>
-                  </div>
+        {/* HEADER */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[9px] font-mono text-white/30 uppercase tracking-widest mb-1">{enterprise?.project_id}</p>
+            <h1 className="text-[22px] font-black text-white uppercase">{enterprise?.name}</h1>
+          </div>
+          <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+            style={{
+              backgroundColor: `${getPlanColor(enterprise?.package_type)}20`,
+              color: getPlanColor(enterprise?.package_type),
+              border: `1px solid ${getPlanColor(enterprise?.package_type)}40`
+            }}>
+            {enterprise?.package_type}
+          </span>
+        </div>
 
-                  <div className="grid grid-cols-2 gap-10">
-                     <div className="space-y-4">
-                        <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Primary_Uplink</label>
-                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                           <Mail className="w-4 h-4 text-white/20" />
-                           <span className="text-xs font-mono text-white/60">ops@nexus-global.io</span>
-                        </div>
-                     </div>
-                     <div className="space-y-4">
-                        <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.3em]">Geographic_Sector</label>
-                        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
-                           <MapPin className="w-4 h-4 text-white/20" />
-                           <span className="text-xs font-mono text-white/60">Sector_09_Paris</span>
-                        </div>
-                     </div>
-                  </div>
-               </div>
+        {/* BOUTON ACTIVER */}
+        {isProspect && (
+          <div className="p-4 bg-[#111] border border-[#10B981]/20 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-black text-white uppercase mb-1">Client non activé</p>
+              <p className="text-[9px] font-mono text-white/30">Activer pour donner accès au Dashboard 3</p>
             </div>
-         </div>
+            <button
+              onClick={handleActivate}
+              disabled={activating || activated}
+              className="px-6 py-3 bg-[#10B981] text-black font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-[#0ea572] transition-all disabled:opacity-40 flex items-center gap-2"
+            >
+              {activated ? <><Check className="w-4 h-4" /> ACTIVÉ</> : activating ? 'ACTIVATION...' : 'ACTIVER LE CLIENT'}
+            </button>
+          </div>
+        )}
 
-         {/* RIGHT SUMMARY */}
-         <div className="space-y-8">
-            <div className="p-8 bg-[#111111] border border-white/5 rounded-3xl space-y-8">
-               <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Subscription_Node</h3>
-               <div className="space-y-6">
-                  <div className="p-6 bg-black border border-white/5 rounded-2xl space-y-4">
-                     <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">{clientData.level}</span>
-                        <div className="w-2 h-2 rounded-full bg-[#4ade80]" />
-                     </div>
-                     <p className="text-3xl font-black text-white tracking-tighter">€12,500<span className="text-sm text-white/20 lowercase">/mo</span></p>
-                  </div>
-                  <div className="flex items-center gap-4 text-white/40">
-                     <CreditCard className="w-4 h-4" />
-                     <span className="text-[9px] font-black uppercase tracking-widest">Billing Cycle: Monthly</span>
-                  </div>
-               </div>
-               <button className="w-full py-4 border border-[#4ade80]/20 text-[#4ade80] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[#4ade80]/5 transition-all">Deep Invoicing Portal</button>
-            </div>
+        {activated && (
+          <div className="p-4 bg-[#10B981]/10 border border-[#10B981]/30 rounded-xl flex items-center gap-3">
+            <Check className="w-5 h-5 text-[#10B981]" />
+            <p className="text-[11px] font-black text-[#10B981] uppercase">Client activé — accès Dashboard 3 accordé</p>
+          </div>
+        )}
 
-            <div className="p-8 bg-black border border-white/5 rounded-3xl space-y-6">
-               <div className="flex items-center gap-4">
-                  <Palette className="w-4 h-4 text-white/20" />
-                  <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em]">Visual_Frequency</h3>
-               </div>
-               <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl border border-white/10" style={{ backgroundColor: clientData.brandColor }} />
-                  <div className="space-y-1">
-                     <p className="text-xs font-mono text-white/60 uppercase">{clientData.brandColor}</p>
-                     <p className="text-[8px] font-black text-white/20 uppercase tracking-widest">Neural_Signature</p>
-                  </div>
-               </div>
+        {/* INFOS CONTACT */}
+        <div className="bg-[#111] border border-white/5 rounded-xl p-5 space-y-4">
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Informations contact</p>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: 'Contact', value: enterprise?.contact_name },
+              { label: 'Email', value: enterprise?.email },
+              { label: 'Téléphone', value: enterprise?.phone },
+              { label: 'Secteur', value: enterprise?.sector },
+              { label: 'Région', value: enterprise?.region },
+              { label: 'Soumis le', value: enterprise?.created_at ? new Date(enterprise.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—' },
+            ].map(({ label, value }) => (
+              <div key={label} className="space-y-1">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/30">{label}</p>
+                <p className="text-[11px] font-mono text-white/70">{value || '—'}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ELITE — BUDGET + RDV */}
+        {enterprise?.package_type === 'ELITE' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-4 bg-[#F59E0B]/5 border border-[#F59E0B]/20 rounded-xl flex items-center gap-3">
+              <DollarSign className="w-5 h-5 text-[#F59E0B]" />
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-widest text-[#F59E0B]/60 mb-1">Budget</p>
+                <p className="text-[13px] font-black text-[#F59E0B]">
+                  {enterprise?.monthly_cost > 0
+                    ? new Intl.NumberFormat('fr-FR').format(enterprise.monthly_cost) + ' FCFA'
+                    : budgetFromMessage || '—'}
+                </p>
+              </div>
             </div>
-         </div>
+            {rdv && (
+              <div className="p-4 bg-[#F59E0B]/5 border border-[#F59E0B]/20 rounded-xl flex items-center gap-3">
+                <Calendar className="w-5 h-5 text-[#F59E0B]" />
+                <div>
+                  <p className="text-[8px] font-black uppercase tracking-widest text-[#F59E0B]/60 mb-1">Rendez-vous</p>
+                  <p className="text-[13px] font-black text-[#F59E0B]">{rdv}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TEMPLATE */}
+        {template && enterprise?.package_type !== 'ELITE' && (
+          <div className="bg-[#111] border border-white/5 rounded-xl p-5 space-y-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Template choisi</p>
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] font-black text-white">{template.title}</p>
+              <p className="text-[13px] font-black text-[#10B981]">
+                {new Intl.NumberFormat('fr-FR').format(template.price_fcfa)} FCFA
+              </p>
+            </div>
+            {template.preview_url && (
+              <a href={template.preview_url} target="_blank" rel="noopener noreferrer"
+                className="text-[9px] font-mono text-[#10B981]/60 hover:text-[#10B981] transition-all truncate block">
+                🔗 {template.preview_url}
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* MESSAGE */}
+        {enterprise?.message && (
+          <div className="bg-[#111] border border-white/5 rounded-xl p-5 space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Message du prospect</p>
+            <p className="text-[10px] font-mono text-white/50 leading-relaxed whitespace-pre-wrap">{enterprise.message}</p>
+          </div>
+        )}
+
+        {/* FICHIERS */}
+        {assets.length > 0 && (
+          <div className="bg-[#111] border border-white/5 rounded-xl p-5 space-y-3">
+            <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Fichiers joints ({assets.length})</p>
+            <div className="space-y-1">
+              {assets.map((url: string, i: number) => {
+                const filename = decodeURIComponent(url.split('/').pop() || '');
+                const ext = filename.split('.').pop()?.toLowerCase();
+                const isDoc = ['docx', 'doc', 'xlsx', 'xls'].includes(ext || '');
+                const icon = ext === 'pdf' ? '📄' : ['png','jpg','jpeg','webp'].includes(ext||'') ? '🖼️' : ext === 'mp4' ? '🎬' : '📝';
+                return (
+                  <div key={i} className="flex items-center gap-2 p-2 bg-black/30 border border-white/5 rounded-lg">
+                    <span>{icon}</span>
+                    <span className="text-[10px] font-mono text-white/40 truncate flex-1">{filename}</span>
+                    <a href={url} target={isDoc ? '_self' : '_blank'} download={isDoc ? filename : undefined} rel="noopener noreferrer"
+                      className="text-[9px] font-black text-[#10B981] hover:text-white transition-all px-2 py-1 border border-[#10B981]/20 rounded uppercase tracking-widest">
+                      {isDoc ? '↓' : '→'}
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* NOTES INTERNES */}
+        <div className="bg-[#111] border border-white/5 rounded-xl p-5 space-y-2">
+          <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Notes internes</p>
+          <p className="text-[10px] font-mono text-white/40 leading-relaxed">
+            {enterprise?.custom_notes || 'Aucune note'}
+          </p>
+        </div>
+
       </div>
     </div>
   );
