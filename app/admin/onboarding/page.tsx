@@ -293,13 +293,20 @@ export default function OnboardingPage() {
               </div>
             )}
 
+            {expandedField && (
+              <div 
+                className="fixed inset-0 bg-black/70 z-40"
+                onClick={() => setExpandedField(null)}
+              />
+            )}
+
             {/* MESSAGE */}
             {prospect.message && (
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Message du prospect</label>
                 <div
                   onClick={() => setExpandedField(expandedField === 'message' ? null : 'message')}
-                  className={`bg-[#111] border border-white/5 rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${expandedField === 'message' ? 'fixed inset-x-[20%] inset-y-[15%] z-50 overflow-y-auto rounded-xl shadow-2xl' : 'max-h-24 overflow-hidden'}`}
+                  className={`bg-[#111] border border-white/5 rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${expandedField === 'message' ? 'fixed top-[10%] left-[50%] translate-x-[-50%] w-[600px] max-h-[70vh] z-50 overflow-y-auto rounded-xl shadow-2xl border border-white/10' : 'max-h-24 overflow-hidden'}`}
                 >
                   {expandedField === 'message' && (
                     <div className="flex justify-between items-center mb-3">
@@ -341,7 +348,7 @@ export default function OnboardingPage() {
                 onChange={(e) => setEdits({...edits, custom_notes: e.target.value})}
                 onClick={() => setExpandedField(expandedField === 'notes' ? null : 'notes')}
                 placeholder="Notes internes sur ce prospect..."
-                className={`w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none transition-all ${expandedField === 'notes' ? 'fixed inset-x-[20%] inset-y-[15%] z-50 rounded-xl shadow-2xl' : ''}`}
+                className={`w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none transition-all ${expandedField === 'notes' ? 'fixed top-[10%] left-[50%] translate-x-[-50%] w-[600px] z-50 rounded-xl shadow-2xl border border-[#10B981]/20' : ''}`}
                 rows={expandedField === 'notes' ? 20 : 3}
               />
             </div>
