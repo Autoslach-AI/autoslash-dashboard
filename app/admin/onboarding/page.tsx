@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ArrowRight, Check, FileText, Calendar, DollarSign } from 'lucide-react';
+import { Search, ArrowRight, Check, FileText, Calendar, DollarSign, Pencil } from 'lucide-react';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -15,6 +15,9 @@ export default function OnboardingPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [edits, setEdits] = useState<any>({});
+  const [editingName, setEditingName] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
+  const [expandedField, setExpandedField] = useState<string | null>(null);
 
   const handleSearch = async () => {
     if (!queryId.trim() || !queryName.trim()) {
@@ -191,18 +194,47 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            {/* INFOS NON EDITABLES */}
+            {/* INFOS NON EDITABLES / EDITABLES CRAYON */}
             <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: 'Contact', value: prospect.contact_name },
-                { label: 'Email', value: prospect.email },
-                { label: 'Téléphone', value: prospect.phone },
-              ].map(({ label, value }) => (
-                <div key={label} className="p-3 bg-[#111] border border-white/5 rounded-lg">
-                  <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1">{label}</p>
-                  <p className="text-[10px] font-mono text-white/60">{value || '—'}</p>
+              {/* NAME — éditable au crayon */}
+              <div className="p-3 bg-[#111] border border-white/5 rounded-lg col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Entreprise</p>
+                  <button onClick={() => setEditingName(!editingName)} className="text-[#10B981]/40 hover:text-[#10B981] transition-all">
+                    <Pencil className="w-3 h-3" />
+                  </button>
                 </div>
-              ))}
+                {editingName
+                  ? <input type="text" value={edits.name || ''} onChange={(e) => setEdits({...edits, name: e.target.value})} className="w-full bg-black border border-[#10B981]/30 rounded px-2 py-1 text-[11px] font-mono text-white outline-none" />
+                  : <p className="text-[11px] font-mono text-white/60">{edits.name || '—'}</p>
+                }
+              </div>
+
+              {/* CONTACT — éditable au crayon */}
+              <div className="p-3 bg-[#111] border border-white/5 rounded-lg">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-white/30">Contact</p>
+                  <button onClick={() => setEditingContact(!editingContact)} className="text-[#10B981]/40 hover:text-[#10B981] transition-all">
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                </div>
+                {editingContact
+                  ? <input type="text" value={edits.contact_name || ''} onChange={(e) => setEdits({...edits, contact_name: e.target.value})} className="w-full bg-black border border-[#10B981]/30 rounded px-2 py-1 text-[11px] font-mono text-white outline-none" />
+                  : <p className="text-[11px] font-mono text-white/60">{prospect.contact_name || '—'}</p>
+                }
+              </div>
+
+              {/* EMAIL — lecture seule */}
+              <div className="p-3 bg-[#111] border border-white/5 rounded-lg">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1">Email</p>
+                <p className="text-[11px] font-mono text-white/60">{prospect.email || '—'}</p>
+              </div>
+
+              {/* TÉLÉPHONE — lecture seule */}
+              <div className="p-3 bg-[#111] border border-white/5 rounded-lg">
+                <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-1">Téléphone</p>
+                <p className="text-[11px] font-mono text-white/60">{prospect.phone || '—'}</p>
+              </div>
             </div>
 
             {/* INFOS EDITABLES */}
@@ -273,7 +305,16 @@ export default function OnboardingPage() {
             {prospect.message && (
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Message du prospect</label>
-                <div className="bg-[#111] border border-white/5 rounded-lg p-3 max-h-40 overflow-y-auto">
+                <div
+                  onClick={() => setExpandedField(expandedField === 'message' ? null : 'message')}
+                  className={`bg-[#111] border border-white/5 rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${expandedField === 'message' ? 'fixed inset-4 z-50 overflow-y-auto' : 'max-h-24 overflow-hidden'}`}
+                >
+                  {expandedField === 'message' && (
+                    <div className="flex justify-between items-center mb-3">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Message du prospect</p>
+                      <span className="text-[9px] text-white/30">✕ Cliquer pour fermer</span>
+                    </div>
+                  )}
                   <p className="text-[10px] font-mono text-white/50 leading-relaxed whitespace-pre-wrap">{prospect.message}</p>
                 </div>
               </div>
@@ -305,10 +346,11 @@ export default function OnboardingPage() {
               <label className="text-[9px] font-black uppercase tracking-widest text-[#10B981]">Notes internes ✎</label>
               <textarea
                 value={edits.custom_notes || ''}
-                onChange={(e) => setEdits({ ...edits, custom_notes: e.target.value })}
+                onChange={(e) => setEdits({...edits, custom_notes: e.target.value})}
+                onClick={() => setExpandedField(expandedField === 'notes' ? null : 'notes')}
                 placeholder="Notes internes sur ce prospect..."
-                rows={3}
-                className="w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none"
+                className={`w-full bg-[#111] border border-[#10B981]/20 rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none transition-all ${expandedField === 'notes' ? 'fixed inset-4 z-50 h-auto min-h-[80vh]' : 'rows-3'}`}
+                rows={expandedField === 'notes' ? 20 : 3}
               />
             </div>
 
