@@ -307,7 +307,7 @@ export default function OnboardingPage() {
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Message du prospect</label>
                 <div
                   onClick={() => setExpandedField(expandedField === 'message' ? null : 'message')}
-                  className={`bg-[#111] border border-white/5 rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${expandedField === 'message' ? 'fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] w-[560px] max-h-[50vh] z-50 overflow-y-auto rounded-xl shadow-2xl border border-white/10 bg-[#111]' : 'max-h-24 overflow-hidden'}`}
+                  className={`bg-[#111] border border-white/5 rounded-lg p-3 cursor-pointer hover:border-white/10 transition-all ${expandedField === 'message' ? 'fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] w-[480px] h-[55vh] z-50 overflow-y-auto rounded-xl shadow-2xl border border-white/10 bg-[#111] p-5' : 'max-h-24 overflow-hidden'}`}
                 >
                   {expandedField === 'message' && (
                     <div className="flex justify-between items-center mb-3">
@@ -368,7 +368,7 @@ export default function OnboardingPage() {
                 className={`w-full bg-[#111] border rounded-lg px-3 py-2 text-[11px] font-mono text-white/70 outline-none resize-none transition-all
                   ${editingNotes ? 'border-[#10B981]/40' : 'border-white/5 cursor-default'}
                   ${expandedField === 'notes' 
-                    ? 'fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] w-[560px] h-[40vh] z-50 rounded-xl shadow-2xl border border-[#10B981]/20 bg-[#111]' 
+                    ? 'fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] w-[480px] h-[55vh] z-50 rounded-xl shadow-2xl border border-[#10B981]/20 bg-[#111] px-4 py-4' 
                     : ''}`}
                 rows={3}
               />
