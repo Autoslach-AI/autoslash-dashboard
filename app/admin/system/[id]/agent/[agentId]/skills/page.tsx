@@ -154,19 +154,22 @@ export default function AgentSkillsPage() {
 
       if (item.type === 'folder') {
         return (
-          <div key={item.id} className="space-y-1">
+          <div key={item.id} className="space-y-0.5">
             <div 
-              onClick={() => toggleFolder(item.id)}
-              className={`flex items-center gap-2 py-1.5 px-2 rounded-lg cursor-pointer transition-all hover:bg-white/5 ${level > 0 ? 'ml-4' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFolder(item.id);
+              }}
+              className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/5 ${level > 0 ? 'ml-4' : ''} group`}
             >
-              <div className="w-4 h-4 flex items-center justify-center text-white/40">
-                {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              <Folder className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" />
+              <span className="text-[11px] text-white/40 font-mono tracking-tight flex-1 group-hover:text-white/60 transition-colors">{item.name}</span>
+              <div className="text-white/10 group-hover:text-white/30 transition-colors">
+                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               </div>
-              <Folder className="w-3.5 h-3.5 text-white/20" />
-              <span className="text-[11px] text-white/60 font-medium tracking-wide">{item.name}</span>
             </div>
             {isExpanded && item.children && (
-              <div className="ml-0">
+              <div className="overflow-hidden">
                 {renderFileTree(item.children, level + 1)}
               </div>
             )}
@@ -177,12 +180,15 @@ export default function AgentSkillsPage() {
       return (
         <div 
           key={item.id}
-          onClick={() => handleFileClick(item)}
-          className={`flex items-center gap-3 py-1.5 px-2 rounded-lg cursor-pointer transition-all hover:bg-white/5 group ${isSelected ? 'bg-white/10 text-white' : 'text-white/40'} ${level > 0 ? 'ml-8' : 'ml-4'}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleFileClick(item);
+          }}
+          className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/5 group ${isSelected ? 'bg-white/10 text-white' : 'text-white/40'} ${level > 0 ? 'ml-4' : ''}`}
         >
-          {item.name.endsWith('.py') ? <FileCode className="w-3.5 h-3.5 text-[#4ade80]/60" /> : 
-           item.name.endsWith('.json') ? <FileJson className="w-3.5 h-3.5 text-blue-400/60" /> :
-           <FileText className="w-3.5 h-3.5 text-white/20" />}
+          {item.name.endsWith('.py') ? <FileCode className="w-4 h-4 text-[#4ade80]/40 group-hover:text-[#4ade80]/60" /> : 
+           item.name.endsWith('.json') ? <FileJson className="w-4 h-4 text-blue-400/40 group-hover:text-blue-400/60" /> :
+           <FileText className="w-4 h-4 text-white/20 group-hover:text-white/40" />}
           <span className="text-[11px] font-mono tracking-tight">{item.name}</span>
         </div>
       );
