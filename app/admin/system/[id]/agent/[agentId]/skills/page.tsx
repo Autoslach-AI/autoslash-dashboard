@@ -27,84 +27,10 @@ import {
   Pencil,
   Copy,
   Hash,
-  FileJson
+  Zap
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
-// Mock File Structure
-const MOCK_FILES = [
-  { id: '1', name: 'SKILL.md', type: 'file', content: '# Skill Creator\n\nCreate new skills, modify and improve existing skills, and measure skill performance.' },
-  { 
-    id: '2', 
-    name: 'agents', 
-    type: 'folder', 
-    children: [
-      { id: '2-1', name: 'analyzer.md', type: 'file', content: '# Analyzer\n\nAnalyzes benchmark results for the skills.' }
-    ] 
-  },
-  { 
-    id: '3', 
-    name: 'assets', 
-    type: 'folder', 
-    children: [
-      { id: '3-1', name: 'eval_review.html', type: 'file', content: '<html><body>Review Content</body></html>' }
-    ] 
-  },
-  { 
-    id: '4', 
-    name: 'eval-viewer', 
-    type: 'folder', 
-    children: [
-      { 
-        id: '4-1', 
-        name: 'generate_review.py', 
-        type: 'file', 
-        content: `#!/usr/bin/env python3
-"""Generate and serve a review page for eval results.
-
-Reads the workspace directory, discovers runs (directories with outputs/),
-embeds all output data into a self-contained HTML page, and serves it via
-a tiny HTTP server. Feedback auto-saves to feedback.json in the workspace.
-"""
-
-import argparse
-import base64
-import json
-import mimetypes
-import os
-import re
-import signal
-import subprocess
-import sys
-import time
-import webbrowser
-from functools import partial
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from pathlib import Path` 
-      },
-      { id: '4-2', name: 'viewer.html', type: 'file', content: '<!-- Viewer HTML -->' }
-    ] 
-  },
-  { 
-    id: '5', 
-    name: 'references', 
-    type: 'folder', 
-    children: [
-      { id: '5-1', name: 'schemas.md', type: 'file', content: '# Schemas\n\nDefinitions for benchmark.json' }
-    ] 
-  },
-  { 
-    id: '6', 
-    name: 'scripts', 
-    type: 'folder', 
-    children: [
-      { id: '6-1', name: '__init__.py', type: 'file', content: '' },
-      { id: '6-2', name: 'aggregate_benchmark.py', type: 'file', content: '# Script to aggregate results' },
-      { id: '6-3', name: 'generate_report.py', type: 'file', content: '# Script to generate reports' }
-    ] 
-  },
-  { id: '7', name: 'LICENSE.txt', type: 'file', content: 'MIT License' }
-];
 
 export default function AgentSkillsPage() {
   const params = useParams();
@@ -124,6 +50,7 @@ export default function AgentSkillsPage() {
 
   // Form States
   const [skillForm, setSkillForm] = useState({ name: '', description: '', instructions: '' });
+  const [skills, setSkills] = useState<any[]>([]);
 
   // File Tree States
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['skill-creator']));
@@ -147,54 +74,6 @@ export default function AgentSkillsPage() {
     setIsEditing(false);
   };
 
-  const renderFileTree = (items: any[], level = 0) => {
-    return items.map((item) => {
-      const isExpanded = expandedFolders.has(item.id);
-      const isSelected = selectedFile?.id === item.id;
-
-      if (item.type === 'folder') {
-        return (
-          <div key={item.id} className="space-y-0.5">
-            <div 
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFolder(item.id);
-              }}
-              className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/10 ${level > 0 ? 'ml-4' : ''} group`}
-            >
-              <Folder className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" />
-              <span className="text-[11px] text-white/60 font-mono tracking-tight flex-1 group-hover:text-white/60 transition-colors">{item.name}</span>
-              <div className="text-white/10 group-hover:text-white/30 transition-colors">
-                {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              </div>
-            </div>
-            {isExpanded && item.children && (
-              <div className="overflow-hidden">
-                {renderFileTree(item.children, level + 1)}
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      return (
-        <div 
-          key={item.id}
-          onPointerUp={(e) => {
-            e.stopPropagation();
-            handleFileClick(item);
-          }}
-          className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/10 group ${isSelected ? 'bg-white/10 text-white' : 'text-white/60'} ${level > 0 ? 'ml-4' : ''}`}
-        >
-          {item.name.endsWith('.py') ? <FileCode className="w-4 h-4 text-[#4ade80]/40 group-hover:text-[#4ade80]/60" /> : 
-           item.name.endsWith('.json') ? <FileJson className="w-4 h-4 text-blue-400/40 group-hover:text-blue-400/60" /> :
-           <FileText className="w-4 h-4 text-white/20 group-hover:text-white/40" />}
-          <span className="text-[11px] font-mono tracking-tight">{item.name}</span>
-        </div>
-      );
-    });
-  };
-
   useEffect(() => {
     const fetchAgent = async () => {
       const { data: agents } = await getAgentsByEnterprise(id);
@@ -202,6 +81,15 @@ export default function AgentSkillsPage() {
       if (currentAgent) {
         setAgentName(currentAgent.name);
       }
+      
+      const supabase = createClient();
+      const { data: skillsData } = await supabase
+        .from('agent_skills')
+        .select('*')
+        .eq('agent_id', agentId)
+        .order('created_at');
+      setSkills(skillsData || []);
+      
       setLoading(false);
     };
     fetchAgent();
@@ -366,32 +254,36 @@ export default function AgentSkillsPage() {
                     exit={{ height: 0, opacity: 0 }}
                     className="space-y-1 overflow-hidden"
                   >
-                    {/* Primary Skill Folder */}
-                    <div className="bg-[#161616] rounded-xl border border-white/10 overflow-hidden">
-                      <div 
-                        onClick={() => toggleFolder('skill-creator')}
-                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-white/5 transition-colors group"
-                      >
-                        <div className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 group-hover:border-[#4ade80]/30 transition-all">
-                          <Monitor className="w-3.5 h-3.5 text-[#4ade80]" />
-                        </div>
-                        <span className="text-[11px] font-bold text-white tracking-[0.1em] uppercase">skill-creator</span>
-                        {expandedFolders.has('skill-creator') ? <ChevronDown className="w-3 h-3 ml-auto text-white/20" /> : <ChevronRight className="w-3 h-3 ml-auto text-white/20" />}
-                      </div>
-
-                      {/* File Tree Root */}
-                      <AnimatePresence>
-                        {expandedFolders.has('skill-creator') && (
-                          <motion.div 
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="p-2 pt-0 space-y-0.5 overflow-hidden"
+                    <div className="space-y-1">
+                      {skills.length === 0 ? (
+                        <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest px-3 py-4">Aucun skill configuré</p>
+                      ) : (
+                        skills.map((skill) => (
+                          <div
+                            key={skill.id}
+                            onClick={() => setSelectedFile({ id: skill.id, name: skill.name, content: skill.description || '' })}
+                            className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/10 group ${selectedFile?.id === skill.id ? 'bg-white/10 text-white' : 'text-white/60'}`}
                           >
-                            {renderFileTree(MOCK_FILES)}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                            <div className="w-5 h-5 rounded bg-[#4ade80]/10 border border-[#4ade80]/20 flex items-center justify-center flex-shrink-0">
+                              <Zap className="w-2.5 h-2.5 text-[#4ade80]" />
+                            </div>
+                            <span className="text-[11px] font-mono tracking-tight flex-1 truncate">{skill.name}</span>
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (!confirm('Supprimer ce skill ?')) return;
+                                const supabase = createClient();
+                                await supabase.from('agent_skills').delete().eq('id', skill.id);
+                                setSkills(prev => prev.filter(s => s.id !== skill.id));
+                                if (selectedFile?.id === skill.id) setSelectedFile(null);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 text-white/20 hover:text-red-400 transition-all"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -602,7 +494,29 @@ export default function AgentSkillsPage() {
                   Annuler
                 </button>
                 <button 
-                  className="px-8 py-2.5 text-[12px] font-bold text-black bg-[#E5E5E5] rounded-lg hover:bg-white transition-all tracking-widest uppercase"
+                  onClick={async () => {
+                    if (!skillForm.name.trim()) return;
+                    const supabase = createClient();
+                    const { data: newSkill } = await supabase
+                      .from('agent_skills')
+                      .insert({
+                        agent_id: agentId,
+                        enterprise_id: id,
+                        name: skillForm.name.trim(),
+                        description: skillForm.description + (skillForm.instructions ? '\n\nINSTRUCTIONS:\n' + skillForm.instructions : ''),
+                        is_active: true
+                      })
+                      .select()
+                      .single();
+                    if (newSkill) {
+                      setSkills(prev => [...prev, newSkill]);
+                      setSelectedFile({ id: newSkill.id, name: newSkill.name, content: newSkill.description || '' });
+                    }
+                    setSkillForm({ name: '', description: '', instructions: '' });
+                    setShowEditInstructionsModal(false);
+                  }}
+                  className="px-8 py-2.5 text-[12px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-widest uppercase disabled:opacity-40"
+                  disabled={!skillForm.name.trim()}
                 >
                   Créer
                 </button>
@@ -635,13 +549,45 @@ export default function AgentSkillsPage() {
               </div>
 
               <div className="p-8 space-y-10">
-                <div className="border border-dashed border-white/10 rounded-2xl p-20 flex flex-col items-center justify-center gap-6 group hover:border-white/20 transition-all bg-white/[0.01] cursor-pointer">
+                <div 
+                  className="border border-dashed border-white/10 rounded-2xl p-20 flex flex-col items-center justify-center gap-6 group hover:border-white/20 transition-all bg-white/[0.01] cursor-pointer"
+                  onClick={() => document.getElementById('skill-file-upload')?.click()}
+                >
+                  <input
+                    id="skill-file-upload"
+                    type="file"
+                    accept=".md,.zip,.skill,.txt"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = async (event) => {
+                        const content = event.target?.result as string;
+                        const supabase = createClient();
+                        const { data: newSkill } = await supabase
+                          .from('agent_skills')
+                          .insert({
+                            agent_id: agentId,
+                            enterprise_id: id,
+                            name: file.name.replace(/\.(md|zip|skill|txt)$/, ''),
+                            description: content?.substring(0, 2000) || `Fichier importé: ${file.name}`,
+                            is_active: true
+                          })
+                          .select()
+                          .single();
+                        if (newSkill) {
+                          setSkills(prev => [...prev, newSkill]);
+                        }
+                        setShowUploadModal(false);
+                      };
+                      reader.readAsText(file);
+                    }}
+                  />
                   <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-all">
                     <Plus className="w-5 h-5 text-white/40 group-hover:text-white" />
                   </div>
-                  <div className="text-center space-y-2">
-                    <p className="text-[13px] font-medium text-white/60 tracking-tight">Glissez-déposez ou cliquez pour téléverser</p>
-                  </div>
+                  <p className="text-[13px] font-medium text-white/60 tracking-tight">Glissez-déposez ou cliquez pour téléverser</p>
                 </div>
 
                 <div className="space-y-6">
