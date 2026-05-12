@@ -44,12 +44,6 @@ interface KnowledgeNode {
   created_at: string;
 }
 
-interface Skill {
-  id: string;
-  name: string;
-  category: string;
-  content: string;
-}
 
 export default function OracleConfigPage() {
   const params = useParams();
@@ -68,12 +62,9 @@ export default function OracleConfigPage() {
   const [temperature, setTemperature] = useState(0.4);
   const [modelConfig, setModelConfig] = useState({ model: 'gemini-1.5-pro', provider: 'google' });
   const [kbNodes, setKbNodes] = useState<KnowledgeNode[]>([]);
-  const [skills, setSkills] = useState<Skill[]>([]);
   const [tokenStats, setTokenStats] = useState({ consumed: 0, budget: 1000000, warning: false });
   const [isSyncing, setIsSyncing] = useState(false);
   const [showShadowChat, setShowShadowChat] = useState(false);
-  const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
-  const [showSkillModal, setShowSkillModal] = useState(false);
   const [showKbModal, setShowKbModal] = useState(false);
   const [editingNode, setEditingNode] = useState<KnowledgeNode | null>(null);
   const [activeTab, setActiveTab] = useState<'CORE' | 'KNOWLEDGE'>('CORE');
@@ -147,13 +138,6 @@ export default function OracleConfigPage() {
         ]);
       }
 
-      // Fetch Global & System Skills
-      const { data: skills_data } = await supabase
-        .from('skills_library')
-        .select('*')
-        .eq('enterprise_id', id)
-        .order('name');
-      if (skills_data) setSkills(skills_data);
 
       setBooting(false);
     };
@@ -205,40 +189,6 @@ export default function OracleConfigPage() {
     );
   }
 
-  const handleAddSkill = () => {
-    if (skills.length >= 5) {
-      alert("CRITICAL_ERR: Neural Skill limit reached (Max 5). Release a slot before reconfiguration.");
-      return;
-    }
-    setEditingSkill(null);
-    setSkillForm({ name: '', category: 'GENERAL', content: '' });
-    setShowSkillModal(true);
-  };
-
-  const handleEditSkill = (skill: Skill) => {
-    setEditingSkill(skill);
-    setSkillForm({ name: skill.name, category: skill.category, content: skill.content });
-    setShowSkillModal(true);
-  };
-
-  const saveSkill = () => {
-    if (!skillForm.name) return;
-    if (editingSkill) {
-      setSkills(skills.map(s => s.id === editingSkill.id ? { ...s, ...skillForm } : s));
-    } else {
-      const newSkill: Skill = {
-        id: Math.random().toString(36).substring(7),
-        ...skillForm
-      };
-      setSkills([...skills, newSkill]);
-    }
-    setShowSkillModal(false);
-  };
-
-  const handleDeleteSkill = async (skillId: string) => {
-    if (!confirm("TERMINATE_SKILL_PROTOCOL?")) return;
-    setSkills(skills.filter(s => s.id !== skillId));
-  };
 
   const handleInjectData = () => {
     kbFileInputRef.current?.click();
@@ -317,19 +267,6 @@ export default function OracleConfigPage() {
         .update({ token_budget: tokenStats.budget })
         .eq('id', id);
 
-      // 3. SYNC_SKILLS
-      // Clear current skills and insert new set
-      await supabase.from('skills_library').delete().eq('enterprise_id', id);
-      if (skills.length > 0) {
-        await supabase.from('skills_library').insert(
-          skills.map(s => ({ 
-            name: s.name, 
-            category: s.category, 
-            content: s.content,
-            enterprise_id: id 
-          }))
-        );
-      }
 
       // 4. SYNC_KNOWLEDGE_BASE
       // Similar logic for KB
@@ -538,62 +475,6 @@ export default function OracleConfigPage() {
                </div>
             </section>
 
-            {/* SECTION_04 // MANUAL_SKILL_INJECTOR */}
-            <section className="space-y-10">
-               <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                     <div className="w-1.5 h-6 bg-orange-500 rounded-full shadow-[0_0_10px_#f97316]" />
-                     <h2 className="text-sm font-bold text-white uppercase tracking-[0.3em]">Section_04 // Skill_Injector</h2>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <span className={`text-[10px] font-bold uppercase tracking-widest ${skills.length >= 5 ? 'text-red-500' : 'text-white/20'}`}>
-                      {skills.length} / 5 Skills
-                    </span>
-                    <button 
-                      onClick={handleAddSkill}
-                      disabled={skills.length >= 5}
-                      className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${skills.length >= 5 ? 'text-white/5 cursor-not-allowed' : 'text-orange-400 hover:text-orange-300'}`}
-                    >
-                      <Plus className="w-4 h-4" /> Add_Custom_Skill
-                    </button>
-                  </div>
-               </div>
-
-               <div className="space-y-4">
-                  {skills.map(skill => (
-                     <div key={skill.id} className="bg-[#080808] border border-white/15 rounded-xl p-6 group flex items-center justify-between hover:border-orange-500/60 transition-all shadow-inner">
-                        <div className="flex items-center gap-8">
-                           <div className="w-10 h-10 rounded-lg bg-orange-500/20 border border-orange-500/40 flex items-center justify-center">
-                              <Cpu className="w-4 h-4 text-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]" />
-                           </div>
-                           <div className="space-y-1">
-                              <p className="text-sm font-bold text-white tracking-widest uppercase">{skill.name}</p>
-                              <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest font-mono">{skill.category}</p>
-                           </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                           <button 
-                              onClick={() => handleEditSkill(skill)}
-                              className="p-2 text-white/30 hover:text-white transition-colors"
-                           >
-                              <Settings className="w-3.5 h-3.5" />
-                           </button>
-                           <button 
-                              onClick={() => handleDeleteSkill(skill.id)}
-                              className="p-2 text-white/30 hover:text-red-500 transition-colors"
-                           >
-                              <Trash2 className="w-3.5 h-3.5" />
-                           </button>
-                        </div>
-                     </div>
-                  ))}
-                  {skills.length === 0 && (
-                     <div className="bg-[#050505] border border-white/5 rounded-xl p-16 text-center text-[10px] font-bold text-white/10 uppercase tracking-[0.3em] italic">
-                        Manual_Skill_Library_Empty
-                     </div>
-                  )}
-               </div>
-            </section>
 
             {/* SECTION_05 // FINANCIAL_NODE */}
             <section className="space-y-10">
@@ -795,76 +676,6 @@ export default function OracleConfigPage() {
         )}
       </AnimatePresence>
 
-      {/* SKILL MODAL */}
-      <AnimatePresence>
-        {showSkillModal && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-             <motion.div 
-               initial={{ opacity: 0, scale: 0.95 }}
-               animate={{ opacity: 1, scale: 1 }}
-               exit={{ opacity: 0, scale: 0.95 }}
-               className="bg-[#080808] border border-white/20 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-             >
-                <div className="p-8 border-b border-white/10 flex justify-between items-center bg-orange-500/5">
-                   <div className="flex items-center gap-4">
-                      <Cpu className="w-5 h-5 text-orange-500" />
-                      <h3 className="text-sm font-bold uppercase tracking-widest text-white">
-                        {editingSkill ? 'Edit_Neural_Skill' : 'Add_New_Skill'}
-                      </h3>
-                   </div>
-                   <button onClick={() => setShowSkillModal(false)} className="text-white/20 hover:text-white transition-colors">
-                      <X className="w-5 h-5" />
-                   </button>
-                </div>
-                
-                <div className="p-8 space-y-8 overflow-y-auto">
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Skill_Alias</label>
-                      <input 
-                        value={skillForm.name}
-                        onChange={(e) => setSkillForm({...skillForm, name: e.target.value})}
-                        className="w-full bg-black border border-white/10 rounded-lg px-6 py-4 text-sm font-bold text-white outline-none focus:border-orange-500/40 transition-all"
-                        placeholder="ENTER_SKILL_NAME"
-                      />
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Category_Locus</label>
-                      <input 
-                        value={skillForm.category}
-                        onChange={(e) => setSkillForm({...skillForm, category: e.target.value.toUpperCase()})}
-                        className="w-full bg-black border border-white/10 rounded-lg px-6 py-4 text-sm font-bold text-white outline-none focus:border-orange-500/40 transition-all font-mono"
-                        placeholder="E.G. LOGIC, EXTRACTION, CREATIVE"
-                      />
-                   </div>
-                   <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Architectural_Logic_Protocol</label>
-                      <textarea 
-                        value={skillForm.content}
-                        onChange={(e) => setSkillForm({...skillForm, content: e.target.value})}
-                        className="w-full h-48 bg-black border border-white/10 rounded-lg px-6 py-6 text-sm font-mono text-white/80 outline-none focus:border-orange-500/40 transition-all resize-none"
-                        placeholder="Define the technical instructions for this skill..."
-                      />
-                   </div>
-                </div>
-
-                <div className="p-8 border-t border-white/10 flex justify-end gap-4 bg-black/40">
-                   <button 
-                     onClick={() => setShowSkillModal(false)}
-                     className="px-8 py-3 text-[10px] font-bold text-white/40 uppercase tracking-widest hover:text-white transition-colors"
-                   >
-                      Cancel
-                   </button>
-                   <button 
-                     onClick={saveSkill}
-                     className="px-10 py-3 bg-orange-500 text-black text-[10px] font-black uppercase tracking-[0.2em] rounded-lg hover:shadow-[0_0_20px_rgba(249,115,22,0.4)] transition-all"
-                   >
-                      Confirm_Injection
-                   </button>
-                </div>
-             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* KB MODAL */}
       <AnimatePresence>
