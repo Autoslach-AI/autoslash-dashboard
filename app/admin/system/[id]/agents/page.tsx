@@ -11,7 +11,7 @@ import {
 import { createClient } from '@/lib/supabase';
 const supabase = createClient();
 
-type AgentTab = 'identite' | 'skills' | 'performance';
+type AgentTab = 'identite' | 'performance';
 
 export default function AgentsPage() {
   const params = useParams();
@@ -30,7 +30,6 @@ export default function AgentsPage() {
   const [zoom, setZoom] = useState<string | null>(null);
   const [zoomContent, setZoomContent] = useState('');
   const [deploying, setDeploying] = useState(false);
-  const [agentSkills, setAgentSkills] = useState<Record<string, any[]>>({});
   const avatarRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
@@ -55,28 +54,12 @@ export default function AgentsPage() {
         .order('complexity');
       setAvailableModels(models || []);
 
-      // Skills par agent
-      if (agentsData?.length) {
-        const { data: skills } = await supabase
-          .from('agent_skills')
-          .select('*')
-          .in('agent_id', agentsData.map((a: any) => a.id));
-        
-        const skillMap: Record<string, any[]> = {};
-        (skills || []).forEach((s: any) => {
-          if (!skillMap[s.agent_id]) skillMap[s.agent_id] = [];
-          skillMap[s.agent_id].push(s);
-        });
-        setAgentSkills(skillMap);
-      }
-
       setLoading(false);
     }
     fetchData();
   }, [id]);
 
   const maxAgents = enterprise?.max_agents_override ?? planDef?.max_agents_allowed ?? 0;
-  const maxSkills = planDef?.max_skills_per_agent ?? 0;
   const activeAgents = agents.filter(a => a.status !== 'archived');
 
   const updateAgent = (agentId: string, field: string, value: any) => {
@@ -158,31 +141,6 @@ export default function AgentsPage() {
     await supabase.from('agents').update({ status: 'archived' }).eq('id', agentId);
     setAgents(prev => prev.filter(a => a.id !== agentId));
     if (expandedAgent === agentId) setExpandedAgent(null);
-  };
-
-  const handleAddSkill = async (agentId: string) => {
-    const currentSkills = agentSkills[agentId] || [];
-    if (currentSkills.length >= maxSkills && maxSkills > 0) return;
-    const { data: newSkill } = await supabase
-      .from('agent_skills')
-      .insert({ agent_id: agentId, enterprise_id: id, name: 'NOUVEAU SKILL', description: '', is_active: true })
-      .select().single();
-    if (newSkill) {
-      setAgentSkills(prev => ({ ...prev, [agentId]: [...(prev[agentId] || []), newSkill] }));
-    }
-  };
-
-  const handleDeleteSkill = async (agentId: string, skillId: string) => {
-    await supabase.from('agent_skills').delete().eq('id', skillId);
-    setAgentSkills(prev => ({ ...prev, [agentId]: (prev[agentId] || []).filter(s => s.id !== skillId) }));
-  };
-
-  const handleUpdateSkill = async (agentId: string, skillId: string, field: string, value: any) => {
-    setAgentSkills(prev => ({
-      ...prev,
-      [agentId]: (prev[agentId] || []).map(s => s.id === skillId ? { ...s, [field]: value } : s)
-    }));
-    await supabase.from('agent_skills').update({ [field]: value }).eq('id', skillId);
   };
 
   const getPlanColor = (plan: string) => {
@@ -284,7 +242,6 @@ export default function AgentsPage() {
           {/* ── AGENTS ── */}
           {activeAgents.map((agent) => {
             const currentTab = agentTabs[agent.id] || 'identite';
-            const skills = agentSkills[agent.id] || [];
             const isExpanded = expandedAgent === agent.id;
 
             return (
@@ -313,7 +270,7 @@ export default function AgentsPage() {
                       </span>
                     </div>
                     <p className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">
-                      {agent.primary_api || 'Base_Protocol'} · {agent.neural_load || 0}% load · {skills.length} skills
+                      {agent.primary_api || 'Base_Protocol'} · {agent.neural_load || 0}% load
                     </p>
                   </div>
                   <div className="text-white/20 flex-shrink-0">
@@ -329,7 +286,6 @@ export default function AgentsPage() {
                     <div className="flex items-center gap-1 px-6 py-3 border-b border-white/5 bg-[#0D0D0D]/50">
                       {[
                         { id: 'identite', label: 'Identité & Config', icon: Brain },
-                        { id: 'skills', label: 'Skills', icon: Zap },
                         { id: 'performance', label: 'Performance', icon: BarChart2 },
                       ].map(({ id: tabId, label, icon: Icon }) => (
                         <button
@@ -610,80 +566,6 @@ export default function AgentsPage() {
                             }
                           </button>
                         </div>
-                      </div>
-                    )}
-
-                    {/* ══ TAB : SKILLS ══ */}
-                    {currentTab === 'skills' && (
-                      <div className="p-8 space-y-6">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-[11px] font-black text-white uppercase mb-1">Skills de l'agent</p>
-                            <p className="text-[9px] font-mono text-white/30 uppercase tracking-tighter">{skills.length} / {maxSkills === 0 ? '∞' : maxSkills} skills configurés</p>
-                          </div>
-                          {(maxSkills === 0 || skills.length < maxSkills) && (
-                            <button
-                              onClick={() => handleAddSkill(agent.id)}
-                              className="flex items-center gap-2 px-4 py-2.5 bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-[#10B981]/20 transition-all"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              Ajouter skill
-                            </button>
-                          )}
-                        </div>
-
-                        {skills.length === 0 ? (
-                          <div className="py-16 flex flex-col items-center justify-center text-center border border-dashed border-white/10 rounded-2xl space-y-3">
-                            <Zap className="w-8 h-8 text-white/10" />
-                            <p className="text-[11px] font-black text-white/20 uppercase tracking-widest">Aucun skill configuré</p>
-                            <p className="text-[9px] font-mono text-white/20">Ajoutez des skills pour spécialiser cet agent</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {skills.map((skill) => (
-                              <div key={skill.id} className="bg-[#0D0D0D] border border-white/5 rounded-xl p-5 space-y-4">
-                                <div className="flex items-center justify-between gap-4">
-                                  <input
-                                    type="text"
-                                    value={skill.name || ''}
-                                    onChange={(e) => handleUpdateSkill(agent.id, skill.id, 'name', e.target.value)}
-                                    className="flex-1 bg-transparent border-b border-white/10 pb-1 text-[12px] font-black text-white uppercase tracking-wide focus:border-[#10B981]/40 outline-none transition-all"
-                                    placeholder="NOM DU SKILL"
-                                  />
-                                  <div className="flex items-center gap-3 flex-shrink-0">
-                                    <button
-                                      onClick={() => handleUpdateSkill(agent.id, skill.id, 'is_active', !skill.is_active)}
-                                      className={`relative w-10 h-5 rounded-full transition-all ${skill.is_active ? 'bg-[#10B981]' : 'bg-white/10'}`}
-                                    >
-                                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${skill.is_active ? 'left-5' : 'left-0.5'}`} />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteSkill(agent.id, skill.id)}
-                                      className="text-white/20 hover:text-red-400 transition-all"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </div>
-                                <textarea
-                                  value={skill.description || ''}
-                                  onChange={(e) => handleUpdateSkill(agent.id, skill.id, 'description', e.target.value)}
-                                  rows={3}
-                                  placeholder="Description de ce skill — ce que l'agent sait faire avec..."
-                                  className="w-full bg-transparent border border-white/5 rounded-lg px-4 py-3 text-[11px] font-mono text-white/50 focus:border-[#10B981]/20 outline-none resize-none transition-all leading-relaxed"
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {skills.length >= maxSkills && maxSkills > 0 && (
-                          <div className="p-4 bg-[#F59E0B]/5 border border-[#F59E0B]/20 rounded-xl">
-                            <p className="text-[9px] font-black text-[#F59E0B] uppercase tracking-widest">
-                              Limite atteinte — {maxSkills} skills max pour le plan {enterprise?.package_type}
-                            </p>
-                          </div>
-                        )}
                       </div>
                     )}
 
