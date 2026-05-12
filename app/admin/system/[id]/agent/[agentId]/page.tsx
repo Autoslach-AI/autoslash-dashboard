@@ -25,7 +25,8 @@ import {
   BarChart3,
   MessageSquare,
   Upload,
-  Search
+  Search,
+  ChevronDown
 } from 'lucide-react';
 import { useSystem } from '../../SystemContext';
 import { 
@@ -489,30 +490,36 @@ export default function OracleConfigPage() {
                   {/* API PRIMAIRE */}
                   <div className="space-y-3">
                      <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Api Primaire</label>
-                     <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-8 py-6">
+                     <div className="bg-[#0D0D0D] border border-white/5 rounded-xl px-6 py-3.5 hover:border-[#4ade80]/30 transition-all relative group">
                         <select 
                           value={modelConfig.model}
                           onChange={(e) => setModelConfig({...modelConfig, model: e.target.value})}
-                          className="w-full bg-[#0D0D0D] text-[13px] font-bold text-white uppercase outline-none cursor-pointer appearance-none"
+                          className="w-full bg-[#0D0D0D] text-[12px] font-bold text-white uppercase outline-none cursor-pointer appearance-none relative z-10"
                         >
                            <option value="claude-3.5-sonnet" className="bg-[#0D0D0D] text-white">Claude Sonnet — Anthropic (HIGH)</option>
                            <option value="gemini-1.5-pro" className="bg-[#0D0D0D] text-white">Gemini Pro — Google</option>
                            <option value="gemini-1.5-flash" className="bg-[#0D0D0D] text-white">Gemini Flash — Google</option>
                         </select>
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-white/20 group-hover:text-[#4ade80]/50 transition-colors">
+                           <ChevronDown className="w-3.5 h-3.5" />
+                        </div>
                      </div>
                   </div>
 
                   {/* API FALLBACK */}
                   <div className="space-y-3">
                      <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Api Fallback</label>
-                     <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-8 py-6">
+                     <div className="bg-[#0D0D0D] border border-white/5 rounded-xl px-6 py-3.5 hover:border-[#4ade80]/30 transition-all relative group">
                         <select 
                           value="gemini-1.5-flash"
-                          className="w-full bg-[#0D0D0D] text-[13px] font-bold text-white uppercase outline-none cursor-pointer appearance-none"
+                          className="w-full bg-[#0D0D0D] text-[12px] font-bold text-white uppercase outline-none cursor-pointer appearance-none relative z-10"
                         >
                            <option value="gemini-1.5-flash" className="bg-[#0D0D0D] text-white">Gemini Flash — Google</option>
                            <option value="claude-3-haiku" className="bg-[#0D0D0D] text-white">Claude Haiku — Anthropic</option>
                         </select>
+                        <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-white/20 group-hover:text-[#4ade80]/50 transition-colors">
+                           <ChevronDown className="w-3.5 h-3.5" />
+                        </div>
                      </div>
                   </div>
 
