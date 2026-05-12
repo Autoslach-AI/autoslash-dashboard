@@ -50,7 +50,7 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
   const coreNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: `/admin/system/${id}` },
     { id: 'inventory', label: 'Inventory', icon: Zap, path: `/admin/system/${id}/inventory` },
-    { id: 'agents', label: 'Agents', icon: Cpu, type: 'trigger' },
+    { id: 'agents', label: 'Agents', icon: Cpu, path: `/admin/system/${id}/agents` },
     { id: 'branding', label: 'Branding', icon: Palette, path: `/admin/system/${id}/branding` },
     { id: 'profile', label: 'Profile', icon: User, path: `/admin/system/${id}/profile` },
     { id: 'settings', label: 'Settings', icon: Settings, path: `/admin/system/${id}/settings` },
@@ -76,14 +76,12 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
          {/* NAVIGATION ITEMS */}
          <nav className="flex-1 w-full px-4 space-y-4">
             {coreNav.map((item) => {
-               const isActive = pathname === item.path || (item.id === 'agents' && isSecondaryOpen);
+               const isActive = pathname === item.path;
                return (
                  <div key={item.id} className="relative group">
                     <button
                       onClick={() => {
-                        if (item.type === 'trigger') {
-                          setIsSecondaryOpen(!isSecondaryOpen);
-                        } else if (item.path) {
+                        if (item.path) {
                           router.push(item.path);
                           setIsSecondaryOpen(false);
                         }
