@@ -484,6 +484,36 @@ export default function AgentSkillsPage() {
                     onChange={(e) => setSkillForm({...skillForm, instructions: e.target.value})}
                   />
                 </div>
+
+                <div className="pt-4">
+                  <button 
+                    onClick={async () => {
+                      if (!skillForm.name.trim()) return;
+                      const supabase = createClient();
+                      const { data: newSkill } = await supabase
+                        .from('agent_skills')
+                        .insert({
+                          agent_id: agentId,
+                          enterprise_id: id,
+                          name: skillForm.name.trim(),
+                          description: skillForm.description + (skillForm.instructions ? '\n\nINSTRUCTIONS:\n' + skillForm.instructions : ''),
+                          is_active: true
+                        })
+                        .select()
+                        .single();
+                      if (newSkill) {
+                        setSkills(prev => [...prev, newSkill]);
+                        setSelectedFile({ id: newSkill.id, name: newSkill.name, content: newSkill.description || '' });
+                      }
+                      setSkillForm({ name: '', description: '', instructions: '' });
+                      setShowEditInstructionsModal(false);
+                    }}
+                    className="w-full py-4 text-[12px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-[0.2em] uppercase disabled:opacity-40 shadow-[0_0_20px_rgba(74,222,128,0.1)]"
+                    disabled={!skillForm.name.trim()}
+                  >
+                    Créer la compétence
+                  </button>
+                </div>
               </div>
 
               <div className="p-8 pt-0 flex justify-end gap-3">
