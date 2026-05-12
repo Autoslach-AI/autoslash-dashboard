@@ -160,10 +160,10 @@ export default function AgentSkillsPage() {
                 e.stopPropagation();
                 toggleFolder(item.id);
               }}
-              className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/5 ${level > 0 ? 'ml-4' : ''} group`}
+              className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/10 ${level > 0 ? 'ml-4' : ''} group`}
             >
               <Folder className="w-4 h-4 text-white/20 group-hover:text-white/40 transition-colors" />
-              <span className="text-[11px] text-white/40 font-mono tracking-tight flex-1 group-hover:text-white/60 transition-colors">{item.name}</span>
+              <span className="text-[11px] text-white/60 font-mono tracking-tight flex-1 group-hover:text-white/60 transition-colors">{item.name}</span>
               <div className="text-white/10 group-hover:text-white/30 transition-colors">
                 {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               </div>
@@ -180,11 +180,11 @@ export default function AgentSkillsPage() {
       return (
         <div 
           key={item.id}
-          onClick={(e) => {
+          onPointerUp={(e) => {
             e.stopPropagation();
             handleFileClick(item);
           }}
-          className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/5 group ${isSelected ? 'bg-white/10 text-white' : 'text-white/40'} ${level > 0 ? 'ml-4' : ''}`}
+          className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/10 group ${isSelected ? 'bg-white/10 text-white' : 'text-white/60'} ${level > 0 ? 'ml-4' : ''}`}
         >
           {item.name.endsWith('.py') ? <FileCode className="w-4 h-4 text-[#4ade80]/40 group-hover:text-[#4ade80]/60" /> : 
            item.name.endsWith('.json') ? <FileJson className="w-4 h-4 text-blue-400/40 group-hover:text-blue-400/60" /> :
@@ -249,9 +249,9 @@ export default function AgentSkillsPage() {
       </div>
 
       {/* DUAL PANE LAYOUT */}
-      <div className="flex bg-[#050505] border border-white/10 rounded-2xl overflow-hidden min-h-[700px]">
+      <div className="flex bg-[#0D0D0D] border border-white/10 rounded-2xl overflow-hidden min-h-[700px]">
         {/* SIDEBAR */}
-        <aside className="w-80 border-r border-white/10 flex flex-col bg-black">
+        <aside className="w-80 border-r border-white/10 flex flex-col bg-[#111]">
           {/* Sidebar Header */}
           <div className="p-6 flex items-center justify-between border-b border-white/5">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">Compétences</h3>
@@ -367,7 +367,7 @@ export default function AgentSkillsPage() {
                     className="space-y-1 overflow-hidden"
                   >
                     {/* Primary Skill Folder */}
-                    <div className="bg-[#0A0A0A] rounded-xl border border-white/5 overflow-hidden">
+                    <div className="bg-[#161616] rounded-xl border border-white/10 overflow-hidden">
                       <div 
                         onClick={() => toggleFolder('skill-creator')}
                         className="flex items-center gap-3 p-3 cursor-pointer hover:bg-white/5 transition-colors group"
@@ -401,7 +401,7 @@ export default function AgentSkillsPage() {
         </aside>
 
         {/* MAIN CONTENT AREA */}
-        <main className="flex-1 flex flex-col bg-[#000000]">
+        <main className="flex-1 flex flex-col bg-[#0D0D0D]">
           {selectedFile ? (
             <div className="flex-1 flex flex-col">
               {/* Header for File */}
@@ -499,13 +499,13 @@ export default function AgentSkillsPage() {
                     <span>Description</span>
                     <Info className="w-3 h-3" />
                   </div>
-                  <p className="text-[12px] font-medium text-white/60 leading-relaxed tracking-wide">
+                  <p className="text-[12px] font-medium text-white/80 leading-relaxed tracking-wide">
                     Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
                   </p>
                 </div>
 
                 {/* Code / Markdown Block */}
-                <div className="bg-[#0D0D0D] border border-white/5 rounded-2xl p-8 space-y-8 relative group">
+                <div className="bg-[#161616] border border-white/10 rounded-2xl p-8 space-y-8 relative group">
                   <div className="absolute right-6 top-6 flex items-center gap-3 opacity-20 group-hover:opacity-100 transition-all">
                     <div className="p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
                       <Eye className="w-4 h-4 text-white" />
@@ -551,12 +551,12 @@ export default function AgentSkillsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#1A1A1A] border border-white/10 rounded-2xl shadow-3xl overflow-hidden"
+              className="relative w-full max-w-2xl bg-[#1E1E1E] border border-white/20 rounded-2xl shadow-3xl overflow-hidden"
             >
               <div className="p-8 border-b border-white/5 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white tracking-tight">Rédiger les instructions de la compétence</h2>
                 <X 
-                  className="w-5 h-5 text-white/40 hover:text-white cursor-pointer transition-colors" 
+                  className="w-5 h-5 text-white/60 hover:text-white cursor-pointer transition-colors" 
                   onClick={() => setShowEditInstructionsModal(false)}
                 />
               </div>
@@ -567,7 +567,7 @@ export default function AgentSkillsPage() {
                   <input 
                     type="text"
                     placeholder="weekly-status-report"
-                    className="w-full bg-[#1F1F1F] border border-white/5 rounded-lg px-5 py-3 text-white text-sm outline-none focus:border-white/20 transition-all font-mono placeholder:text-white/20"
+                    className="w-full bg-[#252525] border border-white/10 rounded-lg px-5 py-3 text-white text-sm outline-none focus:border-[#4ade80]/40 transition-all font-mono placeholder:text-white/30"
                     value={skillForm.name}
                     onChange={(e) => setSkillForm({...skillForm, name: e.target.value})}
                   />
@@ -577,7 +577,7 @@ export default function AgentSkillsPage() {
                   <label className="text-[11px] font-bold text-white/60 uppercase tracking-[0.2em]">Description</label>
                   <textarea 
                     placeholder="Générer des rapports d'état hebdomadaires à partir du travail récent. À utiliser pour les demandes de mises à jour ou de résumés de progression."
-                    className="w-full bg-[#1F1F1F] border border-white/5 rounded-lg px-5 py-4 text-white text-sm outline-none focus:border-white/20 transition-all font-mono min-h-[120px] resize-none placeholder:text-white/20"
+                    className="w-full bg-[#252525] border border-white/10 rounded-lg px-5 py-4 text-white text-sm outline-none focus:border-[#4ade80]/40 transition-all font-mono min-h-[120px] resize-none placeholder:text-white/30"
                     value={skillForm.description}
                     onChange={(e) => setSkillForm({...skillForm, description: e.target.value})}
                   />
@@ -587,7 +587,7 @@ export default function AgentSkillsPage() {
                   <label className="text-[11px] font-bold text-white/60 uppercase tracking-[0.2em]">Instructions</label>
                   <textarea 
                     placeholder="Résumez mon travail récent en trois sections : réussites, obstacles et prochaines étapes. Adoptez un ton professionnel mais pas rigide..."
-                    className="w-full bg-[#1F1F1F] border border-white/5 rounded-lg px-5 py-4 text-white text-sm outline-none focus:border-white/20 transition-all font-mono min-h-[220px] resize-none placeholder:text-white/20"
+                    className="w-full bg-[#252525] border border-white/10 rounded-lg px-5 py-4 text-white text-sm outline-none focus:border-[#4ade80]/40 transition-all font-mono min-h-[220px] resize-none placeholder:text-white/30"
                     value={skillForm.instructions}
                     onChange={(e) => setSkillForm({...skillForm, instructions: e.target.value})}
                   />
@@ -624,12 +624,12 @@ export default function AgentSkillsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#1A1A1A] border border-white/10 rounded-2xl shadow-3xl overflow-hidden"
+              className="relative w-full max-w-2xl bg-[#1E1E1E] border border-white/20 rounded-2xl shadow-3xl overflow-hidden"
             >
               <div className="p-8 border-b border-white/5 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white tracking-tight">Importer une compétence</h2>
                 <X 
-                  className="w-5 h-5 text-white/40 hover:text-white cursor-pointer transition-colors" 
+                  className="w-5 h-5 text-white/60 hover:text-white cursor-pointer transition-colors" 
                   onClick={() => setShowUploadModal(false)}
                 />
               </div>
