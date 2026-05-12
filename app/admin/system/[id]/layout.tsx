@@ -37,7 +37,9 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
 
   // Auto-collapse logic for agent pages (Primary Ribbon only)
   useEffect(() => {
-    if (pathname.includes('/agent/')) {
+    // Check if we are on a specific agent page (not the general agents console)
+    const isSpecificAgentPage = pathname.includes('/agents/') && pathname.split('/').length > 5;
+    if (isSpecificAgentPage) {
       setIsPrimaryCollapsed(true);
     }
   }, [pathname]);
@@ -141,7 +143,7 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
                </div>
                <nav className="flex-1 overflow-y-auto custom-scrollbar px-4 space-y-2">
                   {visibleAgents.map((agentId) => {
-                     const path = `/admin/system/${id}/agent/${agentId}`;
+                     const path = `/admin/system/${id}/agents/${agentId}`;
                      const isActive = pathname === path;
                      const agentData = agentsState[agentId];
                      const isNodeActive = agentData?.isActive ?? true;
