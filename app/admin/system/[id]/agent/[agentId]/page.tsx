@@ -62,8 +62,9 @@ export default function OracleConfigPage() {
   const [agentName, setAgentName] = useState('');
   const [instructions, setInstructions] = useState('');
   const [temperature, setTemperature] = useState(0.4);
-  const [modelConfig, setModelConfig] = useState({ model: 'gemini-1.5-pro', provider: 'google' });
+  const [modelConfig, setModelConfig] = useState<{ model: string; provider: string; fallback?: string }>({ model: 'gemini-1.5-pro', provider: 'google', fallback: '' });
   const [kbNodes, setKbNodes] = useState<KnowledgeNode[]>([]);
+  const [availableModels, setAvailableModels] = useState<any[]>([]);
   const [tokenStats, setTokenStats] = useState({ consumed: 0, budget: 1000000, warning: false });
   const [agentTokenBudget, setAgentTokenBudget] = useState(50000);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -131,8 +132,13 @@ export default function OracleConfigPage() {
         setLocalAgentData(currentAgent);
         setAgentName(currentAgent.name);
         setInstructions(currentAgent.system_prompt || '');
-        setModelConfig(currentAgent.model_config || { model: 'gemini-1.5-pro', provider: 'google' });
         setAgentTokenBudget(currentAgent.token_budget || 50000);
+        setTemperature(currentAgent.temperature ?? 0.7);
+        setModelConfig({
+          model: currentAgent.primary_api || 'claude-sonnet-4-20250514',
+          provider: currentAgent.model_config?.provider || 'anthropic',
+          fallback: currentAgent.fallback_chain?.[0] || ''
+        });
       }
 
       // Fetch KB Nodes
@@ -143,16 +149,18 @@ export default function OracleConfigPage() {
       if (kb_data && kb_data.length > 0) {
         setKbNodes(kb_data);
       } else {
-        // Mock Lattice Nodes for visual proof if DB is empty
-        setKbNodes([
-          { id: 'm1', content: 'ARCHITECTAL_LOGIC: Use monolithic vertical structures for deep focus. Spacing must remain at 100px increments.', category: 'DESIGN_PROTOCOL', created_at: new Date().toISOString() },
-          { id: 'm2', content: 'SUPABASE_SYNC: Always verify RLS policies before deploying enterprise-tier agents.', category: 'INFRA_SPEC', created_at: new Date().toISOString() },
-          { id: 'm3', content: 'NEURAL_TEMP: Temperature 0.4 recommended for technical extraction tasks.', category: 'COGNITIVE', created_at: new Date().toISOString() }
-        ]);
+        setKbNodes([]);
       }
 
-
       setBooting(false);
+
+      const supabaseClient = createClient();
+      const { data: models } = await supabaseClient
+        .from('available_models')
+        .select('*')
+        .eq('is_active', true)
+        .order('complexity');
+      setAvailableModels(models || []);
     };
 
     bootstrap();
@@ -273,6 +281,8 @@ export default function OracleConfigPage() {
         system_prompt: instructions,
         model_config: modelConfig,
         token_budget: agentTokenBudget,
+        temperature: temperature,
+        fallback_chain: modelConfig.fallback ? [modelConfig.fallback] : [],
       });
 
       // 2. SYNC_ENTERPRISE_BUDGET
@@ -283,11 +293,12 @@ export default function OracleConfigPage() {
 
 
       // 4. SYNC_KNOWLEDGE_BASE
-      // Similar logic for KB
-      await supabase.from('enterprise_kb').delete().eq('enterprise_id', id);
-      if (kbNodes.length > 0) {
-        await supabase.from('enterprise_kb').insert(
-          kbNodes.map(n => ({
+      const supabaseClient = createClient();
+      await supabaseClient.from('enterprise_kb').delete().eq('enterprise_id', id);
+      const realNodes = kbNodes.filter(n => !n.id.startsWith('m'));
+      if (realNodes.length > 0) {
+        await supabaseClient.from('enterprise_kb').insert(
+          realNodes.map(n => ({
             content: n.content,
             category: n.category,
             enterprise_id: id
@@ -512,9 +523,12 @@ export default function OracleConfigPage() {
                           onChange={(e) => setModelConfig({...modelConfig, model: e.target.value})}
                           className="w-full bg-[#0D0D0D] text-[12px] font-bold text-white uppercase outline-none cursor-pointer appearance-none relative z-10"
                         >
-                           <option value="claude-3.5-sonnet" className="bg-[#0D0D0D] text-white">Claude Sonnet — Anthropic (HIGH)</option>
-                           <option value="gemini-1.5-pro" className="bg-[#0D0D0D] text-white">Gemini Pro — Google</option>
-                           <option value="gemini-1.5-flash" className="bg-[#0D0D0D] text-white">Gemini Flash — Google</option>
+                           <option value="">SÉLECTIONNER UNE API</option>
+                           {availableModels.map((m) => (
+                             <option key={m.id} value={m.model_string} className="bg-[#0D0D0D] text-white">
+                               {m.name} — {m.provider} ({m.complexity})
+                             </option>
+                           ))}
                         </select>
                         <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-white/20 group-hover:text-[#4ade80]/50 transition-colors">
                            <ChevronDown className="w-3.5 h-3.5" />
@@ -527,11 +541,16 @@ export default function OracleConfigPage() {
                      <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Api Fallback</label>
                      <div className="bg-[#0D0D0D] border border-white/5 rounded-xl px-6 py-3.5 hover:border-[#4ade80]/30 transition-all relative group">
                         <select 
-                          value="gemini-1.5-flash"
+                          value={modelConfig.fallback || ''}
+                          onChange={(e) => setModelConfig({...modelConfig, fallback: e.target.value})}
                           className="w-full bg-[#0D0D0D] text-[12px] font-bold text-white uppercase outline-none cursor-pointer appearance-none relative z-10"
                         >
-                           <option value="gemini-1.5-flash" className="bg-[#0D0D0D] text-white">Gemini Flash — Google</option>
-                           <option value="claude-3-haiku" className="bg-[#0D0D0D] text-white">Claude Haiku — Anthropic</option>
+                           <option value="">AUCUN FALLBACK</option>
+                           {availableModels.filter(m => m.model_string !== modelConfig.model).map((m) => (
+                             <option key={m.id} value={m.model_string} className="bg-[#0D0D0D] text-white">
+                               {m.name} — {m.provider}
+                             </option>
+                           ))}
                         </select>
                         <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-white/20 group-hover:text-[#4ade80]/50 transition-colors">
                            <ChevronDown className="w-3.5 h-3.5" />

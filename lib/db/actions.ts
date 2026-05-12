@@ -56,6 +56,8 @@ export async function updateAgentProtocol(agentId: string, updateData: {
   role_protocol?: string;
   status?: 'active' | 'standby';
   token_budget?: number;
+  temperature?: number;
+  fallback_chain?: string[];
 }) {
   const supabase = createClient();
 
