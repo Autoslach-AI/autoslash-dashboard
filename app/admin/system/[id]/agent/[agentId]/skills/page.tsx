@@ -453,7 +453,7 @@ export default function AgentSkillsPage() {
                 />
               </div>
 
-              <div className="p-8 space-y-8">
+              <div className="p-8 space-y-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
                 <div className="space-y-3">
                   <label className="text-[11px] font-bold text-white/60 uppercase tracking-[0.2em]">Nom de la compétence</label>
                   <input 
@@ -485,7 +485,7 @@ export default function AgentSkillsPage() {
                   />
                 </div>
 
-                <div className="pt-4">
+                <div className="pt-4 flex justify-center">
                   <button 
                     onClick={async () => {
                       if (!skillForm.name.trim()) return;
@@ -508,10 +508,10 @@ export default function AgentSkillsPage() {
                       setSkillForm({ name: '', description: '', instructions: '' });
                       setShowEditInstructionsModal(false);
                     }}
-                    className="w-full py-4 text-[12px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-[0.2em] uppercase disabled:opacity-40 shadow-[0_0_20px_rgba(74,222,128,0.1)]"
+                    className="px-6 py-2 text-[10px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-[0.2em] uppercase disabled:opacity-40 shadow-[0_0_15px_rgba(74,222,128,0.15)]"
                     disabled={!skillForm.name.trim()}
                   >
-                    Créer la compétence
+                    Créer
                   </button>
                 </div>
               </div>
