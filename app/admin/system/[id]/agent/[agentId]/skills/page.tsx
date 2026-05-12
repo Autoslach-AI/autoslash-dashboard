@@ -23,9 +23,88 @@ import {
   FileText,
   UploadCloud,
   X,
-  Upload
+  Upload,
+  Pencil,
+  Copy,
+  Hash,
+  FileJson
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
+
+// Mock File Structure
+const MOCK_FILES = [
+  { id: '1', name: 'SKILL.md', type: 'file', content: '# Skill Creator\n\nCreate new skills, modify and improve existing skills, and measure skill performance.' },
+  { 
+    id: '2', 
+    name: 'agents', 
+    type: 'folder', 
+    children: [
+      { id: '2-1', name: 'analyzer.md', type: 'file', content: '# Analyzer\n\nAnalyzes benchmark results for the skills.' }
+    ] 
+  },
+  { 
+    id: '3', 
+    name: 'assets', 
+    type: 'folder', 
+    children: [
+      { id: '3-1', name: 'eval_review.html', type: 'file', content: '<html><body>Review Content</body></html>' }
+    ] 
+  },
+  { 
+    id: '4', 
+    name: 'eval-viewer', 
+    type: 'folder', 
+    children: [
+      { 
+        id: '4-1', 
+        name: 'generate_review.py', 
+        type: 'file', 
+        content: `#!/usr/bin/env python3
+"""Generate and serve a review page for eval results.
+
+Reads the workspace directory, discovers runs (directories with outputs/),
+embeds all output data into a self-contained HTML page, and serves it via
+a tiny HTTP server. Feedback auto-saves to feedback.json in the workspace.
+"""
+
+import argparse
+import base64
+import json
+import mimetypes
+import os
+import re
+import signal
+import subprocess
+import sys
+import time
+import webbrowser
+from functools import partial
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from pathlib import Path` 
+      },
+      { id: '4-2', name: 'viewer.html', type: 'file', content: '<!-- Viewer HTML -->' }
+    ] 
+  },
+  { 
+    id: '5', 
+    name: 'references', 
+    type: 'folder', 
+    children: [
+      { id: '5-1', name: 'schemas.md', type: 'file', content: '# Schemas\n\nDefinitions for benchmark.json' }
+    ] 
+  },
+  { 
+    id: '6', 
+    name: 'scripts', 
+    type: 'folder', 
+    children: [
+      { id: '6-1', name: '__init__.py', type: 'file', content: '' },
+      { id: '6-2', name: 'aggregate_benchmark.py', type: 'file', content: '# Script to aggregate results' },
+      { id: '6-3', name: 'generate_report.py', type: 'file', content: '# Script to generate reports' }
+    ] 
+  },
+  { id: '7', name: 'LICENSE.txt', type: 'file', content: 'MIT License' }
+];
 
 export default function AgentSkillsPage() {
   const params = useParams();
@@ -45,6 +124,70 @@ export default function AgentSkillsPage() {
 
   // Form States
   const [skillForm, setSkillForm] = useState({ name: '', description: '', instructions: '' });
+
+  // File Tree States
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['skill-creator']));
+  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState('');
+
+  const toggleFolder = (folderId: string) => {
+    const newSet = new Set(expandedFolders);
+    if (newSet.has(folderId)) {
+      newSet.delete(folderId);
+    } else {
+      newSet.add(folderId);
+    }
+    setExpandedFolders(newSet);
+  };
+
+  const handleFileClick = (file: any) => {
+    setSelectedFile(file);
+    setEditedContent(file.content);
+    setIsEditing(false);
+  };
+
+  const renderFileTree = (items: any[], level = 0) => {
+    return items.map((item) => {
+      const isExpanded = expandedFolders.has(item.id);
+      const isSelected = selectedFile?.id === item.id;
+
+      if (item.type === 'folder') {
+        return (
+          <div key={item.id} className="space-y-1">
+            <div 
+              onClick={() => toggleFolder(item.id)}
+              className={`flex items-center gap-2 py-1.5 px-2 rounded-lg cursor-pointer transition-all hover:bg-white/5 ${level > 0 ? 'ml-4' : ''}`}
+            >
+              <div className="w-4 h-4 flex items-center justify-center text-white/40">
+                {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              </div>
+              <Folder className="w-3.5 h-3.5 text-white/20" />
+              <span className="text-[11px] text-white/60 font-medium tracking-wide">{item.name}</span>
+            </div>
+            {isExpanded && item.children && (
+              <div className="ml-0">
+                {renderFileTree(item.children, level + 1)}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      return (
+        <div 
+          key={item.id}
+          onClick={() => handleFileClick(item)}
+          className={`flex items-center gap-3 py-1.5 px-2 rounded-lg cursor-pointer transition-all hover:bg-white/5 group ${isSelected ? 'bg-white/10 text-white' : 'text-white/40'} ${level > 0 ? 'ml-8' : 'ml-4'}`}
+        >
+          {item.name.endsWith('.py') ? <FileCode className="w-3.5 h-3.5 text-[#4ade80]/60" /> : 
+           item.name.endsWith('.json') ? <FileJson className="w-3.5 h-3.5 text-blue-400/60" /> :
+           <FileText className="w-3.5 h-3.5 text-white/20" />}
+          <span className="text-[11px] font-mono tracking-tight">{item.name}</span>
+        </div>
+      );
+    });
+  };
 
   useEffect(() => {
     const fetchAgent = async () => {
@@ -199,138 +342,191 @@ export default function AgentSkillsPage() {
           </div>
 
           {/* Sidebar Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 font-mono">
             <div>
-              <button className="flex items-center gap-2 text-[10px] font-bold text-white/60 uppercase tracking-widest hover:text-white transition-all mb-4 w-full text-left">
-                <ChevronDown className="w-3 h-3" />
+              <button 
+                onClick={() => toggleFolder('personal-skills')}
+                className="flex items-center gap-2 text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] hover:text-white transition-all mb-4 w-full text-left"
+              >
+                {expandedFolders.has('personal-skills') ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 Compétences personnelles
               </button>
               
-              <div className="space-y-1">
-                {/* Active Skill Item */}
-                <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-                  <div className="flex items-center gap-3 p-3 bg-white/5">
-                    <div className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center border border-white/10">
-                      <Monitor className="w-3.5 h-3.5 text-[#4ade80]" />
-                    </div>
-                    <span className="text-[11px] font-bold text-white tracking-widest uppercase">skill-creator</span>
-                    <ChevronDown className="w-3 h-3 ml-auto text-white/20" />
-                  </div>
-
-                  {/* File Tree */}
-                  <div className="p-3 pl-10 space-y-2 text-[10px] font-mono text-white/40">
-                    <div className="flex items-center gap-3 hover:text-white transition-colors cursor-pointer">
-                      <FileCode className="w-3 h-3" />
-                      <span>SKILL.md</span>
-                    </div>
-                    {[
-                      { name: 'agents', hasChildren: true },
-                      { name: 'assets', hasChildren: true },
-                      { name: 'eval-viewer', hasChildren: true },
-                      { name: 'references', hasChildren: true },
-                      { name: 'scripts', hasChildren: true },
-                    ].map((folder) => (
-                      <div key={folder.name} className="flex items-center justify-between group cursor-pointer hover:text-white transition-all">
-                        <div className="flex items-center gap-3">
-                          <Folder className="w-3 h-3 text-white/20 group-hover:text-white/40" />
-                          <span>{folder.name}</span>
+              <AnimatePresence>
+                {expandedFolders.has('personal-skills') && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="space-y-1 overflow-hidden"
+                  >
+                    {/* Primary Skill Folder */}
+                    <div className="bg-[#0A0A0A] rounded-xl border border-white/5 overflow-hidden">
+                      <div 
+                        onClick={() => toggleFolder('skill-creator')}
+                        className="flex items-center gap-3 p-3 cursor-pointer hover:bg-white/5 transition-colors group"
+                      >
+                        <div className="w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center border border-white/10 group-hover:border-[#4ade80]/30 transition-all">
+                          <Monitor className="w-3.5 h-3.5 text-[#4ade80]" />
                         </div>
-                        {folder.hasChildren && <ChevronRight className="w-3 h-3 text-white/10 group-hover:text-white/30" />}
+                        <span className="text-[11px] font-bold text-white tracking-[0.1em] uppercase">skill-creator</span>
+                        {expandedFolders.has('skill-creator') ? <ChevronDown className="w-3 h-3 ml-auto text-white/20" /> : <ChevronRight className="w-3 h-3 ml-auto text-white/20" />}
                       </div>
-                    ))}
-                    <div className="flex items-center gap-3 hover:text-white transition-colors cursor-pointer pt-1">
-                      <FileCode className="w-3 h-3 text-white/10" />
-                      <span>LICENSE.txt</span>
+
+                      {/* File Tree Root */}
+                      <AnimatePresence>
+                        {expandedFolders.has('skill-creator') && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="p-2 pt-0 space-y-0.5 overflow-hidden"
+                          >
+                            {renderFileTree(MOCK_FILES)}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  </div>
-                </div>
-              </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </aside>
 
         {/* MAIN CONTENT AREA */}
-        <main className="flex-1 flex flex-col bg-[#050505]">
-          {/* Content Header */}
-          <div className="p-8 pb-4 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white uppercase tracking-[0.2em]">skill-creator</h2>
-            <div className="flex items-center gap-6">
-              <button 
-                onClick={() => setIsSkillActive(!isSkillActive)}
-                className={`relative w-11 h-5 rounded-full transition-all ${isSkillActive ? 'bg-[#4ade80]' : 'bg-white/10'}`}
-              >
-                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${isSkillActive ? 'left-6.5' : 'left-0.5'}`} />
-              </button>
-              <MoreVertical className="w-4 h-4 text-white/20 cursor-pointer hover:text-white transition-colors" />
-            </div>
-          </div>
-
-          <div className="p-8 pt-0 space-y-10 overflow-y-auto">
-            {/* Metadata Section */}
-            <div className="flex gap-12">
-              <div>
-                <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] mb-2">Ajouté par</p>
-                <p className="text-[12px] font-bold text-white tracking-widest uppercase">Anthropic</p>
-              </div>
-              <div>
-                <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] mb-2">Déclencheur</p>
-                <p className="text-[12px] font-bold text-white tracking-widest uppercase">Commande / + auto</p>
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-3 max-w-[800px]">
-              <div className="flex items-center gap-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">
-                <span>Description</span>
-                <Info className="w-3 h-3" />
-              </div>
-              <p className="text-[12px] font-medium text-white/60 leading-relaxed tracking-wide">
-                Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
-              </p>
-            </div>
-
-            {/* Code / Markdown Block */}
-            <div className="bg-[#0D0D0D] border border-white/5 rounded-2xl p-8 space-y-8 relative group">
-              <div className="absolute right-6 top-6 flex items-center gap-3 opacity-20 group-hover:opacity-100 transition-all">
-                <div className="p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
-                  <Eye className="w-4 h-4 text-white" />
+        <main className="flex-1 flex flex-col bg-[#000000]">
+          {selectedFile ? (
+            <div className="flex-1 flex flex-col">
+              {/* Header for File */}
+              <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/50 backdrop-blur-md sticky top-0 z-10">
+                <div className="flex items-center gap-3">
+                  <FileCode className="w-4 h-4 text-[#4ade80]" />
+                  <h2 className="text-sm font-bold text-white tracking-widest uppercase">{selectedFile.name}</h2>
                 </div>
-                <div className="p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
-                  <Code className="w-4 h-4 text-white" />
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setIsEditing(false)}
+                    className={`p-2 rounded-lg transition-all ${!isEditing ? 'bg-white/10 text-[#4ade80]' : 'text-white/40 hover:text-white'}`}
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setIsEditing(true)}
+                    className={`p-2 rounded-lg transition-all ${isEditing ? 'bg-white/10 text-[#4ade80]' : 'text-white/40 hover:text-white'}`}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <div className="h-4 w-px bg-white/10 mx-2" />
+                  <button className="p-2 text-white/40 hover:text-white transition-all">
+                    <Copy className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
-              {/* Code Snippet */}
-              <div className="bg-[#080808] border border-white/5 rounded-xl p-6 font-mono text-[12px] space-y-4">
-                <p className="text-white/20 mb-2 uppercase tracking-widest text-[9px]">bash</p>
-                <p className="text-white">
-                  python -m scripts.aggregate_benchmark <span className="text-[#4ade80] opacity-60">{"<workspace>"}</span>/iteration-N --skill-name <span className="text-[#4ade80] opacity-60">{"<name>"}</span>
-                </p>
+              {/* Editor / Viewer Area */}
+              <div className="flex-1 relative overflow-auto font-mono text-[13px] leading-relaxed group">
+                {isEditing ? (
+                  <textarea 
+                    autoFocus
+                    className="w-full h-full bg-black text-white/80 p-8 outline-none resize-none selection:bg-[#4ade80]/20"
+                    value={editedContent}
+                    onChange={(e) => setEditedContent(e.target.value)}
+                    spellCheck={false}
+                  />
+                ) : (
+                  <div className="p-0 flex min-h-full">
+                    {/* Line Numbers */}
+                    <div className="w-12 bg-white/[0.02] border-r border-white/5 py-8 flex flex-col items-center text-white/10 select-none">
+                      {editedContent.split('\n').map((_, i) => (
+                        <div key={i} className="h-[1.5em]">{i + 1}</div>
+                      ))}
+                    </div>
+                    {/* Code Content */}
+                    <pre className="p-8 flex-1 text-white/80 whitespace-pre scrollbar-hide overflow-x-auto">
+                      {editedContent.split('\n').map((line, i) => (
+                        <div key={i} className="h-[1.5em] hover:bg-white/[0.02] transition-colors px-2">
+                          {line.startsWith('#') || line.startsWith('"""') || line.startsWith('//') ? (
+                            <span className="text-[#4ade80]/60">{line}</span>
+                          ) : (
+                            <span>{line}</span>
+                          )}
+                        </div>
+                      ))}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Content Header */}
+              <div className="p-8 pb-4 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white uppercase tracking-[0.2em]">skill-creator</h2>
+                <div className="flex items-center gap-6">
+                  <button 
+                    onClick={() => setIsSkillActive(!isSkillActive)}
+                    className={`relative w-11 h-5 rounded-full transition-all ${isSkillActive ? 'bg-[#4ade80]' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${isSkillActive ? 'left-6.5' : 'left-0.5'}`} />
+                  </button>
+                  <MoreVertical className="w-4 h-4 text-white/20 cursor-pointer hover:text-white transition-colors" />
+                </div>
               </div>
 
-              {/* MD Sample Text */}
-              <div className="space-y-6 text-[13px] leading-relaxed text-white/70">
-                <p>
-                  This produces <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">benchmark.json</code> and <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">benchmark.md</code> with pass_rate, time, and tokens for each configuration, with mean ± stddev and the delta. If generating benchmark.json manually, see <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">references/schemas.md</code> for the exact schema the viewer expects. Put each with_skill version before its baseline counterpart.
-                </p>
+              <div className="p-8 pt-0 space-y-10 overflow-y-auto">
+                {/* Metadata Section */}
+                <div className="flex gap-12">
+                  <div>
+                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] mb-2">Ajouté par</p>
+                    <p className="text-[12px] font-bold text-white tracking-widest uppercase">Anthropic</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] mb-2">Déclencheur</p>
+                    <p className="text-[12px] font-bold text-white tracking-widest uppercase">Commande / + auto</p>
+                  </div>
+                </div>
 
-                <div className="space-y-4">
-                  <div className="flex gap-4">
-                    <span className="text-white/20 font-bold shrink-0 mt-0.5">3.</span>
-                    <p>
-                      <span className="font-bold text-white">Do an analyst pass</span> — read the benchmark data and surface patterns the aggregate stats might hide. See <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">agents/analyzer.md</code> (the "Analyzing Benchmark Results" section) for what to look for — things like assertions that always pass regardless of skill (non-discriminating), high-variance evals (possibly flaky), and time/token tradeoffs.
+                {/* Description */}
+                <div className="space-y-3 max-w-[800px]">
+                  <div className="flex items-center gap-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">
+                    <span>Description</span>
+                    <Info className="w-3 h-3" />
+                  </div>
+                  <p className="text-[12px] font-medium text-white/60 leading-relaxed tracking-wide">
+                    Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
+                  </p>
+                </div>
+
+                {/* Code / Markdown Block */}
+                <div className="bg-[#0D0D0D] border border-white/5 rounded-2xl p-8 space-y-8 relative group">
+                  <div className="absolute right-6 top-6 flex items-center gap-3 opacity-20 group-hover:opacity-100 transition-all">
+                    <div className="p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+                      <Eye className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+                      <Code className="w-4 h-4 text-white" />
+                    </div>
+                  </div>
+
+                  {/* Code Snippet */}
+                  <div className="bg-[#080808] border border-white/5 rounded-xl p-6 font-mono text-[12px] space-y-4">
+                    <p className="text-white/20 mb-2 uppercase tracking-widest text-[9px]">bash</p>
+                    <p className="text-white">
+                      python -m scripts.aggregate_benchmark <span className="text-[#4ade80] opacity-60">{"<workspace>"}</span>/iteration-N --skill-name <span className="text-[#4ade80] opacity-60">{"<name>"}</span>
                     </p>
                   </div>
-                  <div className="flex gap-4">
-                    <span className="text-white/20 font-bold shrink-0 mt-0.5">4.</span>
+
+                  {/* MD Sample Text */}
+                  <div className="space-y-6 text-[13px] leading-relaxed text-white/70">
                     <p>
-                      <span className="font-bold text-white">Launch the viewer</span> with both qualitative outputs and quantitative data:
+                      This produces <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">benchmark.json</code> and <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">benchmark.md</code> with pass_rate, time, and tokens for each configuration, with mean ± stddev and the delta. If generating benchmark.json manually, see <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">references/schemas.md</code> for the exact schema the viewer expects. Put each with_skill version before its baseline counterpart.
                     </p>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </main>
       </div>
 
