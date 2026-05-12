@@ -6,7 +6,26 @@ import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase';
 import { getAgentsByEnterprise } from '@/lib/db/actions';
 
-import { Search, Plus, ChevronDown, ChevronRight, Folder, FileCode, Monitor, Info, MoreVertical, Eye, Code } from 'lucide-react';
+import { 
+  Search, 
+  Plus, 
+  ChevronDown, 
+  ChevronRight, 
+  Folder, 
+  FileCode, 
+  Monitor, 
+  Info, 
+  MoreVertical, 
+  Eye, 
+  Code,
+  ShoppingBag,
+  Sparkles,
+  FileText,
+  UploadCloud,
+  X,
+  Upload
+} from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 
 export default function AgentSkillsPage() {
   const params = useParams();
@@ -17,6 +36,15 @@ export default function AgentSkillsPage() {
   const [agentName, setAgentName] = useState('');
   const [loading, setLoading] = useState(true);
   const [isSkillActive, setIsSkillActive] = useState(true);
+
+  // UI States
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [showCreateSubMenu, setShowCreateSubMenu] = useState(false);
+  const [showEditInstructionsModal, setShowEditInstructionsModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+
+  // Form States
+  const [skillForm, setSkillForm] = useState({ name: '', description: '', instructions: '' });
 
   useEffect(() => {
     const fetchAgent = async () => {
@@ -80,7 +108,80 @@ export default function AgentSkillsPage() {
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">Compétences</h3>
             <div className="flex items-center gap-3 text-white/40">
               <Search className="w-4 h-4 hover:text-white cursor-pointer transition-colors" />
-              <Plus className="w-4 h-4 hover:text-[#4ade80] cursor-pointer transition-colors" />
+              <div className="relative">
+                <Plus 
+                  className="w-4 h-4 hover:text-[#4ade80] cursor-pointer transition-colors" 
+                  onClick={() => setShowPlusMenu(!showPlusMenu)}
+                />
+                
+                <AnimatePresence>
+                  {showPlusMenu && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 top-8 w-64 bg-[#0D0D0D] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden"
+                    >
+                      <div className="p-1">
+                        <button className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors text-left group">
+                          <ShoppingBag className="w-4 h-4 text-white/40 group-hover:text-white" />
+                          <span className="text-[11px] font-bold text-white tracking-widest uppercase">Parcourir les compétences</span>
+                        </button>
+                        
+                        <div className="relative">
+                          <button 
+                            onMouseEnter={() => setShowCreateSubMenu(true)}
+                            className="w-full flex items-center justify-between p-3 hover:bg-white/5 rounded-lg transition-colors group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Plus className="w-4 h-4 text-white/40 group-hover:text-white" />
+                              <span className="text-[11px] font-bold text-white tracking-widest uppercase">Créer une compétence</span>
+                            </div>
+                            <ChevronRight className={`w-3 h-3 transition-transform ${showCreateSubMenu ? 'rotate-90' : ''}`} />
+                          </button>
+
+                          <AnimatePresence>
+                            {showCreateSubMenu && (
+                              <motion.div 
+                                initial={{ opacity: 0, x: 10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 10 }}
+                                onMouseLeave={() => setShowCreateSubMenu(false)}
+                                className="absolute left-[calc(100%+8px)] top-0 w-72 bg-[#0D0D0D] border border-white/10 rounded-xl shadow-2xl z-50 p-1"
+                              >
+                                <button className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors text-left group">
+                                  <Sparkles className="w-4 h-4 text-white/40 group-hover:text-[#4ade80]" />
+                                  <span className="text-[11px] font-bold text-white tracking-widest uppercase">Créer avec Claude</span>
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setShowEditInstructionsModal(true);
+                                    setShowPlusMenu(false);
+                                  }}
+                                  className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors text-left group"
+                                >
+                                  <FileText className="w-4 h-4 text-white/40 group-hover:text-[#4ade80]" />
+                                  <span className="text-[11px] font-bold text-white tracking-widest uppercase">Rédiger les instructions</span>
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setShowUploadModal(true);
+                                    setShowPlusMenu(false);
+                                  }}
+                                  className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors text-left group"
+                                >
+                                  <UploadCloud className="w-4 h-4 text-white/40 group-hover:text-[#4ade80]" />
+                                  <span className="text-[11px] font-bold text-white tracking-widest uppercase">Téléverser une compétence</span>
+                                </button>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
 
@@ -219,6 +320,142 @@ export default function AgentSkillsPage() {
           </div>
         </main>
       </div>
+
+      {/* MODALS */}
+      <AnimatePresence>
+        {showEditInstructionsModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowEditInstructionsModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-[#0D0D0D] border border-white/10 rounded-2xl shadow-3xl overflow-hidden"
+            >
+              <div className="p-8 border-b border-white/5 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white tracking-tight">Rédiger les instructions de la compétence</h2>
+                <X 
+                  className="w-5 h-5 text-white/40 hover:text-white cursor-pointer transition-colors" 
+                  onClick={() => setShowEditInstructionsModal(false)}
+                />
+              </div>
+
+              <div className="p-8 space-y-8">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Nom de la compétence</label>
+                  <input 
+                    type="text"
+                    placeholder="weekly-status-report"
+                    className="w-full bg-white/5 border border-white/5 rounded-xl px-5 py-3.5 text-white text-sm outline-none focus:border-[#4ade80]/30 transition-all font-mono"
+                    value={skillForm.name}
+                    onChange={(e) => setSkillForm({...skillForm, name: e.target.value})}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Description</label>
+                  <textarea 
+                    placeholder="Générer des rapports d'état hebdomadaires à partir du travail récent..."
+                    className="w-full bg-white/5 border border-white/5 rounded-xl px-5 py-4 text-white text-sm outline-none focus:border-[#4ade80]/30 transition-all font-mono min-h-[120px] resize-none"
+                    value={skillForm.description}
+                    onChange={(e) => setSkillForm({...skillForm, description: e.target.value})}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Instructions</label>
+                  <textarea 
+                    placeholder="Résumez mon travail récent en trois sections : réussites, obstacles et prochaines étapes..."
+                    className="w-full bg-white/5 border border-white/5 rounded-xl px-5 py-4 text-white text-sm outline-none focus:border-[#4ade80]/30 transition-all font-mono min-h-[220px] resize-none"
+                    value={skillForm.instructions}
+                    onChange={(e) => setSkillForm({...skillForm, instructions: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="p-8 pt-0 flex justify-end gap-4">
+                <button 
+                  onClick={() => setShowEditInstructionsModal(false)}
+                  className="px-6 py-2.5 text-[11px] font-bold text-white/60 uppercase tracking-widest hover:text-white transition-all bg-white/5 rounded-lg border border-white/10"
+                >
+                  Annuler
+                </button>
+                <button 
+                  className="px-8 py-2.5 text-[11px] font-bold text-black bg-[#4ade80] uppercase tracking-widest rounded-lg shadow-[0_0_20px_#4ade8033] hover:shadow-[0_0_30px_#4ade8055] transition-all"
+                >
+                  Créer
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {showUploadModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowUploadModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-2xl bg-[#0D0D0D] border border-white/10 rounded-2xl shadow-3xl overflow-hidden"
+            >
+              <div className="p-8 border-b border-white/5 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white tracking-tight">Importer une compétence</h2>
+                <X 
+                  className="w-5 h-5 text-white/40 hover:text-white cursor-pointer transition-colors" 
+                  onClick={() => setShowUploadModal(false)}
+                />
+              </div>
+
+              <div className="p-8 space-y-10">
+                <div className="border-2 border-dashed border-white/10 rounded-2xl p-16 flex flex-col items-center justify-center gap-6 group hover:border-[#4ade80]/30 transition-all bg-white/[0.02] cursor-pointer">
+                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 group-hover:border-[#4ade80]/30 transition-all">
+                    <Upload className="w-6 h-6 text-white/40 group-hover:text-[#4ade80]" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <p className="text-sm font-bold text-white tracking-wide uppercase">Glissez-déposez ou cliquez pour téléverser</p>
+                    <p className="text-xs text-white/20 uppercase tracking-widest">Fichiers .md, .zip, .skill</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Exigences de fichier</p>
+                  </div>
+                  <ul className="space-y-3">
+                    <li className="flex gap-4 text-[13px] text-white/60 leading-relaxed">
+                      <div className="w-1.5 h-1.5 bg-[#4ade80] rounded-full mt-2 shrink-0 shadow-[0_0_10px_#4ade80]" />
+                      <p>Le fichier .md doit contenir le nom et la description de la compétence au format YAML.</p>
+                    </li>
+                    <li className="flex gap-4 text-[13px] text-white/60 leading-relaxed">
+                      <div className="w-1.5 h-1.5 bg-[#4ade80] rounded-full mt-2 shrink-0 shadow-[0_0_10px_#4ade80]" />
+                      <p>Le fichier .zip ou .skill doit inclure un fichier SKILL.md.</p>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="pt-4 flex gap-6 text-[11px] font-bold uppercase tracking-widest">
+                  <a href="#" className="text-[#4ade80]/60 hover:text-[#4ade80] underline transition-colors">En savoir plus sur la création de compétences</a>
+                  <span className="text-white/10">ou</span>
+                  <a href="#" className="text-white/40 hover:text-white transition-colors">voir un exemple.</a>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
