@@ -50,7 +50,7 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
   const coreNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: `/admin/system/${id}` },
     { id: 'inventory', label: 'Inventory', icon: Zap, path: `/admin/system/${id}/inventory` },
-    { id: 'agents', label: 'Agents', icon: Cpu, path: `/admin/system/${id}/agents` },
+    { id: 'agents', label: 'Agents', icon: Cpu, type: 'trigger' },
     { id: 'branding', label: 'Branding', icon: Palette, path: `/admin/system/${id}/branding` },
     { id: 'profile', label: 'Profile', icon: User, path: `/admin/system/${id}/profile` },
     { id: 'settings', label: 'Settings', icon: Settings, path: `/admin/system/${id}/settings` },
@@ -76,12 +76,14 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
          {/* NAVIGATION ITEMS */}
          <nav className="flex-1 w-full px-4 space-y-4">
             {coreNav.map((item) => {
-               const isActive = pathname === item.path;
+               const isActive = pathname === item.path || (item.id === 'agents' && isSecondaryOpen);
                return (
                  <div key={item.id} className="relative group">
                     <button
                       onClick={() => {
-                        if (item.path) {
+                        if ((item as any).type === 'trigger') {
+                          setIsSecondaryOpen(!isSecondaryOpen);
+                        } else if (item.path) {
                           router.push(item.path);
                           setIsSecondaryOpen(false);
                         }
@@ -126,8 +128,16 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
                 isPrimaryCollapsed ? 'left-20 w-64' : 'left-72 w-80'
               }`}
             >
-               <div className="px-8 mb-10">
+               <div className="px-8 mb-10 flex flex-col gap-4">
                   <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] font-mono">Neural_Fleet_Nodes</h3>
+                  <Link 
+                    href={`/admin/system/${id}/agents`}
+                    onClick={() => setIsSecondaryOpen(false)}
+                    className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[#4ade80]/60 hover:text-[#4ade80] transition-all"
+                  >
+                    <Settings className="w-3 h-3" />
+                    Manage Fleet
+                  </Link>
                </div>
                <nav className="flex-1 overflow-y-auto custom-scrollbar px-4 space-y-2">
                   {visibleAgents.map((agentId) => {
