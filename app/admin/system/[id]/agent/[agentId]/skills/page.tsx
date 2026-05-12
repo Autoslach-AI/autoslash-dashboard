@@ -131,6 +131,7 @@ export default function AgentSkillsPage() {
                         <div className="relative">
                           <button 
                             onMouseEnter={() => setShowCreateSubMenu(true)}
+                            onClick={() => setShowCreateSubMenu(!showCreateSubMenu)}
                             className="w-full flex items-center justify-between p-3 hover:bg-white/5 rounded-lg transition-colors group"
                           >
                             <div className="flex items-center gap-3">
@@ -147,26 +148,30 @@ export default function AgentSkillsPage() {
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: 10 }}
                                 onMouseLeave={() => setShowCreateSubMenu(false)}
-                                className="absolute left-[calc(100%+8px)] top-0 w-72 bg-[#0D0D0D] border border-white/10 rounded-xl shadow-2xl z-50 p-1"
+                                className="absolute left-[calc(100%+8px)] top-0 w-72 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[60] p-1.5"
                               >
                                 <button className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors text-left group">
                                   <Sparkles className="w-4 h-4 text-white/40 group-hover:text-[#4ade80]" />
                                   <span className="text-[11px] font-bold text-white tracking-widest uppercase">Créer avec Claude</span>
                                 </button>
                                 <button 
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setShowEditInstructionsModal(true);
                                     setShowPlusMenu(false);
+                                    setShowCreateSubMenu(false);
                                   }}
                                   className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors text-left group"
                                 >
                                   <FileText className="w-4 h-4 text-white/40 group-hover:text-[#4ade80]" />
-                                  <span className="text-[11px] font-bold text-white tracking-widest uppercase">Rédiger les instructions</span>
+                                  <span className="text-[11px] font-bold text-white tracking-widest uppercase truncate">Rédiger les instructions de la compétence</span>
                                 </button>
                                 <button 
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     setShowUploadModal(true);
                                     setShowPlusMenu(false);
+                                    setShowCreateSubMenu(false);
                                   }}
                                   className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg transition-colors text-left group"
                                 >
@@ -336,7 +341,7 @@ export default function AgentSkillsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#0D0D0D] border border-white/10 rounded-2xl shadow-3xl overflow-hidden"
+              className="relative w-full max-w-2xl bg-[#1A1A1A] border border-white/10 rounded-2xl shadow-3xl overflow-hidden"
             >
               <div className="p-8 border-b border-white/5 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white tracking-tight">Rédiger les instructions de la compétence</h2>
@@ -348,46 +353,47 @@ export default function AgentSkillsPage() {
 
               <div className="p-8 space-y-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Nom de la compétence</label>
+                  <label className="text-[10px] font-bold text-white/60 uppercase tracking-[0.2em]">Nom de la compétence</label>
                   <input 
                     type="text"
-                    placeholder="weekly-status-report"
-                    className="w-full bg-white/5 border border-white/5 rounded-xl px-5 py-3.5 text-white text-sm outline-none focus:border-[#4ade80]/30 transition-all font-mono"
+                    placeholder="| weekly-status-report"
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-5 py-3.5 text-white text-sm outline-none focus:border-white/30 transition-all font-mono"
                     value={skillForm.name}
                     onChange={(e) => setSkillForm({...skillForm, name: e.target.value})}
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Description</label>
+                  <label className="text-[10px] font-bold text-white/60 uppercase tracking-[0.2em]">Description</label>
                   <textarea 
-                    placeholder="Générer des rapports d'état hebdomadaires à partir du travail récent..."
-                    className="w-full bg-white/5 border border-white/5 rounded-xl px-5 py-4 text-white text-sm outline-none focus:border-[#4ade80]/30 transition-all font-mono min-h-[120px] resize-none"
+                    placeholder="Générer des rapports d'état hebdomadaires à partir du travail récent. À utiliser pour les demandes de mises à jour ou de résumés de progression."
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-5 py-4 text-white text-sm outline-none focus:border-white/30 transition-all font-mono min-h-[120px] resize-none"
                     value={skillForm.description}
                     onChange={(e) => setSkillForm({...skillForm, description: e.target.value})}
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">Instructions</label>
+                  <label className="text-[10px] font-bold text-white/60 uppercase tracking-[0.2em]">Instructions</label>
                   <textarea 
-                    placeholder="Résumez mon travail récent en trois sections : réussites, obstacles et prochaines étapes..."
-                    className="w-full bg-white/5 border border-white/5 rounded-xl px-5 py-4 text-white text-sm outline-none focus:border-[#4ade80]/30 transition-all font-mono min-h-[220px] resize-none"
+                    placeholder="Résumez mon travail récent en trois sections : réussites, obstacles et prochaines étapes. Adoptez un ton professionnel mais pas rigide..."
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-lg px-5 py-4 text-white text-sm outline-none focus:border-white/30 transition-all font-mono min-h-[220px] resize-none"
                     value={skillForm.instructions}
                     onChange={(e) => setSkillForm({...skillForm, instructions: e.target.value})}
                   />
                 </div>
               </div>
 
-              <div className="p-8 pt-0 flex justify-end gap-4">
+              <div className="p-8 pt-0 flex justify-end gap-3">
                 <button 
                   onClick={() => setShowEditInstructionsModal(false)}
-                  className="px-6 py-2.5 text-[11px] font-bold text-white/60 uppercase tracking-widest hover:text-white transition-all bg-white/5 rounded-lg border border-white/10"
+                  className="px-6 py-2.5 text-[12px] font-bold text-white rounded-lg transition-all bg-[#333333] hover:bg-[#444444]"
                 >
                   Annuler
                 </button>
                 <button 
-                  className="px-8 py-2.5 text-[11px] font-bold text-black bg-[#4ade80] uppercase tracking-widest rounded-lg shadow-[0_0_20px_#4ade8033] hover:shadow-[0_0_30px_#4ade8055] transition-all"
+                  className="px-8 py-2.5 text-[12px] font-bold text-black bg-[#E5E5E5] rounded-lg hover:bg-white transition-all disabled:opacity-50"
+                  disabled
                 >
                   Créer
                 </button>
@@ -409,7 +415,7 @@ export default function AgentSkillsPage() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#0D0D0D] border border-white/10 rounded-2xl shadow-3xl overflow-hidden"
+              className="relative w-full max-w-2xl bg-[#1A1A1A] border border-white/10 rounded-2xl shadow-3xl overflow-hidden"
             >
               <div className="p-8 border-b border-white/5 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white tracking-tight">Importer une compétence</h2>
@@ -420,36 +426,35 @@ export default function AgentSkillsPage() {
               </div>
 
               <div className="p-8 space-y-10">
-                <div className="border-2 border-dashed border-white/10 rounded-2xl p-16 flex flex-col items-center justify-center gap-6 group hover:border-[#4ade80]/30 transition-all bg-white/[0.02] cursor-pointer">
-                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 group-hover:border-[#4ade80]/30 transition-all">
-                    <Upload className="w-6 h-6 text-white/40 group-hover:text-[#4ade80]" />
+                <div className="border-2 border-dashed border-white/10 rounded-2xl p-16 flex flex-col items-center justify-center gap-6 group hover:border-white/30 transition-all bg-white/[0.01] cursor-pointer">
+                  <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10 group-hover:border-white/30 transition-all">
+                    <Plus className="w-6 h-6 text-white/60 group-hover:text-white" />
                   </div>
                   <div className="text-center space-y-2">
-                    <p className="text-sm font-bold text-white tracking-wide uppercase">Glissez-déposez ou cliquez pour téléverser</p>
-                    <p className="text-xs text-white/20 uppercase tracking-widest">Fichiers .md, .zip, .skill</p>
+                    <p className="text-sm font-bold text-white tracking-wide">Glissez-déposez ou cliquez pour téléverser</p>
                   </div>
                 </div>
 
                 <div className="space-y-6">
                   <div className="flex items-center gap-2">
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Exigences de fichier</p>
+                    <p className="text-[11px] font-bold text-white/60 uppercase tracking-[0.2em]">Exigences de fichier</p>
                   </div>
-                  <ul className="space-y-3">
-                    <li className="flex gap-4 text-[13px] text-white/60 leading-relaxed">
-                      <div className="w-1.5 h-1.5 bg-[#4ade80] rounded-full mt-2 shrink-0 shadow-[0_0_10px_#4ade80]" />
+                  <ul className="space-y-4">
+                    <li className="flex gap-4 text-[13px] text-white/60 leading-relaxed items-start">
+                      <div className="w-1.5 h-1.5 bg-white/40 rounded-full mt-2 shrink-0" />
                       <p>Le fichier .md doit contenir le nom et la description de la compétence au format YAML.</p>
                     </li>
-                    <li className="flex gap-4 text-[13px] text-white/60 leading-relaxed">
-                      <div className="w-1.5 h-1.5 bg-[#4ade80] rounded-full mt-2 shrink-0 shadow-[0_0_10px_#4ade80]" />
+                    <li className="flex gap-4 text-[13px] text-white/60 leading-relaxed items-start">
+                      <div className="w-1.5 h-1.5 bg-white/40 rounded-full mt-2 shrink-0" />
                       <p>Le fichier .zip ou .skill doit inclure un fichier SKILL.md.</p>
                     </li>
                   </ul>
                 </div>
 
-                <div className="pt-4 flex gap-6 text-[11px] font-bold uppercase tracking-widest">
-                  <a href="#" className="text-[#4ade80]/60 hover:text-[#4ade80] underline transition-colors">En savoir plus sur la création de compétences</a>
-                  <span className="text-white/10">ou</span>
-                  <a href="#" className="text-white/40 hover:text-white transition-colors">voir un exemple.</a>
+                <div className="pt-4 flex gap-3 text-[12px] font-medium items-center">
+                  <a href="#" className="text-white/60 hover:text-white underline underline-offset-4 transition-colors">En savoir plus sur la création de compétences</a>
+                  <span className="text-white/20">ou</span>
+                  <a href="#" className="text-white/60 hover:text-white underline underline-offset-4 transition-colors">voir un exemple.</a>
                 </div>
               </div>
             </motion.div>
