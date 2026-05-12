@@ -42,10 +42,11 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
     }
   }, [pathname]);
 
-  // Determine agents visibility based on level
+  // Determine agents visibility based on plan
   let visibleAgents = clientData.agents;
-  if (clientData.level === "Projet Startup") visibleAgents = visibleAgents.slice(0, 1);
-  else if (clientData.level === "Projet Business") visibleAgents = visibleAgents.slice(0, 2);
+  if (clientData.level === "Projet Startup") visibleAgents = visibleAgents.slice(0, 2);
+  else if (clientData.level === "Projet Business") visibleAgents = visibleAgents.slice(0, 10);
+  // ENTERPRISE and ELITE have no limits in this view logic for now
 
   const coreNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: `/admin/system/${id}` },
@@ -124,7 +125,7 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
-              className={`fixed top-0 bottom-0 bg-[#050505] border-r border-white/10 z-[90] flex flex-col py-24 transition-all duration-500 ${
+              className={`fixed top-0 bottom-0 bg-[#000000] border-r border-white/10 z-[90] flex flex-col py-24 transition-all duration-500 ${
                 isPrimaryCollapsed ? 'left-20 w-64' : 'left-72 w-80'
               }`}
             >
@@ -155,14 +156,14 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
                          }}
                          className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl transition-all border group ${
                            isActive 
-                            ? 'bg-white/5 border-white/10 text-white' 
+                            ? 'bg-[#4ade80]/10 border-[#4ade80]/20 text-[#4ade80]' 
                             : 'border-transparent text-white/20 hover:text-white/60 hover:bg-white/5'
                          }`}
                        >
                           <div className="relative">
-                             <Cpu className={`w-4.5 h-4.5 ${isActive ? 'text-[#4ade80]' : 'text-current opacity-40'}`} />
+                             <Cpu className={`w-4 h-4 ${isActive ? 'text-[#4ade80]' : 'text-current opacity-40'}`} />
                              {/* NEURAL PULSE */}
-                             <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full border border-black shadow-sm ${
+                             <div className={`absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full border border-black shadow-sm ${
                                isNodeActive ? 'bg-[#4ade80] animate-pulse shadow-[0_0_5px_#4ade80]' : 'bg-gray-600'
                              }`} />
                           </div>
