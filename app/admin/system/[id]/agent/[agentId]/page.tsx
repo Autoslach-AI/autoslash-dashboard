@@ -63,6 +63,7 @@ export default function OracleConfigPage() {
   const [modelConfig, setModelConfig] = useState({ model: 'gemini-1.5-pro', provider: 'google' });
   const [kbNodes, setKbNodes] = useState<KnowledgeNode[]>([]);
   const [tokenStats, setTokenStats] = useState({ consumed: 0, budget: 1000000, warning: false });
+  const [agentTokenBudget, setAgentTokenBudget] = useState(50000);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showShadowChat, setShowShadowChat] = useState(false);
   const [showKbModal, setShowKbModal] = useState(false);
@@ -120,6 +121,7 @@ export default function OracleConfigPage() {
         setAgentName(currentAgent.name);
         setInstructions(currentAgent.system_prompt || '');
         setModelConfig(currentAgent.model_config || { model: 'gemini-1.5-pro', provider: 'google' });
+        setAgentTokenBudget(currentAgent.token_budget || 50000);
       }
 
       // Fetch KB Nodes
@@ -259,6 +261,7 @@ export default function OracleConfigPage() {
         name: agentName,
         system_prompt: instructions,
         model_config: modelConfig,
+        token_budget: agentTokenBudget,
       });
 
       // 2. SYNC_ENTERPRISE_BUDGET
@@ -490,11 +493,11 @@ export default function OracleConfigPage() {
                         <select 
                           value={modelConfig.model}
                           onChange={(e) => setModelConfig({...modelConfig, model: e.target.value})}
-                          className="w-full bg-transparent text-[13px] font-bold text-white uppercase outline-none cursor-pointer appearance-none"
+                          className="w-full bg-[#0D0D0D] text-[13px] font-bold text-white uppercase outline-none cursor-pointer appearance-none"
                         >
-                           <option value="claude-3.5-sonnet">Claude Sonnet — Anthropic (HIGH)</option>
-                           <option value="gemini-1.5-pro">Gemini Pro — Google</option>
-                           <option value="gemini-1.5-flash">Gemini Flash — Google</option>
+                           <option value="claude-3.5-sonnet" className="bg-[#0D0D0D] text-white">Claude Sonnet — Anthropic (HIGH)</option>
+                           <option value="gemini-1.5-pro" className="bg-[#0D0D0D] text-white">Gemini Pro — Google</option>
+                           <option value="gemini-1.5-flash" className="bg-[#0D0D0D] text-white">Gemini Flash — Google</option>
                         </select>
                      </div>
                   </div>
@@ -505,10 +508,10 @@ export default function OracleConfigPage() {
                      <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-8 py-6">
                         <select 
                           value="gemini-1.5-flash"
-                          className="w-full bg-transparent text-[13px] font-bold text-white uppercase outline-none cursor-pointer appearance-none"
+                          className="w-full bg-[#0D0D0D] text-[13px] font-bold text-white uppercase outline-none cursor-pointer appearance-none"
                         >
-                           <option value="gemini-1.5-flash">Gemini Flash — Google</option>
-                           <option value="claude-3-haiku">Claude Haiku — Anthropic</option>
+                           <option value="gemini-1.5-flash" className="bg-[#0D0D0D] text-white">Gemini Flash — Google</option>
+                           <option value="claude-3-haiku" className="bg-[#0D0D0D] text-white">Claude Haiku — Anthropic</option>
                         </select>
                      </div>
                   </div>
@@ -543,8 +546,8 @@ export default function OracleConfigPage() {
                      <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-8 py-6 flex items-center justify-between">
                         <input 
                           type="number"
-                          value={50000}
-                          readOnly
+                          value={agentTokenBudget}
+                          onChange={(e) => setAgentTokenBudget(parseInt(e.target.value) || 0)}
                           className="bg-transparent text-[14px] font-bold text-white outline-none w-full font-mono"
                           placeholder="50000"
                         />

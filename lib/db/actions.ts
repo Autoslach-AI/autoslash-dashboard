@@ -55,6 +55,7 @@ export async function updateAgentProtocol(agentId: string, updateData: {
   model_config?: any;
   role_protocol?: string;
   status?: 'active' | 'standby';
+  token_budget?: number;
 }) {
   const supabase = createClient();
 
