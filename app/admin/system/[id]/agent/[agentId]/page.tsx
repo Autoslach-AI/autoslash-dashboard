@@ -476,97 +476,83 @@ export default function OracleConfigPage() {
             </section>
 
 
-            {/* SECTION_05 // FINANCIAL_NODE */}
-            <section className="space-y-10">
+            {/* 02 — INTELLIGENCE (IMAGE REPLACEMENT) */}
+            <section className="space-y-12">
                <div className="flex items-center gap-4">
-                  <div className="w-1.5 h-6 bg-red-500 rounded-full shadow-[0_0_15px_#ef4444]" />
-                  <h2 className="text-sm font-bold text-white uppercase tracking-[0.3em]">Section_05 // Financial_Node</h2>
+                  <h2 className="text-[14px] font-black text-[#4ade80] uppercase tracking-[0.3em]">02 — Intelligence</h2>
                </div>
 
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                  {/* API SELECTOR */}
-                  <div className="bg-[#080808] border border-white/20 rounded-2xl p-10 space-y-8">
-                     <div className="flex items-center gap-4 mb-2">
-                        <Key className="w-5 h-5 text-white/50" />
-                        <h3 className="text-xs font-bold text-white uppercase tracking-widest">Model_Configuration</h3>
+               <div className="space-y-10">
+                  {/* API PRIMAIRE */}
+                  <div className="space-y-3">
+                     <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Api Primaire</label>
+                     <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-8 py-6">
+                        <select 
+                          value={modelConfig.model}
+                          onChange={(e) => setModelConfig({...modelConfig, model: e.target.value})}
+                          className="w-full bg-transparent text-[13px] font-bold text-white uppercase outline-none cursor-pointer appearance-none"
+                        >
+                           <option value="claude-3.5-sonnet">Claude Sonnet — Anthropic (HIGH)</option>
+                           <option value="gemini-1.5-pro">Gemini Pro — Google</option>
+                           <option value="gemini-1.5-flash">Gemini Flash — Google</option>
+                        </select>
                      </div>
-                     
-                     <div className="space-y-6">
-                        <div className="space-y-2">
-                           <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Provider_Lattice</label>
-                           <select 
-                             value={modelConfig.provider}
-                             onChange={(e) => setModelConfig({...modelConfig, provider: e.target.value})}
-                             className="w-full bg-black border border-white/20 rounded-lg px-6 py-4 text-xs font-bold text-white uppercase outline-none focus:border-[#4ade80]/40 transition-all cursor-pointer"
-                           >
-                              <option value="google">GOOGLE_GENAI</option>
-                              <option value="anthropic">ANTHROPIC_CLAUDE</option>
-                              <option value="openrouter">OPENROUTER_DIVERSITY</option>
-                           </select>
-                        </div>
-                        <div className="space-y-2">
-                           <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Neural_Engine_Version</label>
-                           <select 
-                              value={modelConfig.model}
-                              onChange={(e) => setModelConfig({...modelConfig, model: e.target.value})}
-                              className="w-full bg-black border border-white/20 rounded-lg px-6 py-4 text-xs font-bold text-white uppercase outline-none focus:border-[#4ade80]/40 transition-all cursor-pointer"
-                           >
-                              <option value="gemini-1.5-pro">GEMINI_1.5_PRO</option>
-                              <option value="gemini-1.5-flash">GEMINI_1.5_FLASH</option>
-                              <option value="claude-3-opus">CLAUDE_3_OPUS</option>
-                              <option value="claude-3.5-sonnet">CLAUDE_3.5_SONNET</option>
-                           </select>
+                  </div>
+
+                  {/* API FALLBACK */}
+                  <div className="space-y-3">
+                     <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Api Fallback</label>
+                     <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-8 py-6">
+                        <select 
+                          value="gemini-1.5-flash"
+                          className="w-full bg-transparent text-[13px] font-bold text-white uppercase outline-none cursor-pointer appearance-none"
+                        >
+                           <option value="gemini-1.5-flash">Gemini Flash — Google</option>
+                           <option value="claude-3-haiku">Claude Haiku — Anthropic</option>
+                        </select>
+                     </div>
+                  </div>
+
+                  {/* TEMPÉRATURE */}
+                  <div className="space-y-6">
+                     <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Température</label>
+                        <span className="text-[16px] font-black text-[#4ade80] font-mono">{temperature.toFixed(1)}</span>
+                     </div>
+                     <div className="relative pt-2">
+                        <input 
+                           type="range" 
+                           min="0" 
+                           max="1" 
+                           step="0.1" 
+                           value={temperature}
+                           onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                           className="w-full h-1 bg-white/5 rounded-full appearance-none cursor-pointer accent-[#4ade80]"
+                        />
+                        <div className="flex justify-between mt-6 text-[8px] font-bold text-white/10 uppercase tracking-widest">
+                           <span>0.0 — Précis & déterministe</span>
+                           <span>0.5 — Équilibré</span>
+                           <span>1.0 — Créatif & varié</span>
                         </div>
                      </div>
                   </div>
 
-                  {/* TOKEN GAUGE */}
-                  <div className="bg-[#080808] border border-white/20 rounded-2xl p-10 space-y-8 relative overflow-hidden">
-                     <div className="absolute top-0 right-0 p-8 opacity-10">
-                        <BarChart3 className="w-32 h-32 text-white" />
+                  {/* BUDGET TOKENS INDIVIDUEL */}
+                  <div className="space-y-4">
+                     <label className="text-[10px] font-black text-white/40 uppercase tracking-widest">Budget Tokens Individuel</label>
+                     <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-8 py-6 flex items-center justify-between">
+                        <input 
+                          type="number"
+                          value={50000}
+                          readOnly
+                          className="bg-transparent text-[14px] font-bold text-white outline-none w-full font-mono"
+                          placeholder="50000"
+                        />
+                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest ml-4">Tokens</span>
                      </div>
-                     
-                     <div className="flex items-center gap-4 mb-2">
-                        <Activity className="w-5 h-5 text-white/50" />
-                        <h3 className="text-xs font-bold text-white uppercase tracking-widest text-glow">Realtime_Consumption_Metrics</h3>
-                     </div>
-
-                     <div className="space-y-8 pt-4">
-                        <div className="flex justify-between items-end">
-                           <div className="space-y-1">
-                              <p className="text-[32px] font-black text-white tracking-tighter leading-none">
-                                 {(tokenStats.consumed / 1000).toFixed(1)}K
-                              </p>
-                              <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Tokens_Used (Compute)</p>
-                           </div>
-                           <div className="text-right space-y-1">
-                              <div className="flex items-center justify-end gap-2">
-                                 <input 
-                                    type="number"
-                                    value={tokenStats.budget}
-                                    onChange={(e) => setTokenStats({...tokenStats, budget: parseInt(e.target.value) || 0})}
-                                    className="w-24 bg-black border border-white/20 rounded px-2 py-1 text-sm font-bold text-white/80 text-right outline-none focus:border-[#4ade80]/40 transition-all"
-                                 />
-                                 <span className="text-xs font-bold text-white/40">K</span>
-                              </div>
-                              <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest">Budget_Node</p>
-                           </div>
-                        </div>
-
-                        <div className="h-3 w-full bg-white/10 rounded-full overflow-hidden border border-white/10 shadow-inner">
-                           <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${(tokenStats.consumed / tokenStats.budget) * 100}%` }}
-                              className={`h-full transition-colors duration-1000 shadow-[0_0_20px_currentColor] ${
-                                 tokenStats.warning ? 'bg-red-500 text-red-500' : 'bg-[#4ade80] text-[#4ade80]'
-                              }`}
-                           />
-                        </div>
-
-                        <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-1">
-                           <span className={tokenStats.consumed > 0 ?'text-[#4ade80]' : 'text-white/20'}>Operational</span>
-                           <span className={tokenStats.warning ? 'text-red-500 animate-pulse' : 'text-white/20'}>Critical_Threshold_Warning</span>
-                        </div>
+                     <div className="flex justify-between text-[8px] font-bold text-white/10 uppercase tracking-widest px-2">
+                        <span>Limite individuelle — indépendante des autres agents</span>
+                        <span>Budget total : {tokenStats.budget.toLocaleString()} tokens</span>
                      </div>
                   </div>
                </div>
