@@ -252,16 +252,18 @@ export default function AgentsPage() {
 
           {/* ── AGENTS ── */}
           {activeAgents.map((agent) => {
+            const currentTab = agentTabs[agent.id] || 'identite';
             const skills = agentSkills[agent.id] || [];
+            const isExpanded = expandedAgent === agent.id;
 
             return (
-              <div 
-                key={agent.id} 
-                className="bg-[#111] border border-white/5 rounded-2xl overflow-hidden cursor-pointer hover:bg-white/[0.02] transition-all group"
-                onClick={() => router.push(`/admin/system/${id}/agent/${agent.id}`)}
-              >
+              <div key={agent.id} className="bg-[#111] border border-white/5 rounded-2xl overflow-hidden shadow-sm">
+
                 {/* CARTE HEADER */}
-                <div className="flex items-center gap-5 px-6 py-5">
+                <div
+                  className="flex items-center gap-5 px-6 py-5 cursor-pointer hover:bg-white/[0.02] transition-all"
+                  onClick={() => setExpandedAgent(isExpanded ? null : agent.id)}
+                >
                   <div className="w-11 h-11 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0 bg-[#0D0D0D]">
                     {agent.avatar_url
                       ? <img src={agent.avatar_url} alt={agent.name} className="w-full h-full object-cover" />
@@ -283,11 +285,425 @@ export default function AgentsPage() {
                       {agent.primary_api || 'API non configurée'} · {agent.neural_load || 0}% load · {skills.length} skills
                     </p>
                   </div>
-                  <div className="text-white/20 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2">
-                    <span className="text-[8px] font-black uppercase tracking-widest">Configurer</span>
-                    <ChevronRight className="w-4 h-4" />
+                  <div className="text-white/20 flex-shrink-0">
+                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                   </div>
                 </div>
+
+                {/* ACCORDÉON */}
+                {isExpanded && (
+                  <div className="border-t border-white/5">
+
+                    {/* TABS NAVIGATION */}
+                    <div className="flex items-center gap-1 px-6 py-3 border-b border-white/5 bg-[#0D0D0D]/50">
+                      {[
+                        { id: 'identite', label: 'Identité & Config', icon: Brain },
+                        { id: 'skills', label: 'Skills', icon: Zap },
+                        { id: 'performance', label: 'Performance', icon: BarChart2 },
+                      ].map(({ id: tabId, label, icon: Icon }) => (
+                        <button
+                          key={tabId}
+                          onClick={() => setAgentTab(agent.id, tabId as AgentTab)}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                            currentTab === tabId
+                              ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/20'
+                              : 'text-white/20 hover:text-white/50 hover:bg-white/5'
+                          }`}
+                        >
+                          <Icon className="w-3 h-3" />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* ══ TAB : IDENTITÉ & CONFIG ══ */}
+                    {currentTab === 'identite' && (
+                      <div className="p-8 space-y-10">
+
+                        {/* SECTION 1 — IDENTITÉ */}
+                        <div className="space-y-7">
+                          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#10B981]">01 — Identité</p>
+
+                          <div className="flex items-start gap-10">
+                            {/* AVATAR */}
+                            <div className="flex flex-col items-center gap-3 flex-shrink-0">
+                              <div
+                                className="w-24 h-24 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden cursor-pointer group relative bg-[#0D0D0D]"
+                                onClick={() => avatarRefs.current[agent.id]?.click()}
+                              >
+                                {agent.avatar_url
+                                  ? <img src={agent.avatar_url} alt={agent.name} className="w-full h-full object-cover" />
+                                  : <Brain className="w-8 h-8 text-white/10" />
+                                }
+                                <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center rounded-2xl">
+                                  <Upload className="w-5 h-5 text-white" />
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => avatarRefs.current[agent.id]?.click()}
+                                className="text-[8px] font-black uppercase tracking-widest text-white/20 hover:text-[#10B981] transition-all px-3 py-1.5 border border-white/5 rounded-lg w-full text-center"
+                              >
+                                Upload
+                              </button>
+                              <input
+                                ref={el => { avatarRefs.current[agent.id] = el; }}
+                                type="file" accept="image/*" className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAvatarUpload(agent.id, f); }}
+                              />
+                            </div>
+
+                            {/* NOM + STATUT */}
+                            <div className="flex-1 space-y-6">
+                              <div className="space-y-2">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Nom de l'agent</label>
+                                <input
+                                  type="text"
+                                  value={agent.name || ''}
+                                  onChange={(e) => updateAgent(agent.id, 'name', e.target.value)}
+                                  className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-5 py-4 text-[14px] font-black text-white uppercase tracking-wide focus:border-[#10B981]/40 outline-none transition-all"
+                                  placeholder="EX: SUPPORT AGENT"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Statut</label>
+                                <div className="flex gap-3">
+                                  {['active', 'standby'].map((s) => (
+                                    <button key={s}
+                                      onClick={() => updateAgent(agent.id, 'status', s)}
+                                      className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                        agent.status === s
+                                          ? s === 'active'
+                                            ? 'bg-[#10B981]/10 text-[#10B981] border border-[#10B981]/30'
+                                            : 'bg-white/5 text-white/60 border border-white/10'
+                                          : 'bg-transparent text-white/20 border border-white/5 hover:border-white/10'
+                                      }`}>
+                                      {s === 'active' ? '● ACTIVE' : '● STANDBY'}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* SECTION 2 — INTELLIGENCE */}
+                        <div className="space-y-7">
+                          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#10B981]">02 — Intelligence</p>
+
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-white/30">API Primaire</label>
+                            <select
+                              value={agent.primary_api || ''}
+                              onChange={(e) => updateAgent(agent.id, 'primary_api', e.target.value)}
+                              className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-5 py-4 text-[12px] font-mono text-white focus:border-[#10B981]/40 outline-none transition-all appearance-none cursor-pointer"
+                            >
+                              <option value="">Sélectionner une API</option>
+                              {availableModels.map((m) => (
+                                <option key={m.id} value={m.model_string}>
+                                  {m.name} — {m.provider} ({m.complexity})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-white/30">API Fallback</label>
+                            <select
+                              value={agent.fallback_chain?.[0] || ''}
+                              onChange={(e) => updateAgent(agent.id, 'fallback_chain', e.target.value ? [e.target.value] : [])}
+                              className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-5 py-4 text-[12px] font-mono text-white focus:border-[#10B981]/40 outline-none transition-all appearance-none cursor-pointer"
+                            >
+                              <option value="">Aucun fallback</option>
+                              {availableModels.filter(m => m.model_string !== agent.primary_api).map((m) => (
+                                <option key={m.id} value={m.model_string}>
+                                  {m.name} — {m.provider}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Température</label>
+                              <span className="text-[14px] font-black text-[#10B981]">{Number(agent.temperature ?? 0.7).toFixed(1)}</span>
+                            </div>
+                            <input
+                              type="range" min="0" max="1" step="0.1"
+                              value={agent.temperature ?? 0.7}
+                              onChange={(e) => updateAgent(agent.id, 'temperature', parseFloat(e.target.value))}
+                              className="w-full accent-[#10B981] h-2 bg-white/5 rounded-full appearance-none cursor-pointer"
+                            />
+                            <div className="flex justify-between text-[8px] font-mono text-white/20">
+                              <span>0.0 — Précis & déterministe</span>
+                              <span>0.5 — Équilibré</span>
+                              <span>1.0 — Créatif & varié</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Budget tokens individuel</label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                value={agent.token_budget ?? 50000}
+                                onChange={(e) => updateAgent(agent.id, 'token_budget', parseInt(e.target.value) || 0)}
+                                className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-5 py-4 text-[14px] font-mono text-white focus:border-[#10B981]/40 outline-none transition-all pr-20"
+                                placeholder="50000"
+                                min={0}
+                              />
+                              <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[9px] font-mono text-white/20 uppercase tracking-widest">tokens</span>
+                            </div>
+                            <div className="flex justify-between text-[8px] font-mono text-white/20">
+                              <span>Limite individuelle — indépendante des autres agents</span>
+                              <span>Budget total : {enterprise?.token_budget?.toLocaleString() || '—'} tokens</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* SECTION 3 — SYSTEM PROMPT */}
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#10B981]">03 — System Prompt</p>
+                            <button
+                              onClick={() => { setZoom('prompt_' + agent.id); setZoomContent(agent.system_prompt || ''); }}
+                              className="text-[9px] text-white/20 hover:text-white/60 transition-all flex items-center gap-1"
+                            >
+                              ⤢ Agrandir
+                            </button>
+                          </div>
+                          <textarea
+                            value={agent.system_prompt || ''}
+                            onChange={(e) => updateAgent(agent.id, 'system_prompt', e.target.value)}
+                            rows={10}
+                            placeholder={`Tu es un agent spécialisé pour ${enterprise?.name}.\n\nTon rôle principal est de...\n\nTu dois toujours...\n\nTu ne dois jamais...`}
+                            className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-5 py-4 text-[12px] font-mono text-white/70 focus:border-[#10B981]/40 outline-none resize-none transition-all leading-relaxed"
+                          />
+                          <div className="flex justify-between text-[8px] font-mono text-white/20">
+                            <span>{(agent.system_prompt || '').length} caractères</span>
+                            <span>Recommandé : 500 — 2000 caractères</span>
+                          </div>
+                        </div>
+
+                        {/* SECTION 4 — RÔLE & PROTOCOLE */}
+                        <div className="space-y-7">
+                          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#10B981]">04 — Rôle & Protocole</p>
+
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Protocole de rôle unique</label>
+                            <input
+                              type="text"
+                              value={agent.role_protocol || ''}
+                              onChange={(e) => updateAgent(agent.id, 'role_protocol', e.target.value)}
+                              placeholder="EX: SUPPORT · COMMERCIAL · RAG · CONTENT"
+                              className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-5 py-4 text-[12px] font-mono text-white focus:border-[#10B981]/40 outline-none transition-all"
+                            />
+                            <p className="text-[8px] font-mono text-white/20">Rôle unique — évite les conflits entre agents de la même équipe</p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-white/30">Mots-clés déclencheurs</label>
+                            <input
+                              type="text"
+                              value={Array.isArray(agent.trigger_keywords) ? agent.trigger_keywords.join(', ') : ''}
+                              onChange={(e) => updateAgent(agent.id, 'trigger_keywords', e.target.value.split(',').map((k: string) => k.trim()).filter(Boolean))}
+                              placeholder="commande, livraison, facture, support..."
+                              className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-5 py-4 text-[12px] font-mono text-white focus:border-[#10B981]/40 outline-none transition-all"
+                            />
+                            <p className="text-[8px] font-mono text-white/20">Séparer par virgule · Mots qui activent spécifiquement cet agent</p>
+                          </div>
+                        </div>
+
+                        {/* SECTION 5 — ACCÈS DONNÉES */}
+                        <div className="space-y-6">
+                          <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#10B981]">05 — Accès aux données</p>
+
+                          <div className="space-y-3">
+                            {[
+                              {
+                                key: 'kb_access',
+                                label: 'Base de connaissance entreprise',
+                                description: 'Accès à enterprise_kb — données permanentes de l\'entreprise',
+                                icon: BookOpen,
+                              },
+                              {
+                                key: 'inventory_access',
+                                label: 'Accès inventaire produits',
+                                description: 'Lecture des produits et services du client',
+                                icon: Zap,
+                              },
+                            ].map(({ key, label, description, icon: Icon }) => {
+                              const isEnabled = agent.model_config?.[key] ?? false;
+                              return (
+                                <div key={key} className="flex items-center justify-between p-5 bg-[#0D0D0D] border border-white/5 rounded-xl">
+                                  <div className="flex items-center gap-4">
+                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isEnabled ? 'bg-[#10B981]/10' : 'bg-white/5'}`}>
+                                      <Icon className={`w-4 h-4 ${isEnabled ? 'text-[#10B981]' : 'text-white/20'}`} />
+                                    </div>
+                                    <div>
+                                      <p className="text-[11px] font-black text-white/70 uppercase tracking-wide">{label}</p>
+                                      <p className="text-[8px] font-mono text-white/30 mt-0.5">{description}</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => updateAgent(agent.id, 'model_config', { ...agent.model_config, [key]: !isEnabled })}
+                                    className={`relative w-12 h-6 rounded-full transition-all flex-shrink-0 ${isEnabled ? 'bg-[#10B981]' : 'bg-white/10'}`}
+                                  >
+                                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${isEnabled ? 'left-7' : 'left-1'}`} />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[8px] font-mono text-white/20">Chaque agent accède aux données en lecture seule — aucun agent ne peut modifier les données de l'entreprise</p>
+                        </div>
+
+                        {/* ACTIONS */}
+                        <div className="flex items-center justify-between pt-6 border-t border-white/5">
+                          <button
+                            onClick={() => handleArchiveAgent(agent.id)}
+                            className="flex items-center gap-2 px-5 py-3 border border-red-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-red-500/40 hover:text-red-500 hover:border-red-500/40 transition-all"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Archiver l'agent
+                          </button>
+                          <button
+                            onClick={() => handleSaveAgent(agent)}
+                            disabled={saving === agent.id}
+                            className="flex items-center gap-2 px-10 py-3 bg-[#10B981] text-black font-black text-[10px] uppercase tracking-[0.2em] rounded-xl hover:bg-[#0ea572] transition-all disabled:opacity-40"
+                          >
+                            {saving === agent.id
+                              ? <div className="w-3.5 h-3.5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                              : saved === agent.id
+                                ? <><Check className="w-3.5 h-3.5" /> SAUVEGARDÉ</>
+                                : <><Save className="w-3.5 h-3.5" /> SAUVEGARDER</>
+                            }
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ══ TAB : SKILLS ══ */}
+                    {currentTab === 'skills' && (
+                      <div className="p-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-[11px] font-black text-white uppercase mb-1">Skills de l'agent</p>
+                            <p className="text-[9px] font-mono text-white/30">{skills.length} / {maxSkills} skills configurés</p>
+                          </div>
+                          {skills.length < maxSkills && (
+                            <button
+                              onClick={() => handleAddSkill(agent.id)}
+                              className="flex items-center gap-2 px-4 py-2.5 bg-[#10B981]/10 border border-[#10B981]/20 text-[#10B981] font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-[#10B981]/20 transition-all"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              Ajouter skill
+                            </button>
+                          )}
+                        </div>
+
+                        {skills.length === 0 ? (
+                          <div className="py-16 flex flex-col items-center justify-center text-center border border-dashed border-white/10 rounded-2xl space-y-3">
+                            <Zap className="w-8 h-8 text-white/10" />
+                            <p className="text-[11px] font-black text-white/20 uppercase tracking-widest">Aucun skill configuré</p>
+                            <p className="text-[9px] font-mono text-white/20">Ajoutez des skills pour spécialiser cet agent</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {skills.map((skill) => (
+                              <div key={skill.id} className="bg-[#0D0D0D] border border-white/5 rounded-xl p-5 space-y-4">
+                                <div className="flex items-center justify-between gap-4">
+                                  <input
+                                    type="text"
+                                    value={skill.name || ''}
+                                    onChange={(e) => handleUpdateSkill(agent.id, skill.id, 'name', e.target.value)}
+                                    className="flex-1 bg-transparent border-b border-white/10 pb-1 text-[12px] font-black text-white uppercase tracking-wide focus:border-[#10B981]/40 outline-none transition-all"
+                                    placeholder="NOM DU SKILL"
+                                  />
+                                  <div className="flex items-center gap-3 flex-shrink-0">
+                                    <button
+                                      onClick={() => handleUpdateSkill(agent.id, skill.id, 'is_active', !skill.is_active)}
+                                      className={`relative w-10 h-5 rounded-full transition-all ${skill.is_active ? 'bg-[#10B981]' : 'bg-white/10'}`}
+                                    >
+                                      <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${skill.is_active ? 'left-5' : 'left-0.5'}`} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteSkill(agent.id, skill.id)}
+                                      className="text-white/20 hover:text-red-400 transition-all"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <textarea
+                                  value={skill.description || ''}
+                                  onChange={(e) => handleUpdateSkill(agent.id, skill.id, 'description', e.target.value)}
+                                  rows={3}
+                                  placeholder="Description de ce skill — ce que l'agent sait faire avec..."
+                                  className="w-full bg-transparent border border-white/5 rounded-lg px-4 py-3 text-[11px] font-mono text-white/50 focus:border-[#10B981]/20 outline-none resize-none transition-all leading-relaxed"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {skills.length >= maxSkills && maxSkills > 0 && (
+                          <div className="p-4 bg-[#F59E0B]/5 border border-[#F59E0B]/20 rounded-xl">
+                            <p className="text-[9px] font-black text-[#F59E0B] uppercase tracking-widest">
+                              Limite atteinte — {maxSkills} skills max pour le plan {enterprise?.package_type}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ══ TAB : PERFORMANCE ══ */}
+                    {currentTab === 'performance' && (
+                      <div className="p-8 space-y-6">
+                        <p className="text-[11px] font-black text-white uppercase mb-1">Performance en temps réel</p>
+
+                        {/* NEURAL LOAD */}
+                        <div className="bg-[#0D0D0D] border border-white/5 rounded-xl p-6 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-white/30">Neural Load</p>
+                            <span className={`text-[20px] font-black ${
+                              (agent.neural_load || 0) >= 80 ? 'text-red-400' :
+                              (agent.neural_load || 0) >= 50 ? 'text-[#F59E0B]' : 'text-[#10B981]'
+                            }`}>{agent.neural_load || 0}%</span>
+                          </div>
+                          <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-1000"
+                              style={{
+                                width: `${agent.neural_load || 0}%`,
+                                backgroundColor: (agent.neural_load || 0) >= 80 ? '#EF4444' : (agent.neural_load || 0) >= 50 ? '#F59E0B' : '#10B981'
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* STATS */}
+                        <div className="grid grid-cols-2 gap-4">
+                          {[
+                            { label: 'Tâche en cours', value: agent.current_task || 'En attente de mission' },
+                            { label: 'Statut', value: agent.status?.toUpperCase() || '—' },
+                            { label: 'API active', value: agent.primary_api || '—' },
+                            { label: 'Dernière mise à jour', value: agent.updated_at ? new Date(agent.updated_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—' },
+                            { label: 'Budget tokens', value: `${(agent.token_budget || 0).toLocaleString()} tokens` },
+                            { label: 'Température', value: Number(agent.temperature ?? 0.7).toFixed(1) },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="bg-[#0D0D0D] border border-white/5 rounded-xl p-5">
+                              <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-2">{label}</p>
+                              <p className="text-[11px] font-mono text-white/60 truncate">{value}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <p className="text-[8px] font-mono text-white/20 text-center">Les données de performance se mettent à jour en temps réel depuis client_agent_tasks</p>
+                      </div>
+                    )}
+
+                  </div>
+                )}
               </div>
             );
           })}
