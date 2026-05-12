@@ -8,11 +8,18 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { enterprise_id, name, sector, region, custom_notes, avatar_url } = body;
+  const { enterprise_id, name, sector, region, custom_notes, avatar_url, logo_url } = body;
 
   const { error } = await supabase
     .from('enterprises')
-    .update({ name, sector, region, custom_notes, avatar_url })
+    .update({ 
+      ...(name !== undefined && { name }),
+      ...(sector !== undefined && { sector }),
+      ...(region !== undefined && { region }),
+      ...(custom_notes !== undefined && { custom_notes }),
+      ...(avatar_url !== undefined && { avatar_url }),
+      ...(logo_url !== undefined && { logo_url })
+    })
     .eq('enterprise_id', enterprise_id);
 
   if (error) {
