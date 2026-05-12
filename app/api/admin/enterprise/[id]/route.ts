@@ -22,7 +22,7 @@ export async function GET(
 
   const { data: agents } = await supabase
     .from('agents')
-    .select('*')
+    .select('id, name, status, primary_api, neural_load, current_task')
     .eq('enterprise_id', params.id);
 
   const { data: planDef } = await supabase

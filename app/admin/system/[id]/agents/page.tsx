@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, Lock, ChevronDown, ChevronUp, ChevronRight,
+  Plus, Lock, ChevronDown, ChevronUp, 
   Upload, Save, Trash2, X, Brain,
   Check, Zap, BarChart2, BookOpen
 } from 'lucide-react';
@@ -15,7 +15,6 @@ type AgentTab = 'identite' | 'skills' | 'performance';
 
 export default function AgentsPage() {
   const params = useParams();
-  const router = useRouter();
   const id = Array.isArray(params?.id) ? params.id[0] : params?.id as string;
 
   const [enterprise, setEnterprise] = useState<any>(null);
@@ -257,7 +256,7 @@ export default function AgentsPage() {
             const isExpanded = expandedAgent === agent.id;
 
             return (
-              <div key={agent.id} className="bg-[#111] border border-white/5 rounded-2xl overflow-hidden shadow-sm">
+              <div key={agent.id} className="bg-[#111] border border-white/5 rounded-2xl overflow-hidden">
 
                 {/* CARTE HEADER */}
                 <div
