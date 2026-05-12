@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Cpu, 
@@ -49,6 +49,7 @@ interface KnowledgeNode {
 export default function OracleConfigPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params?.id as string;
   const agentId = params?.agentId as string;
   const { updateAgent, agentsState } = useSystem();
@@ -70,6 +71,15 @@ export default function OracleConfigPage() {
   const [showKbModal, setShowKbModal] = useState(false);
   const [editingNode, setEditingNode] = useState<KnowledgeNode | null>(null);
   const [activeTab, setActiveTab] = useState<'CORE' | 'KNOWLEDGE'>('CORE');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'KNOWLEDGE') {
+      setActiveTab('KNOWLEDGE');
+    } else {
+      setActiveTab('CORE');
+    }
+  }, [searchParams]);
   
   const [skillForm, setSkillForm] = useState({ name: '', category: 'GENERAL', content: '' });
   const [kbForm, setKbForm] = useState({ content: '', category: 'GENERAL' });
@@ -341,6 +351,12 @@ export default function OracleConfigPage() {
         >
           Knowledge_Base
           {activeTab === 'KNOWLEDGE' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500 shadow-[0_0_10px_#a855f7]" />}
+        </button>
+        <button 
+          onClick={() => router.push(`/admin/system/${id}/agent/${agentId}/skills`)}
+          className="pb-4 text-[10px] font-bold uppercase text-white/20 hover:text-white/40 tracking-[0.3em] transition-all relative"
+        >
+          Skills
         </button>
       </div>
 
