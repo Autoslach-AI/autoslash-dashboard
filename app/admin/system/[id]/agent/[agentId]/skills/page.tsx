@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase';
 import { getAgentsByEnterprise } from '@/lib/db/actions';
+import JSZip from 'jszip';
 
 import { 
   Search, 
@@ -31,6 +32,89 @@ import {
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 
+function FileTreeNode({ node, depth = 0, selectedFile, onSelectFile, skillId, expandedFolders, toggleFolder }: any) {
+  const nodeId = `${skillId}-${node.name}-${depth}`;
+  if (node.type === 'folder') {
+    return (
+      <div>
+        <button
+          onClick={() => toggleFolder(nodeId)}
+          className="flex items-center gap-2 w-full text-left py-1.5 px-3 hover:bg-white/5 rounded-lg transition-all"
+          style={{ paddingLeft: `${12 + depth * 16}px` }}
+        >
+          {expandedFolders.has(nodeId) ? <ChevronDown className="w-3 h-3 text-white/40" /> : <ChevronRight className="w-3 h-3 text-white/40" />}
+          <Folder className="w-3.5 h-3.5 text-yellow-400/60" />
+          <span className="text-[11px] text-white/60 font-mono truncate">{node.name}</span>
+        </button>
+        {expandedFolders.has(nodeId) && (
+          <div>
+            {node.children?.map((child: any, i: number) => (
+              <FileTreeNode key={i} node={child} depth={depth + 1} selectedFile={selectedFile} onSelectFile={onSelectFile} skillId={skillId} expandedFolders={expandedFolders} toggleFolder={toggleFolder} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+  const isSelected = selectedFile?.name === node.name && selectedFile?.skillId === skillId;
+  return (
+    <button
+      onClick={() => onSelectFile({ skillId, name: node.name, content: node.content || '' })}
+      className={`flex items-center gap-2 w-full text-left py-1.5 rounded-lg transition-all hover:bg-white/5 ${isSelected ? 'bg-white/10 text-white' : 'text-white/50'}`}
+      style={{ paddingLeft: `${12 + depth * 16}px` }}
+    >
+      <FileCode className="w-3.5 h-3.5 text-[#4ade80]/60 flex-shrink-0" />
+      <span className="text-[11px] font-mono truncate">{node.name}</span>
+    </button>
+  );
+}
+
+function SkillItem({ skill, selectedFile, onSelectFile, onDelete, expandedFolders, toggleFolder }: any) {
+  const skillFolderId = `skill-${skill.id}`;
+  const isExpanded = expandedFolders.has(skillFolderId);
+
+  if (skill.file_tree) {
+    return (
+      <div className="group">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => toggleFolder(skillFolderId)}
+            className="flex items-center gap-2 flex-1 py-2 px-3 hover:bg-white/5 rounded-lg transition-all text-left"
+          >
+            {isExpanded ? <ChevronDown className="w-3 h-3 text-white/40" /> : <ChevronRight className="w-3 h-3 text-white/40" />}
+            <div className="w-5 h-5 rounded bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center flex-shrink-0">
+              <Folder className="w-2.5 h-2.5 text-yellow-400" />
+            </div>
+            <span className="text-[11px] font-mono tracking-tight flex-1 truncate text-white/60">{skill.name}</span>
+          </button>
+          <button onClick={onDelete} className="opacity-0 group-hover:opacity-100 text-white/20 hover:text-red-400 transition-all pr-3">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+        {isExpanded && skill.file_tree.children?.map((child: any, i: number) => (
+          <FileTreeNode key={i} node={child} depth={1} selectedFile={selectedFile} onSelectFile={onSelectFile} skillId={skill.id} expandedFolders={expandedFolders} toggleFolder={toggleFolder} />
+        ))}
+      </div>
+    );
+  }
+
+  // Skill simple sans file_tree
+  const isSelected = selectedFile?.skillId === skill.id && selectedFile?.name === skill.name;
+  return (
+    <div
+      onClick={() => onSelectFile({ skillId: skill.id, name: skill.name, content: skill.description || '' })}
+      className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/10 group ${isSelected ? 'bg-white/10 text-white' : 'text-white/60'}`}
+    >
+      <div className="w-5 h-5 rounded bg-[#4ade80]/10 border border-[#4ade80]/20 flex items-center justify-center flex-shrink-0">
+        <Zap className="w-2.5 h-2.5 text-[#4ade80]" />
+      </div>
+      <span className="text-[11px] font-mono tracking-tight flex-1 truncate">{skill.name}</span>
+      <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="opacity-0 group-hover:opacity-100 text-white/20 hover:text-red-400 transition-all">
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
 
 export default function AgentSkillsPage() {
   const params = useParams();
@@ -260,37 +344,29 @@ export default function AgentSkillsPage() {
                         <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest px-3 py-4">Aucun skill configuré</p>
                       ) : (
                         skills.map((skill) => (
-                          <div
+                          <SkillItem
                             key={skill.id}
-                            onClick={() => {
-                              setSelectedFile({ id: skill.id, name: skill.name, content: skill.description || '' });
-                              setEditedContent(skill.description || '');
+                            skill={skill}
+                            selectedFile={selectedFile}
+                            onSelectFile={(file: any) => {
+                              setSelectedFile({ ...file, id: file.skillId });
+                              setEditedContent(file.content || '');
                               setIsEditing(false);
                             }}
-                            onContextMenu={(e) => {
-                              e.preventDefault();
-                              setContextMenu({ x: e.clientX, y: e.clientY, skillId: skill.id, skillName: skill.name });
+                            onDelete={async () => {
+                              if (!confirm('Supprimer ce skill ?')) return;
+                              const supabase = createClient();
+                              if (skill.storage_path) {
+                                await supabase.storage.from('agent-skills').remove([skill.storage_path]);
+                              }
+                              const { error } = await supabase.from('agent_skills').delete().eq('id', skill.id);
+                              if (error) { alert('Erreur: ' + error.message); return; }
+                              setSkills(prev => prev.filter(s => s.id !== skill.id));
+                              if (selectedFile?.skillId === skill.id || selectedFile?.id === skill.id) setSelectedFile(null);
                             }}
-                            className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/10 group ${selectedFile?.id === skill.id ? 'bg-white/10 text-white' : 'text-white/60'}`}
-                          >
-                            <div className="w-5 h-5 rounded bg-[#4ade80]/10 border border-[#4ade80]/20 flex items-center justify-center flex-shrink-0">
-                              <Zap className="w-2.5 h-2.5 text-[#4ade80]" />
-                            </div>
-                            <span className="text-[11px] font-mono tracking-tight flex-1 truncate">{skill.name}</span>
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                if (!confirm('Supprimer ce skill ?')) return;
-                                const supabase = createClient();
-                                await supabase.from('agent_skills').delete().eq('id', skill.id);
-                                setSkills(prev => prev.filter(s => s.id !== skill.id));
-                                if (selectedFile?.id === skill.id) setSelectedFile(null);
-                              }}
-                              className="opacity-0 group-hover:opacity-100 text-white/20 hover:text-red-400 transition-all"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
+                            expandedFolders={expandedFolders}
+                            toggleFolder={toggleFolder}
+                          />
                         ))
                       )}
                     </div>
@@ -561,28 +637,90 @@ export default function AgentSkillsPage() {
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = async (event) => {
-                        const content = event.target?.result as string;
-                        const supabase = createClient();
+                      const supabase = createClient();
+
+                      // Check if it's a zip file
+                      if (file.name.endsWith('.zip')) {
+                        // Upload zip vers Supabase Storage
+                        const storagePath = `${agentId}/${Date.now()}-${file.name}`;
+                        const { error: uploadError } = await supabase.storage.from('agent-skills').upload(storagePath, file);
+                        if (uploadError) { console.error('Upload error:', uploadError); alert('Erreur upload: ' + uploadError.message); return; }
+
+                        // Extraire l'arborescence avec JSZip
+                        const zip = await JSZip.loadAsync(file);
+                        
+                        const buildTree = async (zip: JSZip): Promise<any> => {
+                          const root: any = { type: 'folder', name: file.name.replace(/\.zip$/, ''), children: [] };
+                          const pathMap: Record<string, any> = { '': root };
+                          
+                          const sortedFiles = Object.keys(zip.files).sort();
+                          
+                          for (const path of sortedFiles) {
+                            const zipEntry = zip.files[path];
+                            const parts = path.replace(/\/$/, '').split('/');
+                            const name = parts[parts.length - 1];
+                            if (!name) continue;
+                            
+                            const parentPath = parts.slice(0, -1).join('/');
+                            const parent = pathMap[parentPath] || root;
+                            
+                            if (zipEntry.dir) {
+                              const folder = { type: 'folder', name, children: [] };
+                              parent.children.push(folder);
+                              pathMap[path.replace(/\/$/, '')] = folder;
+                            } else {
+                              const content = await zipEntry.async('string');
+                              const fileNode = { type: 'file', name, content };
+                              parent.children.push(fileNode);
+                            }
+                          }
+                          return root;
+                        };
+
+                        const fileTree = await buildTree(zip);
+
+                        // INSERT dans agent_skills
                         const { data: newSkill, error } = await supabase
                           .from('agent_skills')
                           .insert({
                             agent_id: agentId,
                             enterprise_id: id,
-                            name: file.name.replace(/\.(md|zip|skill|txt)$/, ''),
-                            description: content?.substring(0, 2000) || `Fichier importé: ${file.name}`,
+                            name: file.name.replace(/\.zip$/, ''),
+                            description: `Fichier importé: ${file.name}`,
+                            file_tree: fileTree,
+                            storage_path: storagePath,
                             is_active: true
                           })
                           .select()
                           .single();
-                        if (error) { console.error('INSERT skill error:', error); alert('Erreur: ' + error.message); return; }
-                        if (newSkill) {
-                          setSkills(prev => [...prev, newSkill]);
-                        }
+
+                        if (error) { alert('Erreur: ' + error.message); return; }
+                        if (newSkill) setSkills(prev => [...prev, newSkill]);
                         setShowUploadModal(false);
-                      };
-                      reader.readAsText(file);
+                      } else {
+                        // Handle simple file
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                          const content = event.target?.result as string;
+                          const { data: newSkill, error } = await supabase
+                            .from('agent_skills')
+                            .insert({
+                              agent_id: agentId,
+                              enterprise_id: id,
+                              name: file.name.replace(/\.(md|skill|txt)$/, ''),
+                              description: content || `Fichier importé: ${file.name}`,
+                              is_active: true
+                            })
+                            .select()
+                            .single();
+                          if (error) { console.error('INSERT skill error:', error); alert('Erreur: ' + error.message); return; }
+                          if (newSkill) {
+                            setSkills(prev => [...prev, newSkill]);
+                          }
+                          setShowUploadModal(false);
+                        };
+                        reader.readAsText(file);
+                      }
                     }}
                   />
                   <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:border-white/20 transition-all">
