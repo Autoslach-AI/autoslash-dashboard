@@ -314,6 +314,7 @@ export default function AgentSkillsPage() {
                 <div className="flex items-center gap-2">
                   {isEditing && (
                     <button
+                      id="save-skill-button"
                       onClick={async () => {
                         const supabase = createClient();
                         const { error } = await supabase
@@ -325,25 +326,31 @@ export default function AgentSkillsPage() {
                         setSelectedFile((prev: any) => ({ ...prev, content: editedContent }));
                         setIsEditing(false);
                       }}
-                      className="px-4 py-1.5 mr-2 text-[10px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-[0.2em] uppercase shadow-[0_0_10px_rgba(74,222,128,0.2)]"
+                      className="px-4 py-1.5 mr-2 text-[10px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-[0.2em] uppercase shadow-[0_0_10px_rgba(74,222,128,0.2)] flex items-center gap-2"
                     >
                       SAVE
                     </button>
                   )}
-                  <button 
-                    onClick={() => setIsEditing(false)}
-                    className={`p-2 rounded-lg transition-all ${!isEditing ? 'bg-white/10 text-[#4ade80]' : 'text-white/40 hover:text-white'}`}
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => setIsEditing(true)}
-                    className={`p-2 rounded-lg transition-all ${isEditing ? 'bg-white/10 text-[#4ade80]' : 'text-white/40 hover:text-white'}`}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
+                  
+                  <div className="flex items-center bg-white/5 rounded-xl border border-white/10 p-1">
+                    <button 
+                      id="view-mode-button"
+                      onClick={() => setIsEditing(false)}
+                      className={`p-2 rounded-lg transition-all ${!isEditing ? 'bg-white/10 text-[#4ade80]' : 'text-white/20 hover:text-white'}`}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button 
+                      id="edit-mode-button"
+                      onClick={() => setIsEditing(true)}
+                      className={`p-2 rounded-lg transition-all ${isEditing ? 'bg-white/10 text-[#4ade80]' : 'text-white/20 hover:text-white'}`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  </div>
+
                   <div className="h-4 w-px bg-white/10 mx-2" />
-                  <button className="p-2 text-white/40 hover:text-white transition-all">
+                  <button id="copy-skill-button" className="p-2 text-white/40 hover:text-white transition-all">
                     <Copy className="w-4 h-4" />
                   </button>
                 </div>
