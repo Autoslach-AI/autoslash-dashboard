@@ -51,6 +51,7 @@ export default function AgentSkillsPage() {
   // Form States
   const [skillForm, setSkillForm] = useState({ name: '', description: '', instructions: '' });
   const [skills, setSkills] = useState<any[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; skillId: string; skillName: string } | null>(null);
 
   // File Tree States
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['skill-creator']));
@@ -261,7 +262,15 @@ export default function AgentSkillsPage() {
                         skills.map((skill) => (
                           <div
                             key={skill.id}
-                            onClick={() => setSelectedFile({ id: skill.id, name: skill.name, content: skill.description || '' })}
+                            onClick={() => {
+                              setSelectedFile({ id: skill.id, name: skill.name, content: skill.description || '' });
+                              setEditedContent(skill.description || '');
+                              setIsEditing(false);
+                            }}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              setContextMenu({ x: e.clientX, y: e.clientY, skillId: skill.id, skillName: skill.name });
+                            }}
                             className={`flex items-center gap-3 py-2 px-3 rounded-lg cursor-pointer transition-all hover:bg-white/10 group ${selectedFile?.id === skill.id ? 'bg-white/10 text-white' : 'text-white/60'}`}
                           >
                             <div className="w-5 h-5 rounded bg-[#4ade80]/10 border border-[#4ade80]/20 flex items-center justify-center flex-shrink-0">
@@ -303,6 +312,24 @@ export default function AgentSkillsPage() {
                   <h2 className="text-sm font-bold text-white tracking-widest uppercase">{selectedFile.name}</h2>
                 </div>
                 <div className="flex items-center gap-2">
+                  {isEditing && (
+                    <button
+                      onClick={async () => {
+                        const supabase = createClient();
+                        const { error } = await supabase
+                          .from('agent_skills')
+                          .update({ description: editedContent })
+                          .eq('id', selectedFile.id);
+                        if (error) { alert('Erreur: ' + error.message); return; }
+                        setSkills((prev: any[]) => prev.map(s => s.id === selectedFile.id ? { ...s, description: editedContent } : s));
+                        setSelectedFile((prev: any) => ({ ...prev, content: editedContent }));
+                        setIsEditing(false);
+                      }}
+                      className="px-4 py-1.5 mr-2 text-[10px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-[0.2em] uppercase shadow-[0_0_10px_rgba(74,222,128,0.2)]"
+                    >
+                      SAVE
+                    </button>
+                  )}
                   <button 
                     onClick={() => setIsEditing(false)}
                     className={`p-2 rounded-lg transition-all ${!isEditing ? 'bg-white/10 text-[#4ade80]' : 'text-white/40 hover:text-white'}`}
@@ -562,6 +589,48 @@ export default function AgentSkillsPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {contextMenu && (
+        <>
+          <div className="fixed inset-0 z-[200]" onClick={() => setContextMenu(null)} />
+          <div
+            className="fixed z-[201] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl p-1 w-48"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button
+              onClick={async () => {
+                const newName = prompt('Nouveau nom :', contextMenu.skillName);
+                if (!newName?.trim()) { setContextMenu(null); return; }
+                const supabase = createClient();
+                const { error } = await supabase.from('agent_skills').update({ name: newName.trim() }).eq('id', contextMenu.skillId);
+                if (error) { alert('Erreur: ' + error.message); return; }
+                setSkills((prev: any[]) => prev.map(s => s.id === contextMenu.skillId ? { ...s, name: newName.trim() } : s));
+                if (selectedFile?.id === contextMenu.skillId) {
+                  setSelectedFile((prev: any) => ({ ...prev, name: newName.trim() }));
+                }
+                setContextMenu(null);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 rounded-lg text-[11px] font-bold text-white/70 hover:text-white tracking-wider uppercase transition-all text-left"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Renommer
+            </button>
+            <button
+              onClick={async () => {
+                if (!confirm('Supprimer ce skill ?')) { setContextMenu(null); return; }
+                const supabase = createClient();
+                const { error } = await supabase.from('agent_skills').delete().eq('id', contextMenu.skillId);
+                if (error) { alert('Erreur: ' + error.message); return; }
+                setSkills((prev: any[]) => prev.filter(s => s.id !== contextMenu.skillId));
+                if (selectedFile?.id === contextMenu.skillId) setSelectedFile(null);
+                setContextMenu(null);
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg text-[11px] font-bold text-red-400/70 hover:text-red-400 tracking-wider uppercase transition-all text-left"
+            >
+              <X className="w-3.5 h-3.5" /> Supprimer
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
