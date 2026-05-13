@@ -14,6 +14,7 @@ import {
   Plus,
   Search,
   Database,
+  Globe,
   Lock,
   Unlock,
   MoreVertical,
@@ -129,7 +130,8 @@ export default function EnterpriseKnowledgeBase() {
     tags: [] as string[],
     tagInput: '',
     uploadedFile: null as File | null,
-    uploadedFileName: ''
+    uploadedFileName: '',
+    source_url: ''
   });
 
   useEffect(() => {
@@ -196,7 +198,8 @@ export default function EnterpriseKnowledgeBase() {
       relevance_score: 100,
       usage_count: 0,
       tags: formData.tags || [],
-      file_path: filePath
+      file_path: filePath,
+      source_url: formData.source_url || null
     };
 
     try {
@@ -231,7 +234,8 @@ export default function EnterpriseKnowledgeBase() {
         tags: [],
         tagInput: '',
         uploadedFile: null,
-        uploadedFileName: ''
+        uploadedFileName: '',
+        source_url: ''
       });
     } catch (err: any) {
       alert('Erreur: ' + err.message);
@@ -270,6 +274,17 @@ export default function EnterpriseKnowledgeBase() {
     }
   };
 
+  const getTypeForPage = (page: string) => {
+    switch(page) {
+      case 'DOCUMENTS': return 'DOCUMENT';
+      case 'SOURCES_WEB': return 'URL';
+      case 'CONVERSATIONS': return 'CONVERSATION';
+      case 'DONNÉES_MÉTIER': return 'TEXT';
+      case 'DONNÉES_SENSIBLES': return 'TEXT';
+      default: return 'TEXT';
+    }
+  };
+
   const openInjectModal = (node: KBNode | null = null) => {
     if (node) {
       setEditingNode(node);
@@ -284,22 +299,24 @@ export default function EnterpriseKnowledgeBase() {
         tags: node.tags || [],
         tagInput: '',
         uploadedFile: null,
-        uploadedFileName: ''
+        uploadedFileName: '',
+        source_url: node.source_url || ''
       });
     } else {
       setEditingNode(null);
       setFormData({
         title: '',
         content: '',
-        type: activePage === 'DOCUMENTS' ? 'DOCUMENT' : activePage === 'SOURCES_WEB' ? 'URL' : activePage === 'CONVERSATIONS' ? 'CONVERSATION' : 'TEXT',
-        sensitivity_level: 'INTERNAL',
+        type: getTypeForPage(activePage),
+        sensitivity_level: activePage === 'DONNÉES_SENSIBLES' ? 'CONFIDENTIAL' : 'INTERNAL',
         selectedAgents: [],
-        is_locked: false,
+        is_locked: activePage === 'DONNÉES_SENSIBLES' ? true : false,
         expires_at: '',
         tags: [],
         tagInput: '',
         uploadedFile: null,
-        uploadedFileName: ''
+        uploadedFileName: '',
+        source_url: ''
       });
     }
     setShowInjectModal(true);
@@ -779,6 +796,26 @@ export default function EnterpriseKnowledgeBase() {
                         placeholder="Assign_Identification_Title"
                       />
                     </div>
+                    {formData.type === 'URL' && (
+  <div className="space-y-2 col-span-2">
+    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">
+      URL Source
+    </label>
+    <div className="flex items-center gap-3 bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 focus-within:border-violet-500/40 transition-all">
+      <Globe className="w-4 h-4 text-white/20 flex-shrink-0" />
+      <input
+        type="url"
+        placeholder="https://example.com/article"
+        className="bg-transparent text-white text-[12px] outline-none flex-1 font-mono placeholder:text-white/20"
+        value={formData.source_url || ''}
+        onChange={(e) => setFormData({...formData, source_url: e.target.value})}
+      />
+    </div>
+    <p className="text-[9px] text-white/20 tracking-wider">
+      Le contenu de la page sera référencé par les agents
+    </p>
+  </div>
+)}
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Fichier source (optionnel)</label>
                       <div
