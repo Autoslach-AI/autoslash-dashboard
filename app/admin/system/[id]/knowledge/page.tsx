@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/lib/supabase';
 import { 
-  OverviewIcon, 
+  LayoutDashboard, 
   FileText as FileTextIcon, 
   Globe as GlobeIcon, 
   MessageSquare, 
@@ -27,7 +27,8 @@ import {
   ChevronRight,
   TrendingUp,
   AlertTriangle,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 
 // --- TYPES & INTERFACES ---
@@ -289,7 +290,7 @@ export default function EnterpriseKnowledgeBase() {
 
   const renderSidebar = () => {
     const navItems = [
-      { id: 'VUE_GLOBALE', label: 'Vue Globale', icon: BarChart3 }, // user wanted BarChart3 for Vue Globale based on prompt icons
+      { id: 'VUE_GLOBALE', label: 'Vue Globale', icon: LayoutDashboard }, 
       { id: 'DOCUMENTS', label: 'Documents', icon: FileTextIcon },
       { id: 'SOURCES_WEB', label: 'Sources Web', icon: GlobeIcon },
       { id: 'CONVERSATIONS', label: 'Conversations', icon: MessageSquare },
