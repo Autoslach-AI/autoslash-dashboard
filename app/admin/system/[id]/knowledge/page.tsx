@@ -20,6 +20,9 @@ import {
   Trash2,
   Archive,
   Edit,
+  Pencil,
+  Upload,
+  FileText,
   Clock,
   ExternalLink,
   Tag,
@@ -112,6 +115,7 @@ export default function EnterpriseKnowledgeBase() {
   const [showInjectModal, setShowInjectModal] = useState(false);
   const [editingNode, setEditingNode] = useState<KBNode | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [contextNodeId, setContextNodeId] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -123,7 +127,9 @@ export default function EnterpriseKnowledgeBase() {
     is_locked: false,
     expires_at: '',
     tags: [] as string[],
-    tagInput: ''
+    tagInput: '',
+    uploadedFile: null as File | null,
+    uploadedFileName: ''
   });
 
   useEffect(() => {
@@ -158,6 +164,22 @@ export default function EnterpriseKnowledgeBase() {
 
   const saveNode = async () => {
     const supabase = createClient();
+    
+    let filePath = formData.uploadedFile ? null : (editingNode?.file_path || null);
+    
+    if (formData.uploadedFile) {
+      const fileName = `${id}/${Date.now()}-${formData.uploadedFile.name}`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('enterprise-kb')
+        .upload(fileName, formData.uploadedFile);
+      
+      if (!uploadError) {
+        filePath = uploadData?.path || null;
+      } else {
+        console.error('Upload error:', uploadError);
+      }
+    }
+
     const payload = {
       enterprise_id: id,
       title: formData.title,
@@ -173,7 +195,8 @@ export default function EnterpriseKnowledgeBase() {
       expires_at: formData.expires_at || null,
       relevance_score: 100,
       usage_count: 0,
-      tags: formData.tags || []
+      tags: formData.tags || [],
+      file_path: filePath
     };
 
     try {
@@ -197,15 +220,32 @@ export default function EnterpriseKnowledgeBase() {
       }
       setShowInjectModal(false);
       setEditingNode(null);
+      setFormData({
+        title: '',
+        content: '',
+        type: 'TEXT',
+        sensitivity_level: 'INTERNAL',
+        selectedAgents: [],
+        is_locked: false,
+        expires_at: '',
+        tags: [],
+        tagInput: '',
+        uploadedFile: null,
+        uploadedFileName: ''
+      });
     } catch (err: any) {
       alert('Erreur: ' + err.message);
     }
   };
 
-  const deleteNode = async (nodeId: string) => {
+  const deleteNode = async (node: KBNode) => {
+    const nodeId = node.id;
     if (!confirm('Supprimer ce nœud de connaissance ?')) return;
     const supabase = createClient();
     try {
+      if (node.file_path) {
+        await supabase.storage.from('enterprise-kb').remove([node.file_path]);
+      }
       const { error } = await supabase.from('enterprise_kb').delete().eq('id', nodeId);
       if (error) throw error;
       setNodes(prev => prev.filter(n => n.id !== nodeId));
@@ -240,9 +280,11 @@ export default function EnterpriseKnowledgeBase() {
         sensitivity_level: node.sensitivity_level,
         selectedAgents: Array.isArray(node.agent_access) ? node.agent_access : [],
         is_locked: node.is_locked,
-        expires_at: node.expires_at || '',
+        expires_at: node.expires_at ? node.expires_at.split('T')[0] : '',
         tags: node.tags || [],
-        tagInput: ''
+        tagInput: '',
+        uploadedFile: null,
+        uploadedFileName: ''
       });
     } else {
       setEditingNode(null);
@@ -255,7 +297,9 @@ export default function EnterpriseKnowledgeBase() {
         is_locked: false,
         expires_at: '',
         tags: [],
-        tagInput: ''
+        tagInput: '',
+        uploadedFile: null,
+        uploadedFileName: ''
       });
     }
     setShowInjectModal(true);
@@ -392,7 +436,54 @@ export default function EnterpriseKnowledgeBase() {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <SensitivityBadge level={node.sensitivity_level} />
-                    {node.is_locked ? <Lock className="w-3 h-3 text-white/20" /> : <Unlock className="w-3 h-3 text-white/10" />}
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setContextNodeId(contextNodeId === node.id ? null : node.id); }}
+                          className="p-1.5 rounded-lg hover:bg-white/10 text-white/20 hover:text-white transition-all"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                        {contextNodeId === node.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setContextNodeId(null)} />
+                            <div className="absolute right-0 top-8 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 p-1">
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  openInjectModal(node);
+                                  setContextNodeId(null);
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 rounded-lg text-[11px] font-bold text-white/70 hover:text-white tracking-wider uppercase transition-all text-left"
+                              >
+                                <Pencil className="w-3.5 h-3.5" /> Modifier
+                              </button>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  archiveNode(node);
+                                  setContextNodeId(null);
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-orange-500/10 rounded-lg text-[11px] font-bold text-orange-400/70 hover:text-orange-400 tracking-wider uppercase transition-all text-left"
+                              >
+                                <Archive className="w-3.5 h-3.5" /> Archiver
+                              </button>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  deleteNode(node);
+                                  setContextNodeId(null);
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg text-[11px] font-bold text-red-400/70 hover:text-red-400 tracking-wider uppercase transition-all text-left"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {node.is_locked ? <Lock className="w-3 h-3 text-white/20" /> : <Unlock className="w-3 h-3 text-white/10" />}
+                    </div>
                   </div>
                   <div className="space-y-4">
                     <h3 className="text-xs font-bold text-white/80 line-clamp-2 min-h-[32px]">
@@ -413,7 +504,7 @@ export default function EnterpriseKnowledgeBase() {
                        <span className="text-[8px] text-white/10 uppercase">Vu: {node.last_used_at ? new Date(node.last_used_at).toLocaleDateString() : 'Jamais'}</span>
                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                          <button onClick={(e) => { e.stopPropagation(); archiveNode(node); }} className="p-1.5 hover:text-orange-400 text-white/20 transition-colors"><Archive className="w-3 h-3" /></button>
-                         <button onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }} className="p-1.5 hover:text-red-500 text-white/20 transition-colors"><Trash2 className="w-3 h-3" /></button>
+                         <button onClick={(e) => { e.stopPropagation(); deleteNode(node); }} className="p-1.5 hover:text-red-500 text-white/20 transition-colors"><Trash2 className="w-3 h-3" /></button>
                        </div>
                     </div>
                   </div>
@@ -514,22 +605,52 @@ export default function EnterpriseKnowledgeBase() {
                     </span>
                   </div>
 
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                    <button 
-                      onClick={() => openInjectModal(node)}
-                      disabled={node.is_locked}
-                      className={`p-2 rounded-lg bg-white/5 hover:text-violet-400 transition-all ${node.is_locked ? 'cursor-not-allowed opacity-20' : ''}`}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button 
-                      onClick={() => deleteNode(node.id)}
-                      disabled={node.is_locked}
-                      className={`p-2 rounded-lg bg-white/5 hover:text-red-500 transition-all ${node.is_locked ? 'cursor-not-allowed opacity-20' : ''}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 text-white/10 hover:text-white"><MoreVertical className="w-4 h-4" /></button>
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setContextNodeId(contextNodeId === node.id ? null : node.id); }}
+                        className="p-1.5 rounded-lg hover:bg-white/10 text-white/20 hover:text-white transition-all"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {contextNodeId === node.id && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setContextNodeId(null)} />
+                          <div className="absolute right-0 top-8 w-48 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 p-1">
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                openInjectModal(node);
+                                setContextNodeId(null);
+                              }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 rounded-lg text-[11px] font-bold text-white/70 hover:text-white tracking-wider uppercase transition-all text-left"
+                            >
+                              <Pencil className="w-3.5 h-3.5" /> Modifier
+                            </button>
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                archiveNode(node);
+                                setContextNodeId(null);
+                              }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-orange-500/10 rounded-lg text-[11px] font-bold text-orange-400/70 hover:text-orange-400 tracking-wider uppercase transition-all text-left"
+                            >
+                              <Archive className="w-3.5 h-3.5" /> Archiver
+                            </button>
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                deleteNode(node);
+                                setContextNodeId(null);
+                              }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg text-[11px] font-bold text-red-400/70 hover:text-red-400 tracking-wider uppercase transition-all text-left"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -658,6 +779,62 @@ export default function EnterpriseKnowledgeBase() {
                         placeholder="Assign_Identification_Title"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Fichier source (optionnel)</label>
+                      <div
+                        className="border border-dashed border-white/10 rounded-xl p-6 flex items-center gap-4 hover:border-violet-500/30 transition-all cursor-pointer bg-white/[0.01] group"
+                        onClick={() => document.getElementById('kb-file-input')?.click()}
+                      >
+                        <input
+                          id="kb-file-input"
+                          type="file"
+                          accept=".pdf,.docx,.doc,.txt,.xlsx,.csv,.md"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            if (!formData.title) {
+                              setFormData(prev => ({...prev, title: file.name.replace(/\.[^/.]+$/, '')}));
+                            }
+                            const reader = new FileReader();
+                            reader.onload = async (event) => {
+                              const text = event.target?.result as string;
+                              setFormData(prev => ({
+                                ...prev,
+                                uploadedFile: file,
+                                uploadedFileName: file.name,
+                                content: prev.content || text?.substring(0, 3000) || ''
+                              }));
+                            };
+                            reader.readAsText(file);
+                          }}
+                        />
+                        {formData.uploadedFileName ? (
+                          <div className="flex items-center gap-3 w-full">
+                            <div className="w-8 h-8 rounded-lg bg-violet-500/20 border border-violet-500/30 flex items-center justify-center flex-shrink-0">
+                              <FileTextIcon className="w-4 h-4 text-violet-400" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-[12px] font-bold text-white truncate">{formData.uploadedFileName}</p>
+                              <p className="text-[10px] text-white/40">Fichier chargé — contenu extrait</p>
+                            </div>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setFormData(prev => ({...prev, uploadedFile: null, uploadedFileName: ''})); }}>
+                              <X className="w-4 h-4 text-white/40 hover:text-red-400 transition-colors" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-violet-500/30 transition-all flex-shrink-0">
+                              <Upload className="w-4 h-4 text-white/40 group-hover:text-violet-400 transition-colors" />
+                            </div>
+                            <div>
+                              <p className="text-[12px] font-bold text-white/60">Glisser ou cliquer pour uploader</p>
+                              <p className="text-[10px] text-white/30">PDF, DOCX, TXT, XLSX, CSV, MD</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                     <div className="space-y-3">
                       <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Data_Lattice_Content</label>
                       <textarea 
@@ -669,31 +846,37 @@ export default function EnterpriseKnowledgeBase() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Tags</label>
-                      <div className="flex flex-wrap gap-2 p-3 bg-[#0D0D0D] border border-white/10 rounded-xl min-h-[48px]">
+                      <div className="flex flex-wrap gap-2 p-3 bg-[#0D0D0D] border border-white/10 rounded-xl min-h-[48px] cursor-text"
+                        onClick={() => document.getElementById('tag-input')?.focus()}
+                      >
                         {(formData.tags || []).map((tag: string, i: number) => (
                           <span key={i} className="flex items-center gap-1.5 bg-violet-500/10 border border-violet-500/20 text-violet-300 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                             {tag}
-                            <button onClick={() => setFormData({...formData, tags: formData.tags.filter((_: string, j: number) => j !== i)})}>
-                              <X className="w-2.5 h-2.5" />
+                            <button type="button" onClick={(e) => { e.stopPropagation(); setFormData({...formData, tags: (formData.tags || []).filter((_: string, j: number) => j !== i)}); }}>
+                              <X className="w-2.5 h-2.5 hover:text-red-400 transition-colors" />
                             </button>
                           </span>
                         ))}
                         <input
-                          className="bg-transparent text-white text-[11px] outline-none placeholder:text-white/20 min-w-[120px] font-mono"
-                          placeholder="Ajouter un tag..."
+                          id="tag-input"
+                          className="bg-transparent text-white text-[11px] outline-none placeholder:text-white/20 min-w-[120px] font-mono flex-1"
+                          placeholder="Ajouter un tag... (Entrée pour valider)"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ',') {
                               e.preventDefault();
-                              const val = e.currentTarget.value.trim();
+                              const val = e.currentTarget.value.trim().toLowerCase();
                               if (val && !(formData.tags || []).includes(val)) {
                                 setFormData({...formData, tags: [...(formData.tags || []), val]});
                               }
                               e.currentTarget.value = '';
                             }
+                            if (e.key === 'Backspace' && e.currentTarget.value === '' && (formData.tags || []).length > 0) {
+                              setFormData({...formData, tags: (formData.tags || []).slice(0, -1)});
+                            }
                           }}
                         />
                       </div>
-                      <p className="text-[9px] text-white/20 tracking-wider">Appuie sur Entrée ou virgule pour ajouter</p>
+                      <p className="text-[9px] text-white/20 tracking-wider">Entrée ou virgule pour ajouter — Backspace pour supprimer</p>
                     </div>
                   </div>
 
@@ -772,9 +955,9 @@ export default function EnterpriseKnowledgeBase() {
                       <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Expiration_Neural_Path</label>
                       <input 
                         type="date"
-                        value={formData.expires_at}
+                        value={formData.expires_at || ''}
                         onChange={(e) => setFormData({...formData, expires_at: e.target.value})}
-                        className="w-full bg-black border border-white/10 rounded-xl px-6 py-4 text-xs font-bold text-white outline-none focus:border-violet-500/40 transition-all font-mono"
+                        className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 text-white text-[12px] font-bold uppercase tracking-wider outline-none focus:border-violet-500/40 transition-all cursor-pointer"
                       />
                     </div>
 
