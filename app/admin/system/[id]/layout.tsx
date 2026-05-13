@@ -8,6 +8,7 @@ import {
   Settings, 
   Cpu, 
   Shield, 
+  Zap,
   ChevronRight,
   ArrowLeft,
   X,
@@ -50,6 +51,7 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
 
   const coreNav = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: `/admin/system/${id}` },
+    { id: 'inventory', label: 'Inventory', icon: Zap, path: `/admin/system/${id}/inventory` },
     { id: 'knowledge', label: 'Knowledge', icon: Database, path: `/admin/system/${id}/knowledge` },
     { id: 'agents', label: 'Agents', icon: Cpu, type: 'trigger' },
     { id: 'branding', label: 'Branding', icon: Palette, path: `/admin/system/${id}/branding` },
