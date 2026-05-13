@@ -163,12 +163,13 @@ export default function EnterpriseKnowledgeBase() {
       title: formData.title,
       content: formData.content,
       type: formData.type,
-      category: formData.type, // Map category to type for now
+      category: formData.type,
       sensitivity_level: formData.sensitivity_level,
-      agent_access: formData.sensitivity_level === 'PUBLIC' ? 'ALL' 
-        : formData.sensitivity_level === 'RESTRICTED' ? formData.selectedAgents 
-        : formData.sensitivity_level === 'CONFIDENTIAL' ? [] : 'ALL',
-      is_locked: formData.is_locked,
+      agent_access: formData.sensitivity_level === 'PUBLIC' ? '"ALL"'
+        : formData.sensitivity_level === 'INTERNAL' ? '"ALL"'
+        : formData.sensitivity_level === 'RESTRICTED' ? JSON.stringify(formData.selectedAgents || [])
+        : '[]',
+      is_locked: formData.is_locked || false,
       expires_at: formData.expires_at || null,
       relevance_score: 100,
       usage_count: 0,
@@ -330,12 +331,13 @@ export default function EnterpriseKnowledgeBase() {
     const activeNodesCount = nodes.filter(n => n.relevance_score > 0).length;
     const now = new Date();
     const expiredCount = nodes.filter(n => n.expires_at && new Date(n.expires_at) < now).length;
-    const renewalCount = nodes.filter(n => n.relevance_score < 30 && n.relevance_score > 0).length;
+    const toRenew = nodes.filter(n => n.relevance_score < 30 && n.relevance_score > 0).length;
+    const expired = nodes.filter(n => n.expires_at && new Date(n.expires_at) < now).length;
     const avgFreshness = nodes.length > 0 
       ? Math.round(nodes.reduce((acc, curr) => acc + (curr.relevance_score || 0), 0) / nodes.length) 
-      : 0;
+      : 'N/A';
 
-    const freshnessColor = avgFreshness > 70 ? 'text-[#4ade80]' : avgFreshness > 40 ? 'text-orange-400' : 'text-red-400';
+    const freshnessColor = typeof avgFreshness === 'number' ? (avgFreshness > 70 ? 'text-[#4ade80]' : avgFreshness > 40 ? 'text-orange-400' : 'text-red-400') : 'text-white/20';
 
     return (
       <div className="space-y-12">
@@ -348,23 +350,23 @@ export default function EnterpriseKnowledgeBase() {
           />
           <MetricCard 
             title="A Renouveler" 
-            value={renewalCount} 
-            subValue="CRITICAL"
+            value={toRenew} 
+            subValue={toRenew > 0 ? "CRITICAL" : null}
             icon={TrendingUp} 
             colorClass="text-orange-400"
             shadowColor="shadow-[0_0_15px_rgba(251,146,60,0.05)]"
           />
           <MetricCard 
             title="Expirés" 
-            value={expiredCount} 
-            subValue="ALERT"
+            value={expired} 
+            subValue={expired > 0 ? "ALERT" : null}
             icon={Clock} 
             colorClass="text-red-500"
             shadowColor="shadow-[0_0_15px_rgba(239,68,68,0.05)]"
           />
           <MetricCard 
             title="Fraîcheur Global" 
-            value={`${avgFreshness}%`} 
+            value={typeof avgFreshness === 'number' ? `${avgFreshness}%` : avgFreshness} 
             icon={Zap} 
             colorClass={freshnessColor} 
           />
@@ -659,33 +661,39 @@ export default function EnterpriseKnowledgeBase() {
                     <div className="space-y-3">
                       <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Data_Lattice_Content</label>
                       <textarea 
+                        className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-5 py-4 text-white text-[13px] outline-none focus:border-violet-500/40 transition-all font-mono min-h-[200px] resize-none placeholder:text-white/20"
+                        placeholder="Insert architectural knowledge data here..."
                         value={formData.content}
                         onChange={(e) => setFormData({...formData, content: e.target.value})}
-                        className="w-full h-80 bg-black border border-white/10 rounded-xl px-6 py-6 text-xs font-mono text-white/80 leading-relaxed outline-none focus:border-violet-500/40 transition-all resize-none custom-scrollbar"
-                        placeholder="Insert architectural knowledge data here..."
                       />
                     </div>
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Tags_Lattice</label>
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {formData.tags.map(tag => (
-                          <span key={tag} className="flex items-center gap-2 px-3 py-1 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[9px] font-bold rounded uppercase tracking-widest">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Tags</label>
+                      <div className="flex flex-wrap gap-2 p-3 bg-[#0D0D0D] border border-white/10 rounded-xl min-h-[48px]">
+                        {(formData.tags || []).map((tag: string, i: number) => (
+                          <span key={i} className="flex items-center gap-1.5 bg-violet-500/10 border border-violet-500/20 text-violet-300 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                             {tag}
-                            <button onClick={() => removeTag(tag)} className="hover:text-white"><X className="w-2.5 h-2.5" /></button>
+                            <button onClick={() => setFormData({...formData, tags: formData.tags.filter((_: string, j: number) => j !== i)})}>
+                              <X className="w-2.5 h-2.5" />
+                            </button>
                           </span>
                         ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text"
-                          value={formData.tagInput}
-                          onChange={(e) => setFormData({...formData, tagInput: e.target.value})}
-                          onKeyDown={(e) => e.key === 'Enter' && addTag()}
-                          className="flex-1 bg-black border border-white/10 rounded-lg px-4 py-2 text-[10px] text-white outline-none focus:border-violet-500/40"
-                          placeholder="ADD_TAG..."
+                        <input
+                          className="bg-transparent text-white text-[11px] outline-none placeholder:text-white/20 min-w-[120px] font-mono"
+                          placeholder="Ajouter un tag..."
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ',') {
+                              e.preventDefault();
+                              const val = e.currentTarget.value.trim();
+                              if (val && !(formData.tags || []).includes(val)) {
+                                setFormData({...formData, tags: [...(formData.tags || []), val]});
+                              }
+                              e.currentTarget.value = '';
+                            }
+                          }}
                         />
-                        <button onClick={addTag} className="p-2 bg-white/5 border border-white/10 rounded-lg text-white/40 hover:text-white"><Plus className="w-4 h-4" /></button>
                       </div>
+                      <p className="text-[9px] text-white/20 tracking-wider">Appuie sur Entrée ou virgule pour ajouter</p>
                     </div>
                   </div>
 
@@ -694,67 +702,65 @@ export default function EnterpriseKnowledgeBase() {
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-3">
                         <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Cluster_Type</label>
-                        <select 
+                        <select
                           value={formData.type}
                           onChange={(e) => setFormData({...formData, type: e.target.value})}
-                          className="w-full bg-black border border-white/10 rounded-xl px-6 py-4 text-[10px] font-bold text-white outline-none appearance-none cursor-pointer uppercase tracking-widest focus:border-violet-500/40"
+                          className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 text-white text-[12px] font-bold uppercase tracking-wider outline-none focus:border-violet-500/40 transition-all"
                         >
-                          <option value="TEXT">DONNÉES MÉTIER</option>
                           <option value="DOCUMENT">DOCUMENT</option>
-                          <option value="SPREADSHEET">TABLEUR</option>
+                          <option value="SPREADSHEET">SPREADSHEET</option>
                           <option value="URL">SOURCE WEB</option>
                           <option value="CONVERSATION">CONVERSATION</option>
+                          <option value="TEXT">DONNÉES MÉTIER</option>
                         </select>
                       </div>
                       <div className="space-y-3">
                         <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Sensitivity_Level</label>
-                        <select 
+                        <select
                           value={formData.sensitivity_level}
                           onChange={(e) => setFormData({...formData, sensitivity_level: e.target.value})}
-                          className="w-full bg-black border border-white/10 rounded-xl px-6 py-4 text-[10px] font-bold text-white outline-none appearance-none cursor-pointer uppercase tracking-widest focus:border-violet-500/40"
+                          className="w-full bg-[#0D0D0D] border border-white/10 rounded-xl px-4 py-3 text-white text-[12px] font-bold uppercase tracking-wider outline-none focus:border-violet-500/40 transition-all"
                         >
-                          <option value="PUBLIC">PUBLIC</option>
-                          <option value="INTERNAL">INTERNAL</option>
-                          <option value="RESTRICTED">RESTRICTED</option>
-                          <option value="CONFIDENTIAL">CONFIDENTIAL</option>
+                          <option value="PUBLIC">PUBLIC — Tous les agents</option>
+                          <option value="INTERNAL">INTERNAL — Agents actifs seulement</option>
+                          <option value="RESTRICTED">RESTRICTED — Agents sélectionnés</option>
+                          <option value="CONFIDENTIAL">CONFIDENTIAL — Administrateur uniquement</option>
                         </select>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-6 border border-white/5 bg-white/[0.02] rounded-2xl">
-                      <div className="space-y-1">
-                        <h4 className="text-[10px] font-bold text-white uppercase tracking-widest">Lock_Node_Consistency</h4>
-                        <p className="text-[8px] text-white/40 uppercase">Immutabilité temporaire pour l'administrateur</p>
-                      </div>
-                      <button 
-                        onClick={() => setFormData({...formData, is_locked: !formData.is_locked})}
-                        className={`w-12 h-6 rounded-full transition-all relative ${formData.is_locked ? 'bg-violet-500' : 'bg-white/10'}`}
-                      >
-                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${formData.is_locked ? 'left-7' : 'left-1'}`} />
-                      </button>
-                    </div>
-
                     {formData.sensitivity_level === 'RESTRICTED' && (
-                      <div className="space-y-4">
-                        <label className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Agents_Authorized_Lattice</label>
+                      <div className="space-y-3 mt-4">
+                        <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">
+                          Agents autorisés à lire
+                        </label>
                         <div className="grid grid-cols-2 gap-2">
                           {agents.map(agent => {
-                            const isSelected = formData.selectedAgents.includes(agent.id);
+                            const isSelected = (formData.selectedAgents || []).includes(agent.id);
                             return (
                               <button
                                 key={agent.id}
-                                onClick={() => toggleAgentAccess(agent.id)}
-                                className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left group ${
-                                  isSelected 
-                                    ? 'border-violet-500/40 bg-violet-500/10 text-white' 
-                                    : 'border-white/5 text-white/20 hover:border-white/10'
+                                type="button"
+                                onClick={() => {
+                                  const current = formData.selectedAgents || [];
+                                  setFormData({
+                                    ...formData,
+                                    selectedAgents: isSelected
+                                      ? current.filter((id: string) => id !== agent.id)
+                                      : [...current, agent.id]
+                                  });
+                                }}
+                                className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                                  isSelected
+                                    ? 'border-violet-500/40 bg-violet-500/10 text-white'
+                                    : 'border-white/10 text-white/40 hover:border-white/20'
                                 }`}
                               >
-                                <div className={`w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] border border-white/10 group-hover:border-white/20 transition-all ${isSelected ? 'border-violet-500/40' : ''}`}>
-                                  {agent.name[0]}
+                                <div className="w-7 h-7 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-[11px] font-bold text-violet-400 flex-shrink-0">
+                                  {agent.name?.[0]?.toUpperCase()}
                                 </div>
-                                <span className="text-[9px] font-bold uppercase tracking-widest truncate flex-1">{agent.name}</span>
-                                {isSelected && <Check className="w-3 h-3 text-violet-400" />}
+                                <span className="text-[11px] font-bold uppercase tracking-wider truncate">{agent.name}</span>
+                                {isSelected && <Check className="w-3 h-3 ml-auto text-violet-400 flex-shrink-0" />}
                               </button>
                             );
                           })}
