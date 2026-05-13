@@ -302,41 +302,47 @@ export default function AgentSkillsPage() {
         </aside>
 
         {/* MAIN CONTENT AREA */}
-        <main className="flex-1 flex flex-col bg-[#0D0D0D]">
+        <main className="flex-1 flex flex-col bg-[#0D0D0D] overflow-hidden">
           {selectedFile ? (
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
               {/* Header for File */}
-              <div className="p-4 border-b border-white/5 flex items-center justify-between bg-black/50 backdrop-blur-md sticky top-0 z-10">
+              <div className="h-16 px-6 border-b border-white/5 flex items-center justify-between bg-black/40 backdrop-blur-xl sticky top-0 z-10 shrink-0">
                 <div className="flex items-center gap-3">
                   <FileCode className="w-4 h-4 text-[#4ade80]" />
-                  <h2 className="text-sm font-bold text-white tracking-widest uppercase">{selectedFile.name}</h2>
+                  <h2 className="text-sm font-bold text-white tracking-widest uppercase truncate max-w-[200px] sm:max-w-md">{selectedFile.name}</h2>
                 </div>
                 <div className="flex items-center gap-2">
-                  {isEditing && (
-                    <button
-                      id="save-skill-button"
-                      onClick={async () => {
-                        const supabase = createClient();
-                        const { error } = await supabase
-                          .from('agent_skills')
-                          .update({ description: editedContent })
-                          .eq('id', selectedFile.id);
-                        if (error) { alert('Erreur: ' + error.message); return; }
-                        setSkills((prev: any[]) => prev.map(s => s.id === selectedFile.id ? { ...s, description: editedContent } : s));
-                        setSelectedFile((prev: any) => ({ ...prev, content: editedContent }));
-                        setIsEditing(false);
-                      }}
-                      className="px-4 py-1.5 mr-2 text-[10px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-[0.2em] uppercase shadow-[0_0_10px_rgba(74,222,128,0.2)] flex items-center gap-2"
-                    >
-                      SAVE
-                    </button>
-                  )}
+                  <AnimatePresence>
+                    {isEditing && (
+                      <motion.button
+                        id="save-skill-button"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        onClick={async () => {
+                          const supabase = createClient();
+                          const { error } = await supabase
+                            .from('agent_skills')
+                            .update({ description: editedContent })
+                            .eq('id', selectedFile.id);
+                          if (error) { alert('Erreur: ' + error.message); return; }
+                          setSkills((prev: any[]) => prev.map(s => s.id === selectedFile.id ? { ...s, description: editedContent } : s));
+                          setSelectedFile((prev: any) => ({ ...prev, content: editedContent }));
+                          setIsEditing(false);
+                        }}
+                        className="px-5 py-2 text-[10px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-[0.2em] uppercase shadow-[0_0_20px_rgba(74,222,128,0.3)] flex items-center gap-2"
+                      >
+                        SAVE
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
                   
                   <div className="flex items-center bg-white/5 rounded-xl border border-white/10 p-1">
                     <button 
                       id="view-mode-button"
                       onClick={() => setIsEditing(false)}
                       className={`p-2 rounded-lg transition-all ${!isEditing ? 'bg-white/10 text-[#4ade80]' : 'text-white/20 hover:text-white'}`}
+                      title="View Mode"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
@@ -344,24 +350,32 @@ export default function AgentSkillsPage() {
                       id="edit-mode-button"
                       onClick={() => setIsEditing(true)}
                       className={`p-2 rounded-lg transition-all ${isEditing ? 'bg-white/10 text-[#4ade80]' : 'text-white/20 hover:text-white'}`}
+                      title="Edit Mode"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <div className="h-4 w-px bg-white/10 mx-2" />
-                  <button id="copy-skill-button" className="p-2 text-white/40 hover:text-white transition-all">
+                  <div className="h-4 w-px bg-white/10 mx-2 hidden sm:block" />
+                  <button 
+                    id="copy-skill-button" 
+                    className="p-2 text-white/40 hover:text-white transition-all hidden sm:block"
+                    onClick={() => {
+                      navigator.clipboard.writeText(editedContent);
+                      alert('Contenu copié !');
+                    }}
+                  >
                     <Copy className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
               {/* Editor / Viewer Area */}
-              <div className="flex-1 relative overflow-auto font-mono text-[13px] leading-relaxed group">
+              <div className="flex-1 overflow-auto font-mono text-[13px] leading-relaxed relative bg-black/20">
                 {isEditing ? (
                   <textarea 
                     autoFocus
-                    className="w-full h-full bg-black text-white/80 p-8 outline-none resize-none selection:bg-[#4ade80]/20"
+                    className="w-full h-full bg-black/40 text-white/80 p-8 outline-none resize-none selection:bg-[#4ade80]/20 min-h-[500px]"
                     value={editedContent}
                     onChange={(e) => setEditedContent(e.target.value)}
                     spellCheck={false}
@@ -369,22 +383,29 @@ export default function AgentSkillsPage() {
                 ) : (
                   <div className="p-0 flex min-h-full">
                     {/* Line Numbers */}
-                    <div className="w-12 bg-white/[0.02] border-r border-white/5 py-8 flex flex-col items-center text-white/10 select-none">
+                    <div className="w-14 bg-white/[0.02] border-r border-white/5 py-8 flex flex-col items-center text-white/10 select-none">
                       {editedContent.split('\n').map((_, i) => (
-                        <div key={i} className="h-[1.5em]">{i + 1}</div>
+                        <div key={i} className="h-[1.6em] flex items-center justify-center font-mono text-[10px]">{i + 1}</div>
                       ))}
                     </div>
                     {/* Code Content */}
-                    <pre className="p-8 flex-1 text-white/80 whitespace-pre scrollbar-hide overflow-x-auto">
-                      {editedContent.split('\n').map((line, i) => (
-                        <div key={i} className="h-[1.5em] hover:bg-white/[0.02] transition-colors px-2">
-                          {line.startsWith('#') || line.startsWith('"""') || line.startsWith('//') ? (
-                            <span className="text-[#4ade80]/60">{line}</span>
-                          ) : (
-                            <span>{line}</span>
-                          )}
-                        </div>
-                      ))}
+                    <pre className="p-8 flex-1 text-white/80 whitespace-pre overflow-x-auto custom-scrollbar">
+                      {editedContent.split('\n').map((line, i) => {
+                        // Simple highlighting for common section headers
+                        const isHeader = line.toUpperCase().includes('INSTRUCTIONS:') || line.startsWith('#');
+                        
+                        return (
+                          <div key={i} className={`h-[1.6em] flex items-center group/line ${isHeader ? 'bg-white/[0.03]' : 'hover:bg-white/[0.02]'} transition-colors px-4 -mx-4`}>
+                            {isHeader ? (
+                              <span className="text-[#4ade80] font-bold tracking-wider">{line}</span>
+                            ) : line.startsWith('//') || line.startsWith('---') ? (
+                              <span className="text-white/20 italic">{line}</span>
+                            ) : (
+                              <span className="text-white/70">{line}</span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </pre>
                   </div>
                 )}
