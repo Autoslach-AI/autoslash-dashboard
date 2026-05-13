@@ -793,20 +793,40 @@ export default function EnterpriseKnowledgeBase() {
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
+
                             if (!formData.title) {
                               setFormData(prev => ({...prev, title: file.name.replace(/\.[^/.]+$/, '')}));
                             }
-                            const reader = new FileReader();
-                            reader.onload = async (event) => {
-                              const text = event.target?.result as string;
+
+                            const isPDF = file.type === 'application/pdf';
+                            const isBinary = isPDF || file.name.endsWith('.docx') || file.name.endsWith('.xlsx');
+
+                            if (isBinary) {
+                              // Fichier binaire → on stocke juste le nom, pas le contenu
                               setFormData(prev => ({
                                 ...prev,
                                 uploadedFile: file,
                                 uploadedFileName: file.name,
-                                content: prev.content || text?.substring(0, 3000) || ''
+                                content: prev.content || `Fichier: ${file.name}\nType: ${file.type}\nTaille: ${(file.size / 1024).toFixed(1)} KB\n\n[Contenu binaire — fichier stocké dans Supabase Storage]`
                               }));
-                            };
-                            reader.readAsText(file);
+                            } else {
+                              // Fichier texte → lecture normale
+                              const reader = new FileReader();
+                              reader.onload = async (event) => {
+                                const text = event.target?.result as string;
+                                // Nettoyer les caractères invalides
+                                const cleanText = text
+                                  .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+                                  .substring(0, 3000);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  uploadedFile: file,
+                                  uploadedFileName: file.name,
+                                  content: prev.content || cleanText
+                                }));
+                              };
+                              reader.readAsText(file, 'UTF-8');
+                            }
                           }}
                         />
                         {formData.uploadedFileName ? (
