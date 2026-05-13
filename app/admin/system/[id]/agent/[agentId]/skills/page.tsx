@@ -357,73 +357,17 @@ export default function AgentSkillsPage() {
               </div>
             </div>
           ) : (
-            <>
-              {/* Content Header */}
-              <div className="p-8 pb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white uppercase tracking-[0.2em]">skill-creator</h2>
-                <div className="flex items-center gap-6">
-                  <button 
-                    onClick={() => setIsSkillActive(!isSkillActive)}
-                    className={`relative w-11 h-5 rounded-full transition-all ${isSkillActive ? 'bg-[#4ade80]' : 'bg-white/10'}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${isSkillActive ? 'left-6.5' : 'left-0.5'}`} />
-                  </button>
-                  <MoreVertical className="w-4 h-4 text-white/20 cursor-pointer hover:text-white transition-colors" />
-                </div>
+            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-12">
+              <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-white/20" />
               </div>
-
-              <div className="p-8 pt-0 space-y-10 overflow-y-auto">
-                {/* Metadata Section */}
-                <div className="flex gap-12">
-                  <div>
-                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] mb-2">Ajouté par</p>
-                    <p className="text-[12px] font-bold text-white tracking-widest uppercase">Anthropic</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] mb-2">Déclencheur</p>
-                    <p className="text-[12px] font-bold text-white tracking-widest uppercase">Commande / + auto</p>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div className="space-y-3 max-w-[800px]">
-                  <div className="flex items-center gap-2 text-[9px] font-bold text-white/20 uppercase tracking-[0.3em]">
-                    <span>Description</span>
-                    <Info className="w-3 h-3" />
-                  </div>
-                  <p className="text-[12px] font-medium text-white/80 leading-relaxed tracking-wide">
-                    Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
-                  </p>
-                </div>
-
-                {/* Code / Markdown Block */}
-                <div className="bg-[#161616] border border-white/10 rounded-2xl p-8 space-y-8 relative group">
-                  <div className="absolute right-6 top-6 flex items-center gap-3 opacity-20 group-hover:opacity-100 transition-all">
-                    <div className="p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
-                      <Eye className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
-                      <Code className="w-4 h-4 text-white" />
-                    </div>
-                  </div>
-
-                  {/* Code Snippet */}
-                  <div className="bg-[#080808] border border-white/5 rounded-xl p-6 font-mono text-[12px] space-y-4">
-                    <p className="text-white/20 mb-2 uppercase tracking-widest text-[9px]">bash</p>
-                    <p className="text-white">
-                      python -m scripts.aggregate_benchmark <span className="text-[#4ade80] opacity-60">{"<workspace>"}</span>/iteration-N --skill-name <span className="text-[#4ade80] opacity-60">{"<name>"}</span>
-                    </p>
-                  </div>
-
-                  {/* MD Sample Text */}
-                  <div className="space-y-6 text-[13px] leading-relaxed text-white/70">
-                    <p>
-                      This produces <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">benchmark.json</code> and <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">benchmark.md</code> with pass_rate, time, and tokens for each configuration, with mean ± stddev and the delta. If generating benchmark.json manually, see <code className="bg-white/5 px-1.5 py-0.5 rounded text-orange-200/70 border border-white/10">references/schemas.md</code> for the exact schema the viewer expects. Put each with_skill version before its baseline counterpart.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </>
+              <p className="text-[11px] font-bold text-white/20 uppercase tracking-[0.3em]">
+                Sélectionne un skill pour le visualiser
+              </p>
+              <p className="text-[10px] text-white/10 max-w-xs">
+                Clique sur une compétence dans le ruban gauche ou crée-en une nouvelle.
+              </p>
+            </div>
           )}
         </main>
       </div>
@@ -484,36 +428,6 @@ export default function AgentSkillsPage() {
                     onChange={(e) => setSkillForm({...skillForm, instructions: e.target.value})}
                   />
                 </div>
-
-                <div className="pt-4 flex justify-center">
-                  <button 
-                    onClick={async () => {
-                      if (!skillForm.name.trim()) return;
-                      const supabase = createClient();
-                      const { data: newSkill } = await supabase
-                        .from('agent_skills')
-                        .insert({
-                          agent_id: agentId,
-                          enterprise_id: id,
-                          name: skillForm.name.trim(),
-                          description: skillForm.description + (skillForm.instructions ? '\n\nINSTRUCTIONS:\n' + skillForm.instructions : ''),
-                          is_active: true
-                        })
-                        .select()
-                        .single();
-                      if (newSkill) {
-                        setSkills(prev => [...prev, newSkill]);
-                        setSelectedFile({ id: newSkill.id, name: newSkill.name, content: newSkill.description || '' });
-                      }
-                      setSkillForm({ name: '', description: '', instructions: '' });
-                      setShowEditInstructionsModal(false);
-                    }}
-                    className="px-6 py-2 text-[10px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all tracking-[0.2em] uppercase disabled:opacity-40 shadow-[0_0_15px_rgba(74,222,128,0.15)]"
-                    disabled={!skillForm.name.trim()}
-                  >
-                    Créer
-                  </button>
-                </div>
               </div>
 
               <div className="p-8 pt-0 flex justify-end gap-3">
@@ -527,7 +441,7 @@ export default function AgentSkillsPage() {
                   onClick={async () => {
                     if (!skillForm.name.trim()) return;
                     const supabase = createClient();
-                    const { data: newSkill } = await supabase
+                    const { data: newSkill, error } = await supabase
                       .from('agent_skills')
                       .insert({
                         agent_id: agentId,
@@ -538,6 +452,7 @@ export default function AgentSkillsPage() {
                       })
                       .select()
                       .single();
+                    if (error) { console.error('INSERT skill error:', error); alert('Erreur: ' + error.message); return; }
                     if (newSkill) {
                       setSkills(prev => [...prev, newSkill]);
                       setSelectedFile({ id: newSkill.id, name: newSkill.name, content: newSkill.description || '' });
@@ -595,7 +510,7 @@ export default function AgentSkillsPage() {
                       reader.onload = async (event) => {
                         const content = event.target?.result as string;
                         const supabase = createClient();
-                        const { data: newSkill } = await supabase
+                        const { data: newSkill, error } = await supabase
                           .from('agent_skills')
                           .insert({
                             agent_id: agentId,
@@ -606,6 +521,7 @@ export default function AgentSkillsPage() {
                           })
                           .select()
                           .single();
+                        if (error) { console.error('INSERT skill error:', error); alert('Erreur: ' + error.message); return; }
                         if (newSkill) {
                           setSkills(prev => [...prev, newSkill]);
                         }
