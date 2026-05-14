@@ -793,29 +793,259 @@ export default function InventoryPage() {
       ══════════════════════════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showItemModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" >
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowItemModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="relative w-full max-w-3xl bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                    <h2 className="text-lg font-bold">{editingItem ? 'Modifier' : 'Ajouter'}</h2>
-                    <button onClick={() => setShowItemModal(false)}><X className="w-4 h-4" /></button>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowItemModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-3xl bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="p-6 border-b border-white/5 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  {selectedCategory && (
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: selectedCategory.color + '20', border: `1px solid ${selectedCategory.color}30` }}>
+                      <Package className="w-4 h-4" style={{ color: selectedCategory.color }} />
+                    </div>
+                  )}
+                  <div>
+                    <h2 className="text-lg font-bold text-white tracking-tight">
+                      {editingItem ? "Modifier l'item" : 'Nouvel item'}
+                    </h2>
+                    {selectedCategory && (
+                      <p className="text-[10px] mt-0.5 uppercase tracking-widest" style={{ color: selectedCategory.color }}>
+                        {selectedCategory.name}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="p-6 space-y-6 overflow-y-auto">
-                    {/* Simplified Form */}
-                    <input value={itemForm.name} onChange={e => setItemForm({...itemForm, name: e.target.value})} className="w-full bg-white/5 border border-white/10 p-2 text-sm rounded mb-4" placeholder="Nom" />
-                    <input type="number" value={itemForm.price} onChange={e => setItemForm({...itemForm, price: Number(e.target.value)})} className="w-full bg-white/5 border border-white/10 p-2 text-sm rounded mb-4" placeholder="Prix" />
-                    {selectedCategory?.attribute_schema?.map(field => (
-                        <div key={field.key} className="space-y-2">
-                             <label className="text-[10px] uppercase text-white/40">{field.label}</label>
-                             <AttributeInput field={field} value={itemForm.attributes[field.key]} onChange={val => setItemForm((p:any) => ({...p, attributes: {...p.attributes, [field.key]: val}}))} />
-                        </div>
+                <button onClick={() => setShowItemModal(false)}
+                  className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-6 overflow-y-auto flex-1">
+
+                {/* Catégorie selector — uniquement en mode création */}
+                {!editingItem && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Catégorie *</label>
+                    <div className="flex flex-wrap gap-2">
+                      {categories.map(cat => (
+                        <button key={cat.id} type="button" onClick={() => setSelectedCategory(cat)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all ${
+                            selectedCategory?.id === cat.id
+                              ? 'text-white'
+                              : 'border-white/10 text-white/30 hover:border-white/20'
+                          }`}
+                          style={selectedCategory?.id === cat.id
+                            ? { borderColor: cat.color + '60', backgroundColor: cat.color + '15', color: cat.color }
+                            : {}}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                          {cat.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Image upload */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Image (optionnel)</label>
+                  <div className="flex items-center gap-4">
+                    <div className="w-20 h-20 rounded-xl overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
+                      {itemForm.image_url
+                        ? <img src={itemForm.image_url} alt="" className="w-full h-full object-cover" />
+                        : <ImageIcon className="w-6 h-6 text-white/20" />}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); }} />
+                      <button type="button" onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center gap-2 px-4 py-2 text-[11px] font-bold text-white/50 border border-white/10 rounded-lg hover:border-white/20 hover:text-white transition-all">
+                        <Upload className="w-3.5 h-3.5" /> Uploader une image
+                      </button>
+                      {itemForm.image_url && (
+                        <button type="button"
+                          onClick={() => setItemForm((p: any) => ({ ...p, image_url: '' }))}
+                          className="text-[10px] text-red-400/60 hover:text-red-400 transition-all text-left">
+                          Supprimer l'image
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nom + Description */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Nom *</label>
+                    <input value={itemForm.name}
+                      onChange={e => setItemForm({ ...itemForm, name: e.target.value })}
+                      placeholder="Nom du produit ou service"
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono placeholder:text-white/20" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Description</label>
+                    <input value={itemForm.description || ''}
+                      onChange={e => setItemForm({ ...itemForm, description: e.target.value })}
+                      placeholder="Description courte..."
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono placeholder:text-white/20" />
+                  </div>
+                </div>
+
+                {/* Prix + Unité + Devise */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Prix</label>
+                    <input type="number"
+                      value={itemForm.price}
+                      onChange={e => setItemForm({ ...itemForm, price: Number(e.target.value) })}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono"
+                      min="0" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Devise</label>
+                    <select value={itemForm.currency}
+                      onChange={e => setItemForm({ ...itemForm, currency: e.target.value })}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all">
+                      {['FCFA','EUR','USD','GBP','MAD','XOF','XAF'].map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Unité</label>
+                    <input value={itemForm.unit}
+                      onChange={e => setItemForm({ ...itemForm, unit: e.target.value })}
+                      placeholder="unité, heure, m², kg..."
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono placeholder:text-white/20" />
+                  </div>
+                </div>
+
+                {/* Stock status */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Disponibilité</label>
+                  <div className="flex gap-2">
+                    {Object.entries(STOCK_CONFIG).map(([key, cfg]) => (
+                      <button key={key} type="button"
+                        onClick={() => setItemForm({ ...itemForm, stock_status: key })}
+                        className={`flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border ${
+                          itemForm.stock_status === key
+                            ? ''
+                            : 'border-white/10 text-white/30 bg-white/5 hover:border-white/20'
+                        }`}
+                        style={itemForm.stock_status === key
+                          ? { backgroundColor: cfg.bg, borderColor: cfg.color + '40', color: cfg.color }
+                          : {}}>
+                        {cfg.label}
+                      </button>
                     ))}
+                  </div>
                 </div>
-                <div className="p-6 border-t border-white/5 flex justify-end gap-2">
-                    <button onClick={() => setShowItemModal(false)} className="px-4 py-2 text-sm text-white/40">Annuler</button>
-                    <button onClick={saveItem} className="px-4 py-2 text-sm bg-[#4ade80] text-black font-bold rounded">Sauvegarder</button>
+
+                {/* Attributs dynamiques selon la catégorie */}
+                {selectedCategory?.attribute_schema && selectedCategory.attribute_schema.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-px bg-white/5" />
+                      <span className="text-[9px] font-bold text-white/20 uppercase tracking-[0.4em]">
+                        Attributs — {selectedCategory.name}
+                      </span>
+                      <div className="flex-1 h-px bg-white/5" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedCategory.attribute_schema.map((field) => (
+                        <div key={field.key}
+                          className={`space-y-2 ${field.type === 'multiselect' ? 'col-span-2' : ''}`}>
+                          <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">
+                            {field.label}
+                            {field.required && <span className="text-red-400 ml-1">*</span>}
+                          </label>
+                          <AttributeInput
+                            field={field}
+                            value={itemForm.attributes[field.key]}
+                            onChange={(val) => setItemForm((prev: any) => ({
+                              ...prev,
+                              attributes: { ...prev.attributes, [field.key]: val }
+                            }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tags */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Tags</label>
+                  <div
+                    className="flex flex-wrap gap-2 p-3 bg-[#0a0a0a] border border-white/10 rounded-lg min-h-[44px] cursor-text focus-within:border-[#4ade80]/30 transition-all"
+                    onClick={() => document.getElementById('item-tag-input')?.focus()}>
+                    {(itemForm.tags || []).map((tag: string, i: number) => (
+                      <span key={i} className="flex items-center gap-1.5 bg-white/8 border border-white/10 text-white/60 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                        {tag}
+                        <button type="button"
+                          onClick={() => setItemForm((p: any) => ({
+                            ...p, tags: p.tags.filter((_: string, j: number) => j !== i)
+                          }))}>
+                          <X className="w-2 h-2 hover:text-red-400 transition-colors" />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      id="item-tag-input"
+                      value={tagInput}
+                      onChange={e => setTagInput(e.target.value)}
+                      className="bg-transparent text-white text-[11px] outline-none placeholder:text-white/20 min-w-[100px] flex-1 font-mono"
+                      placeholder="Ajouter un tag..."
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ',') {
+                          e.preventDefault();
+                          const val = tagInput.trim().toLowerCase();
+                          if (val && !(itemForm.tags || []).includes(val)) {
+                            setItemForm((p: any) => ({ ...p, tags: [...(p.tags || []), val] }));
+                          }
+                          setTagInput('');
+                        }
+                        if (e.key === 'Backspace' && !tagInput && (itemForm.tags || []).length > 0) {
+                          setItemForm((p: any) => ({ ...p, tags: p.tags.slice(0, -1) }));
+                        }
+                      }}
+                    />
+                  </div>
+                  <p className="text-[9px] text-white/15 tracking-wider">Entrée ou virgule pour ajouter</p>
                 </div>
-             </motion.div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 border-t border-white/5 flex items-center justify-between flex-shrink-0">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <button type="button"
+                    onClick={() => setItemForm({ ...itemForm, is_active: !itemForm.is_active })}
+                    className={`relative w-9 h-5 rounded-full transition-all ${itemForm.is_active ? 'bg-[#4ade80]/30' : 'bg-white/10'}`}>
+                    <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all ${
+                      itemForm.is_active ? 'left-[18px] bg-[#4ade80]' : 'left-0.5 bg-white/30'
+                    }`} />
+                  </button>
+                  <span className="text-[11px] text-white/40 uppercase tracking-wider">
+                    {itemForm.is_active ? 'Actif' : 'Inactif'}
+                  </span>
+                </label>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowItemModal(false)}
+                    className="px-6 py-2.5 text-[11px] font-bold text-white/40 rounded-lg bg-white/5 hover:bg-white/10 transition-all uppercase tracking-wider">
+                    Annuler
+                  </button>
+                  <button onClick={saveItem}
+                    className="px-6 py-2.5 text-[11px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all uppercase tracking-wider shadow-[0_0_15px_rgba(74,222,128,0.2)]">
+                    {editingItem ? 'Mettre à jour' : "Créer l'item"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
