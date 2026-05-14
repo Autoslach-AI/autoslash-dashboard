@@ -1,18 +1,23 @@
 'use client';
- 
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/lib/supabase';
-import {
-  Search, Plus, Package, Pencil, Trash2, Eye, EyeOff,
-  ChevronDown, X, Upload, Check, Filter, MoreVertical,
-  Tag, DollarSign, Layers, AlertCircle, Grid3X3,
-  List, ArrowUpDown, Image as ImageIcon, Zap
+import { 
+  Search, Plus, Package, Pencil, Trash2, Eye, EyeOff, 
+  X, Upload, MoreVertical, Layers, Grid3X3, 
+  List, ArrowUpDown, Filter, Download, AlertCircle, Check
 } from 'lucide-react';
- 
+
+// Components
+import { InventorySidebar } from './components/InventorySidebar';
+import { CategoryModal } from './components/CategoryModal';
+import { ItemModal } from './components/ItemModal';
+import { ItemCard } from './components/ItemCard';
+
 // ─── TYPES ────────────────────────────────────────────────────────────────────
- 
+
 interface AttributeField {
   key: string;
   label: string;
@@ -21,20 +26,19 @@ interface AttributeField {
   required: boolean;
   unit?: string;
 }
- 
+
 interface Category {
   id: string;
   enterprise_id: string;
   name: string;
   description: string | null;
-  icon: string;
   color: string;
   attribute_schema: AttributeField[];
   sort_order: number;
   is_active: boolean;
   created_at: string;
 }
- 
+
 interface InventoryItem {
   id: string;
   enterprise_id: string;
@@ -45,1010 +49,473 @@ interface InventoryItem {
   currency: string;
   unit: string;
   image_url: string | null;
-  images: string[];
   is_active: boolean;
-  stock_status: string;
+  stock_status: 'AVAILABLE' | 'OUT_OF_STOCK' | 'DISCONTINUED';
   attributes: Record<string, any>;
   tags: string[];
-  sort_order: number;
   created_at: string;
 }
- 
-// ─── STOCK STATUS CONFIG ──────────────────────────────────────────────────────
- 
+
 const STOCK_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  AVAILABLE:     { label: 'Disponible',  color: '#4ade80', bg: 'rgba(74,222,128,0.1)'  },
-  OUT_OF_STOCK:  { label: 'Rupture',     color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
-  DISCONTINUED:  { label: 'Arrêté',      color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
+  AVAILABLE:    { label: 'Disponible', color: '#4ade80', bg: 'rgba(74,222,128,0.1)'  },
+  OUT_OF_STOCK: { label: 'Rupture',    color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+  DISCONTINUED: { label: 'Arrêté',     color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
 };
- 
-const PRESET_COLORS = [
-  '#4ade80','#60a5fa','#f472b6','#fb923c',
-  '#a78bfa','#34d399','#fbbf24','#f87171',
-];
- 
-// ─── ATTRIBUTE RENDERER ───────────────────────────────────────────────────────
- 
-function AttributeInput({ field, value, onChange }: {
-  field: AttributeField;
-  value: any;
-  onChange: (val: any) => void;
-}) {
-  const base = "w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono placeholder:text-white/20";
- 
-  if (field.type === 'text') return (
-    <input type="text" value={value || ''} onChange={e => onChange(e.target.value)} className={base} placeholder={field.label} />
-  );
-  if (field.type === 'number') return (
-    <div className="flex items-center gap-2">
-      <input type="number" value={value || ''} onChange={e => onChange(Number(e.target.value))} className={base} placeholder="0" />
-      {field.unit && <span className="text-[10px] text-white/30 whitespace-nowrap">{field.unit}</span>}
-    </div>
-  );
-  if (field.type === 'boolean') return (
-    <div className="flex gap-2">
-      {[true, false].map(v => (
-        <button key={String(v)} type="button" onClick={() => onChange(v)}
-          className={`flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${value === v ? (v ? 'bg-[#4ade80]/20 border border-[#4ade80]/40 text-[#4ade80]' : 'bg-red-500/20 border border-red-500/40 text-red-400') : 'bg-white/5 border border-white/10 text-white/30 hover:text-white/50'}`}>
-          {v ? 'Oui' : 'Non'}
-        </button>
-      ))}
-    </div>
-  );
-  if (field.type === 'select') return (
-    <select value={value || ''} onChange={e => onChange(e.target.value)}
-      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all">
-      <option value="">Sélectionner...</option>
-      {field.options?.map(o => <option key={o} value={o}>{o}</option>)}
-    </select>
-  );
-  if (field.type === 'multiselect') return (
-    <div className="flex flex-wrap gap-1.5">
-      {field.options?.map(opt => {
-        const sel = (value || []).includes(opt);
-        return (
-          <button key={opt} type="button" onClick={() => onChange(sel ? (value||[]).filter((v:string)=>v!==opt) : [...(value||[]), opt])}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all border ${sel ? 'bg-[#4ade80]/15 border-[#4ade80]/40 text-[#4ade80]' : 'bg-white/5 border-white/10 text-white/30 hover:border-white/20'}`}>
-            {opt}
-          </button>
-        );
-      })}
-    </div>
-  );
-  if (field.type === 'date') return (
-    <input type="date" value={value || ''} onChange={e => onChange(e.target.value)}
-      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all cursor-pointer" />
-  );
-  return null;
-}
- 
-// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
- 
+
 export default function InventoryPage() {
   const params = useParams();
   const id = params?.id as string;
- 
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [planDef, setPlanDef] = useState<any>(null);
   const [loading, setLoading] = useState(true);
- 
-  // UI state
-  const [activeTab, setActiveTab] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // UI State
+  const [activePage, setActivePage] = useState('CATALOGUE');
+  const [activeCatId, setActiveCatId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-  const [sortField, setSortField] = useState<string>('name');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [sortField, setSortField] = useState('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [contextItemId, setContextItemId] = useState<string | null>(null);
- 
+
   // Modals
   const [showCatModal, setShowCatModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
- 
-  // Forms
-  const [catForm, setCatForm] = useState<any>({ name: '', description: '', color: '#4ade80', attribute_schema: [] });
-  const [itemForm, setItemForm] = useState<any>({ name: '', description: '', price: 0, currency: 'FCFA', unit: 'unité', image_url: '', is_active: true, stock_status: 'AVAILABLE', attributes: {}, tags: [] });
-  const [attrSchema, setAttrSchema] = useState<AttributeField[]>([]);
-  const [tagInput, setTagInput] = useState('');
- 
-  const fileInputRef = useRef<HTMLInputElement>(null);
- 
-  // ── LOAD ────────────────────────────────────────────────────────────────────
- 
+
+  // ── LOAD ─────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     const load = async () => {
       const supabase = createClient();
+      
+      // Load Enterprise/Plan
       const { data: ent } = await supabase.from('enterprises').select('package_type').eq('enterprise_id', id).single();
       if (ent?.package_type) {
         const { data: plan } = await supabase.from('plan_definitions').select('*').eq('plan_name', ent.package_type).single();
         setPlanDef(plan);
       }
+      
+      // Load Categories & Items
       const { data: cats } = await supabase.from('inventory_categories').select('*').eq('enterprise_id', id).order('sort_order');
-      const { data: its } = await supabase.from('inventory_items').select('*').eq('enterprise_id', id).order('sort_order');
+      const { data: its } = await supabase.from('inventory_items').select('*').eq('enterprise_id', id).order('name');
+      
       setCategories(cats || []);
       setItems(its || []);
+      if (cats && cats.length > 0) setActiveCatId(cats[0].id);
       setLoading(false);
     };
     load();
   }, [id]);
- 
-  // ── LIMITS ──────────────────────────────────────────────────────────────────
- 
+
+  // ── COMPUTED ──────────────────────────────────────────────────────────────────
+
   const maxCats = planDef?.max_inventory_categories === -1 ? Infinity : (planDef?.max_inventory_categories ?? 5);
   const maxItems = planDef?.max_inventory_items === -1 ? Infinity : (planDef?.max_inventory_items ?? 20);
-  const catLimitReached = categories.length >= maxCats;
-  const itemLimitReached = items.length >= maxItems;
- 
-  // ── FILTERED ITEMS ──────────────────────────────────────────────────────────
- 
+
   const filteredItems = items
-    .filter(item => activeTab === 'ALL' || item.category_id === activeTab)
-    .filter(item => !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase()) || item.description?.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(item => {
+      const catMatch = activePage === 'CATALOGUE' ? (activeCatId ? item.category_id === activeCatId : true) : true;
+      const statusMatch = filterStatus === 'ALL' || item.stock_status === filterStatus;
+      const searchMatch = !searchQuery || 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        item.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      return catMatch && statusMatch && searchMatch;
+    })
     .sort((a, b) => {
-      const aVal = (a as any)[sortField] ?? '';
-      const bVal = (b as any)[sortField] ?? '';
-      return sortDir === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+      const av = (a as any)[sortField] ?? '';
+      const bv = (b as any)[sortField] ?? '';
+      return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
- 
-  // ── CATEGORY CRUD ────────────────────────────────────────────────────────────
- 
-  const openAddCat = () => {
-    setEditingCat(null);
-    setCatForm({ name: '', description: '', color: '#4ade80', attribute_schema: [] });
-    setAttrSchema([]);
-    setShowCatModal(true);
+
+  const stats = {
+    total: items.length,
+    outOfStock: items.filter(i => i.stock_status === 'OUT_OF_STOCK').length,
+    inactive: items.filter(i => !i.is_active).length,
+    value: items.reduce((acc, curr) => acc + (curr.price || 0), 0)
   };
- 
-  const openEditCat = (cat: Category) => {
-    setEditingCat(cat);
-    setCatForm({ name: cat.name, description: cat.description || '', color: cat.color, attribute_schema: cat.attribute_schema });
-    setAttrSchema(cat.attribute_schema || []);
-    setShowCatModal(true);
-  };
- 
-  const saveCat = async () => {
-    if (!catForm.name?.trim()) { alert('Nom obligatoire'); return; }
+
+  // ── HANDLERS ────────────────────────────────────────────────────────────────
+
+  const handleSaveCategory = async (cat: Partial<Category>, schema: AttributeField[]) => {
     const supabase = createClient();
-    const payload = { enterprise_id: id, name: catForm.name.trim(), description: catForm.description || null, color: catForm.color, attribute_schema: attrSchema, is_active: true, sort_order: categories.length };
+    const payload = { 
+      ...cat,
+      enterprise_id: id,
+      attribute_schema: schema,
+      sort_order: categories.length
+    };
+
     if (editingCat) {
       const { error } = await supabase.from('inventory_categories').update(payload).eq('id', editingCat.id);
-      if (error) { alert('Erreur: ' + error.message); return; }
-      setCategories(prev => prev.map(c => c.id === editingCat.id ? { ...c, ...payload } : c));
+      if (error) { alert(error.message); return; }
+      setCategories(prev => prev.map(c => c.id === editingCat.id ? { ...c, ...payload } as Category : c));
     } else {
       const { data, error } = await supabase.from('inventory_categories').insert(payload).select().single();
-      if (error) { alert('Erreur: ' + error.message); return; }
+      if (error) { alert(error.message); return; }
       setCategories(prev => [...prev, data]);
     }
     setShowCatModal(false);
   };
- 
-  const deleteCat = async (cat: Category) => {
-    const hasItems = items.some(i => i.category_id === cat.id);
-    if (hasItems) { alert('Supprimez d\'abord tous les items de cette catégorie.'); return; }
-    if (!confirm(`Supprimer la catégorie "${cat.name}" ?`)) return;
-    const supabase = createClient();
-    await supabase.from('inventory_categories').delete().eq('id', cat.id);
-    setCategories(prev => prev.filter(c => c.id !== cat.id));
-  };
- 
-  // ── ITEM CRUD ────────────────────────────────────────────────────────────────
- 
-  const openAddItem = (cat?: Category) => {
-    const targetCat = cat || categories.find(c => c.id === activeTab) || categories[0];
-    setEditingItem(null);
-    setSelectedCategory(targetCat || null);
-    setItemForm({ name: '', description: '', price: 0, currency: 'FCFA', unit: 'unité', image_url: '', is_active: true, stock_status: 'AVAILABLE', attributes: {}, tags: [] });
-    setShowItemModal(true);
-  };
- 
-  const openEditItem = (item: InventoryItem) => {
-    const cat = categories.find(c => c.id === item.category_id) || null;
-    setEditingItem(item);
-    setSelectedCategory(cat);
-    setItemForm({ ...item, tags: item.tags || [] });
-    setShowItemModal(true);
-  };
- 
-  const saveItem = async () => {
-    if (!itemForm.name?.trim()) { alert('Nom obligatoire'); return; }
+
+  const handleSaveItem = async (item: Partial<InventoryItem>) => {
     const supabase = createClient();
     const payload = {
+      ...item,
       enterprise_id: id,
-      category_id: selectedCategory?.id || null,
-      name: itemForm.name.trim(),
-      description: itemForm.description || null,
-      price: Number(itemForm.price) || 0,
-      currency: itemForm.currency || 'FCFA',
-      unit: itemForm.unit || 'unité',
-      image_url: itemForm.image_url || null,
-      is_active: itemForm.is_active,
-      stock_status: itemForm.stock_status,
-      attributes: itemForm.attributes || {},
-      tags: itemForm.tags || [],
+      category_id: editingItem?.category_id || activeCatId || null
     };
+
     if (editingItem) {
       const { error } = await supabase.from('inventory_items').update(payload).eq('id', editingItem.id);
-      if (error) { alert('Erreur: ' + error.message); return; }
-      setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, ...payload } : i));
+      if (error) { alert(error.message); return; }
+      setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, ...payload } as InventoryItem : i));
     } else {
       const { data, error } = await supabase.from('inventory_items').insert(payload).select().single();
-      if (error) { alert('Erreur: ' + error.message); return; }
+      if (error) { alert(error.message); return; }
       setItems(prev => [...prev, data]);
     }
     setShowItemModal(false);
-    setEditingItem(null);
   };
- 
-  const deleteItem = async (itemId: string) => {
+
+  const handleDeleteItem = async (itemId: string) => {
     if (!confirm('Supprimer cet item ?')) return;
     const supabase = createClient();
     await supabase.from('inventory_items').delete().eq('id', itemId);
     setItems(prev => prev.filter(i => i.id !== itemId));
     setContextItemId(null);
   };
- 
-  const toggleItem = async (item: InventoryItem) => {
-    const supabase = createClient();
-    await supabase.from('inventory_items').update({ is_active: !item.is_active }).eq('id', item.id);
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_active: !item.is_active } : i));
-  };
- 
-  const uploadImage = async (file: File) => {
+
+  const handleUploadImage = async (file: File) => {
     const supabase = createClient();
     const path = `${id}/inventory/${Date.now()}-${file.name}`;
-    const { data, error } = await supabase.storage.from('enterprise-assets').upload(path, file);
-    if (error) { alert('Erreur upload: ' + error.message); return; }
+    const { error } = await supabase.storage.from('enterprise-assets').upload(path, file);
+    if (error) { alert(error.message); return; }
     const { data: urlData } = supabase.storage.from('enterprise-assets').getPublicUrl(path);
-    setItemForm((prev: any) => ({ ...prev, image_url: urlData.publicUrl }));
+    return urlData.publicUrl;
   };
- 
-  // ── ATTR HELPERS ─────────────────────────────────────────────────────────────
- 
-  const addAttr = () => setAttrSchema(prev => [...prev, { key: `attr_${Date.now()}`, label: '', type: 'text', required: false }]);
-  const updateAttr = (i: number, field: string, val: any) => setAttrSchema(prev => prev.map((a, idx) => idx === i ? { ...a, [field]: val, key: field === 'label' ? val.toLowerCase().replace(/\s+/g, '_') : a.key } : a));
-  const removeAttr = (i: number) => setAttrSchema(prev => prev.filter((_, idx) => idx !== i));
- 
+
+  const toggleSelect = (itemId: string) => {
+    setSelectedIds(prev => prev.includes(itemId) ? prev.filter(i => i !== itemId) : [...prev, itemId]);
+  };
+
+  const exportCSV = () => {
+    const headers = ['Nom', 'Prix', 'Devise', 'Unité', 'Stock', 'Statut'];
+    const rows = filteredItems.map(i => [i.name, i.price, i.currency, i.unit, i.stock_status, i.is_active ? 'Actif' : 'Inactif']);
+    const csvContent = [headers, ...rows].map(e => e.join(',')).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `export_inventory_${id}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen bg-black">
-      <div className="w-2 h-2 bg-[#4ade80] rounded-full shadow-[0_0_20px_#4ade80] animate-pulse" />
+      <div className="w-2 h-2 bg-[#4ade80] rounded-full shadow-[0_0_10px_#4ade80] animate-pulse" />
     </div>
   );
- 
+
   return (
-    <div className="min-h-screen bg-[#080808] font-mono text-white">
- 
-      {/* ── HEADER ── */}
-      <div className="border-b border-white/5 bg-[#080808] sticky top-0 z-20 backdrop-blur-md">
-        <div className="px-8 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-1.5 h-1.5 bg-[#4ade80] rounded-full shadow-[0_0_8px_#4ade80] animate-pulse" />
-            <div>
-              <p className="text-[9px] text-white/30 tracking-[0.4em] uppercase">Catalogue Intelligent // Universal</p>
-              <h1 className="text-2xl font-bold text-white tracking-tighter mt-0.5">INVENTORY_CORE</h1>
+    <div className="flex h-screen bg-[#080808] text-white font-mono overflow-hidden">
+      
+      {/* SIDEBAR */}
+      <aside className="w-80 border-r border-white/5 p-8 flex flex-col bg-[#0a0a0a]">
+        <InventorySidebar 
+          categoriesCount={categories.length}
+          itemsCount={items.length}
+          maxCategories={maxCats}
+          maxItems={maxItems}
+          activePage={activePage}
+          setActivePage={setActivePage}
+          onAddCategory={() => { setEditingCat(null); setShowCatModal(true); }}
+        />
+        
+        {/* Category Selector if in Catalog Mode */}
+        {activePage === 'CATALOGUE' && categories.length > 0 && (
+          <div className="mt-12 space-y-4">
+             <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.4em]">Clusters</p>
+             <div className="space-y-1">
+                {categories.map(cat => (
+                  <button 
+                    key={cat.id}
+                    onClick={() => setActiveCatId(cat.id)}
+                    className={`w-full flex items-center justify-between px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${activeCatId === cat.id ? 'bg-white/5 text-white border border-white/10' : 'text-white/30 hover:text-white/60 hover:bg-white/[0.02]'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                      {cat.name}
+                    </div>
+                    <span>{items.filter(i => i.category_id === cat.id).length}</span>
+                  </button>
+                ))}
+             </div>
+          </div>
+        )}
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        
+        {/* HEADER */}
+        <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-[#080808] z-10">
+          <div>
+            <h1 className="text-xl font-black tracking-tighter uppercase">{activePage} // {categories.find(c => c.id === activeCatId)?.name || 'ROOT'}</h1>
+            <div className="flex items-center gap-4 mt-1">
+               <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-[#4ade80]">
+                 <div className="w-1 h-1 bg-[#4ade80] rounded-full animate-pulse" />
+                 Lattice_Active
+               </div>
+               <span className="text-white/10">|</span>
+               <p className="text-[9px] text-white/30 uppercase tracking-widest">
+                 {filteredItems.length} Nodes_Detected
+               </p>
             </div>
           </div>
+          
           <div className="flex items-center gap-3">
-            {/* Quota pills */}
-            <div className="flex items-center gap-2">
-              <div className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold tracking-wider flex items-center gap-2 ${catLimitReached ? 'border-orange-500/40 bg-orange-500/10 text-orange-400' : 'border-white/10 bg-white/5 text-white/40'}`}>
-                <Layers className="w-3 h-3" />
-                {categories.length}/{planDef?.max_inventory_categories === -1 ? '∞' : planDef?.max_inventory_categories ?? 5} CATS
-              </div>
-              <div className={`px-3 py-1.5 rounded-lg border text-[10px] font-bold tracking-wider flex items-center gap-2 ${itemLimitReached ? 'border-orange-500/40 bg-orange-500/10 text-orange-400' : 'border-white/10 bg-white/5 text-white/40'}`}>
-                <Package className="w-3 h-3" />
-                {items.length}/{planDef?.max_inventory_items === -1 ? '∞' : planDef?.max_inventory_items ?? 20} ITEMS
-              </div>
-            </div>
-            <div className="w-px h-6 bg-white/10" />
-            {/* View toggle */}
             <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5">
               {(['table', 'grid'] as const).map(v => (
                 <button key={v} onClick={() => setViewMode(v)}
-                  className={`p-1.5 rounded-md transition-all ${viewMode === v ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}>
-                  {v === 'table' ? <List className="w-3.5 h-3.5" /> : <Grid3X3 className="w-3.5 h-3.5" />}
+                  className={`p-2 rounded-lg transition-all ${viewMode === v ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}>
+                  {v === 'table' ? <List className="w-4 h-4" /> : <Grid3X3 className="w-4 h-4" />}
                 </button>
               ))}
             </div>
-            <button
-              onClick={openAddCat}
-              disabled={catLimitReached}
-              className="flex items-center gap-2 px-4 py-2 text-[10px] font-bold text-white/60 border border-white/10 rounded-lg hover:border-white/20 hover:text-white transition-all uppercase tracking-wider disabled:opacity-30"
-            >
-              <Layers className="w-3 h-3" /> Catégorie
-            </button>
-            <button
-              onClick={() => openAddItem()}
-              disabled={itemLimitReached || categories.length === 0}
-              className="flex items-center gap-2 px-4 py-2 text-[10px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all uppercase tracking-wider shadow-[0_0_15px_rgba(74,222,128,0.2)] disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <Plus className="w-3 h-3" /> Ajouter Item
+            <button onClick={() => { setEditingItem(null); setShowItemModal(true); }}
+              className="flex items-center gap-2 px-5 py-2.5 bg-[#4ade80] text-black text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-[#3bc870] transition-all shadow-[0_0_20px_rgba(74,222,128,0.15)]">
+              <Plus className="w-4 h-4" /> Deploy_Unit
             </button>
           </div>
-        </div>
- 
-        {/* ── CATEGORY TABS ── */}
-        <div className="px-8 flex items-center gap-1 overflow-x-auto scrollbar-hide pb-0">
-          <button
-            onClick={() => setActiveTab('ALL')}
-            className={`flex-shrink-0 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 transition-all ${activeTab === 'ALL' ? 'border-[#4ade80] text-white' : 'border-transparent text-white/30 hover:text-white/60'}`}
-          >
-            Tous ({items.length})
+        </header>
+
+        {/* TOOLBAR */}
+        <div className="px-8 py-4 border-b border-white/5 flex items-center gap-4 bg-[#0a0a0a]">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
+            <input 
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Query_Node_Reference..."
+              className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-[11px] text-white outline-none focus:border-[#4ade80]/40 transition-all font-mono"
+            />
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-lg">
+            <Filter className="w-3.5 h-3.5 text-white/20" />
+            <select 
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="bg-transparent text-[10px] font-bold uppercase tracking-widest text-white/60 outline-none cursor-pointer"
+            >
+              <option value="ALL">All_Statuses</option>
+              {Object.entries(STOCK_CONFIG).map(([k, v]) => (
+                <option key={k} value={k}>{v.label.toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 text-[10px] font-bold text-white/40 hover:text-white transition-all uppercase tracking-widest border border-white/5 rounded-lg hover:border-white/20">
+            <Download className="w-3.5 h-3.5" /> Export_Data
           </button>
-          {categories.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setActiveTab(cat.id)}
-              className={`flex-shrink-0 flex items-center gap-2 px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 transition-all ${activeTab === cat.id ? 'text-white' : 'border-transparent text-white/30 hover:text-white/60'}`}
-              style={{ borderBottomColor: activeTab === cat.id ? cat.color : 'transparent' }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color }} />
-              {cat.name}
-              <span className="text-white/20">({items.filter(i => i.category_id === cat.id).length})</span>
-            </button>
-          ))}
         </div>
-      </div>
- 
-      {/* ── TOOLBAR ── */}
-      <div className="px-8 py-4 flex items-center gap-3 border-b border-white/5">
-        <div className="flex items-center gap-2 flex-1 max-w-sm bg-white/5 border border-white/10 rounded-lg px-3 py-2 focus-within:border-white/20 transition-all">
-          <Search className="w-3.5 h-3.5 text-white/30 flex-shrink-0" />
-          <input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Rechercher un item..."
-            className="bg-transparent text-white text-[12px] outline-none placeholder:text-white/20 flex-1"
-          />
-          {searchQuery && <button onClick={() => setSearchQuery('')}><X className="w-3 h-3 text-white/30 hover:text-white" /></button>}
-        </div>
-        <p className="text-[10px] text-white/20 tracking-wider ml-auto">
-          {filteredItems.length} résultat{filteredItems.length !== 1 ? 's' : ''}
-        </p>
-      </div>
- 
-      {/* ── CONTENT ── */}
-      <div className="px-8 py-6">
- 
-        {/* Empty state */}
-        {categories.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-32 gap-6">
-            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <Package className="w-7 h-7 text-white/20" />
-            </div>
-            <div className="text-center space-y-2">
-              <p className="text-[13px] font-bold text-white/40 uppercase tracking-[0.3em]">Aucune catégorie</p>
-              <p className="text-[11px] text-white/20 max-w-xs">Créez d'abord une catégorie pour organiser vos produits ou services</p>
-            </div>
-            <button onClick={openAddCat} className="flex items-center gap-2 px-6 py-2.5 text-[11px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all uppercase tracking-wider">
-              <Plus className="w-3.5 h-3.5" /> Créer une catégorie
-            </button>
+
+        {/* MAIN DISPLAY */}
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          
+          {/* STATS STRIP */}
+          <div className="grid grid-cols-4 gap-4 mb-8">
+            {[
+              { label: 'Total_Nodes', value: stats.total, color: 'text-white' },
+              { label: 'Rupture_Stock', value: stats.outOfStock, color: 'text-red-500' },
+              { label: 'Inactive_Lattice', value: stats.inactive, color: 'text-white/30' },
+              { label: 'Lattice_Valuation', value: `${stats.value.toLocaleString()} FCFA`, color: 'text-[#4ade80]' },
+            ].map(s => (
+              <div key={s.label} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                <p className="text-[8px] text-white/30 uppercase tracking-[0.3em] font-black">{s.label}</p>
+                <p className={`text-lg font-bold tracking-tighter mt-1 ${s.color}`}>{s.value}</p>
+              </div>
+            ))}
           </div>
-        )}
- 
-        {/* TABLE VIEW */}
-        {categories.length > 0 && viewMode === 'table' && (
-          <div className="bg-[#0D0D0D] border border-white/8 rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/5">
-                  {[
-                    { key: 'name', label: 'Produit / Service' },
-                    { key: 'category', label: 'Catégorie' },
-                    { key: 'price', label: 'Prix' },
-                    { key: 'attributes', label: 'Attributs' },
-                    { key: 'stock_status', label: 'Stock' },
-                    { key: 'is_active', label: 'Statut' },
-                    { key: 'actions', label: '' },
-                  ].map(col => (
-                    <th key={col.key}
-                      onClick={() => { if (col.key !== 'actions' && col.key !== 'attributes') { setSortDir(sortField === col.key && sortDir === 'asc' ? 'desc' : 'asc'); setSortField(col.key); }}}
-                      className={`text-left px-4 py-3 text-[9px] font-bold text-white/30 uppercase tracking-[0.3em] ${col.key !== 'actions' && col.key !== 'attributes' ? 'cursor-pointer hover:text-white/60' : ''}`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        {col.label}
-                        {col.key !== 'actions' && col.key !== 'attributes' && <ArrowUpDown className="w-2.5 h-2.5 opacity-30" />}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredItems.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-16">
-                      <p className="text-[10px] text-white/20 uppercase tracking-widest">Aucun item trouvé</p>
-                    </td>
-                  </tr>
-                ) : filteredItems.map((item, idx) => {
-                  const cat = categories.find(c => c.id === item.category_id);
-                  const stock = STOCK_CONFIG[item.stock_status] || STOCK_CONFIG.AVAILABLE;
-                  const attrEntries = Object.entries(item.attributes || {}).slice(0, 3);
-                  return (
-                    <motion.tr
-                      key={item.id}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.02 }}
-                      className={`border-b border-white/[0.04] hover:bg-white/[0.02] transition-all group ${!item.is_active ? 'opacity-40' : ''}`}
-                    >
-                      {/* Produit */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
-                            {item.image_url ? (
-                              <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <Package className="w-4 h-4 text-white/20" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-[12px] font-bold text-white truncate max-w-[180px]">{item.name}</p>
-                            {item.description && <p className="text-[10px] text-white/30 truncate max-w-[180px] mt-0.5">{item.description}</p>}
-                          </div>
-                        </div>
-                      </td>
-                      {/* Catégorie */}
-                      <td className="px-4 py-3">
-                        {cat && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-wider"
-                            style={{ backgroundColor: cat.color + '15', border: `1px solid ${cat.color}30`, color: cat.color }}>
-                            <span className="w-1 h-1 rounded-full" style={{ backgroundColor: cat.color }} />
-                            {cat.name}
-                          </span>
-                        )}
-                      </td>
-                      {/* Prix */}
-                      <td className="px-4 py-3">
-                        <p className="text-[12px] font-bold text-[#4ade80]">
-                          {item.price > 0 ? item.price.toLocaleString('fr-FR') : '—'}
-                          {item.price > 0 && <span className="text-white/30 font-normal text-[10px] ml-1">{item.currency}</span>}
-                        </p>
-                        {item.unit !== 'unité' && <p className="text-[9px] text-white/20">/ {item.unit}</p>}
-                      </td>
-                      {/* Attributs */}
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {attrEntries.map(([k, v]) => (
-                            <span key={k} className="px-2 py-0.5 bg-white/5 border border-white/8 rounded text-[9px] text-white/40 uppercase tracking-wider">
-                              {k}: <span className="text-white/60">{Array.isArray(v) ? v.join(', ') : String(v)}</span>
-                            </span>
-                          ))}
-                          {Object.keys(item.attributes || {}).length === 0 && (
-                            <span className="text-[9px] text-white/15">—</span>
-                          )}
-                        </div>
-                      </td>
-                      {/* Stock */}
-                      <td className="px-4 py-3">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider"
-                          style={{ backgroundColor: stock.bg, color: stock.color, border: `1px solid ${stock.color}30` }}>
-                          <span className="w-1 h-1 rounded-full" style={{ backgroundColor: stock.color }} />
-                          {stock.label}
-                        </span>
-                      </td>
-                      {/* Statut */}
-                      <td className="px-4 py-3">
-                        <button onClick={() => toggleItem(item)}
-                          className={`relative w-9 h-5 rounded-full transition-all ${item.is_active ? 'bg-[#4ade80]/30' : 'bg-white/10'}`}>
-                          <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all shadow-sm ${item.is_active ? 'left-[18px] bg-[#4ade80]' : 'left-0.5 bg-white/30'}`} />
-                        </button>
-                      </td>
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button onClick={() => openEditItem(item)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white transition-all">
-                            <Pencil className="w-3.5 h-3.5" />
+
+          {activePage === 'CATALOGUE' && (
+            <>
+              {viewMode === 'table' ? (
+                <div className="bg-white/[0.01] border border-white/5 rounded-3xl overflow-hidden">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-white/5 bg-white/[0.02]">
+                        <th className="px-6 py-4 w-10">
+                          <button 
+                            onClick={() => setSelectedIds(selectedIds.length === filteredItems.length ? [] : filteredItems.map(i => i.id))}
+                            className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${selectedIds.length === filteredItems.length && filteredItems.length > 0 ? 'bg-[#4ade80] border-[#4ade80]' : 'border-white/10'}`}
+                          >
+                            {selectedIds.length === filteredItems.length && filteredItems.length > 0 && <Check className="w-3 h-3 text-black" />}
                           </button>
-                          <div className="relative">
-                            <button onClick={() => setContextItemId(contextItemId === item.id ? null : item.id)}
-                              className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white transition-all">
-                              <MoreVertical className="w-3.5 h-3.5" />
+                        </th>
+                        <th className="px-6 py-4 text-[9px] font-black uppercase tracking-[0.4em] text-white/30">Node_Description</th>
+                        <th className="px-6 py-4 text-[9px] font-black uppercase tracking-[0.4em] text-white/30">Valuation</th>
+                        <th className="px-6 py-4 text-[9px] font-black uppercase tracking-[0.4em] text-white/30">Protocol_Status</th>
+                        <th className="px-6 py-4 text-[9px] font-black uppercase tracking-[0.4em] text-white/30">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {filteredItems.map(item => (
+                        <tr key={item.id} className={`group hover:bg-white/[0.02] transition-all ${selectedIds.includes(item.id) ? 'bg-[#4ade80]/5' : ''}`}>
+                          <td className="px-6 py-4">
+                            <button onClick={() => toggleSelect(item.id)}
+                              className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${selectedIds.includes(item.id) ? 'bg-[#4ade80] border-[#4ade80]' : 'border-white/10 group-hover:border-white/30'}`}>
+                              {selectedIds.includes(item.id) && <Check className="w-3 h-3 text-black" />}
                             </button>
-                            <AnimatePresence>
-                              {contextItemId === item.id && (
-                                <>
-                                  <div className="fixed inset-0 z-40" onClick={() => setContextItemId(null)} />
-                                  <motion.div initial={{ opacity: 0, scale: 0.95, y: -4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-                                    className="absolute right-0 top-8 w-44 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 p-1">
-                                    <button onClick={() => { openEditItem(item); setContextItemId(null); }}
-                                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 text-[11px] text-white/60 hover:text-white transition-all text-left">
-                                      <Pencil className="w-3.5 h-3.5" /> Modifier
-                                    </button>
-                                    <button onClick={() => { toggleItem(item); setContextItemId(null); }}
-                                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 text-[11px] text-white/60 hover:text-white transition-all text-left">
-                                      {item.is_active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                      {item.is_active ? 'Désactiver' : 'Activer'}
-                                    </button>
-                                    <div className="my-1 border-t border-white/5" />
-                                    <button onClick={() => deleteItem(item.id)}
-                                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-500/10 text-[11px] text-red-400/60 hover:text-red-400 transition-all text-left">
-                                      <Trash2 className="w-3.5 h-3.5" /> Supprimer
-                                    </button>
-                                  </motion.div>
-                                </>
-                              )}
-                            </AnimatePresence>
-                          </div>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
- 
-        {/* GRID VIEW */}
-        {categories.length > 0 && viewMode === 'grid' && (
-          <div className="space-y-10">
-            {categories.map(cat => {
-              const catItems = filteredItems.filter(i => i.category_id === cat.id);
-              if (activeTab !== 'ALL' && activeTab !== cat.id) return null;
-              return (
-                <div key={cat.id} className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: cat.color + '20', border: `1px solid ${cat.color}30` }}>
-                        <Package className="w-3.5 h-3.5" style={{ color: cat.color }} />
-                      </div>
-                      <span className="text-[12px] font-bold text-white uppercase tracking-[0.2em]">{cat.name}</span>
-                      <span className="text-[10px] text-white/20">{catItems.length} item{catItems.length !== 1 ? 's' : ''}</span>
-                    </div>
-                    <button onClick={() => openAddItem(cat)} disabled={itemLimitReached}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all uppercase tracking-wider disabled:opacity-30">
-                      <Plus className="w-3 h-3" /> Ajouter
-                    </button>
-                  </div>
-                  {catItems.length === 0 ? (
-                    <div className="border border-dashed border-white/5 rounded-xl py-10 text-center">
-                      <p className="text-[10px] text-white/15 uppercase tracking-widest">Aucun item dans cette catégorie</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                      {catItems.map(item => {
-                        const stock = STOCK_CONFIG[item.stock_status] || STOCK_CONFIG.AVAILABLE;
-                        return (
-                          <motion.div key={item.id} whileHover={{ y: -2 }}
-                            className={`bg-[#0D0D0D] border border-white/8 rounded-xl overflow-hidden group hover:border-white/20 transition-all ${!item.is_active ? 'opacity-40' : ''}`}>
-                            <div className="h-28 bg-white/5 flex items-center justify-center relative overflow-hidden">
-                              {item.image_url ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" /> : <Package className="w-7 h-7 text-white/10" />}
-                              <div className="absolute top-2 right-2">
-                                <span className="text-[8px] font-bold px-2 py-0.5 rounded-full uppercase"
-                                  style={{ backgroundColor: stock.bg, color: stock.color }}>{stock.label}</span>
-                              </div>
-                              <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-                                <button onClick={() => openEditItem(item)} className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 transition-all"><Pencil className="w-3 h-3 text-white" /></button>
-                                <button onClick={() => toggleItem(item)} className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 transition-all"><Eye className="w-3 h-3 text-white" /></button>
-                                <button onClick={() => deleteItem(item.id)} className="p-1.5 bg-red-500/20 rounded-lg hover:bg-red-500/30 transition-all"><Trash2 className="w-3 h-3 text-red-400" /></button>
-                              </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                                  {item.image_url ? <img src={item.image_url} className="w-full h-full object-cover" /> : <Package className="w-4 h-4 text-white/20" />}
+                               </div>
+                               <div>
+                                  <p className="text-[11px] font-bold uppercase tracking-wider">{item.name}</p>
+                                  <p className="text-[9px] text-white/30 truncate max-w-[200px]">{item.description || 'No detailed specs'}</p>
+                               </div>
                             </div>
-                            <div className="p-3 space-y-1.5">
-                              <p className="text-[11px] font-bold text-white truncate">{item.name}</p>
-                              <p className="text-[11px] font-bold text-[#4ade80]">
-                                {item.price > 0 ? `${item.price.toLocaleString('fr-FR')} ${item.currency}` : 'Sur demande'}
-                                {item.unit !== 'unité' && <span className="text-white/20 font-normal text-[9px] ml-1">/{item.unit}</span>}
-                              </p>
-                              {Object.entries(item.attributes || {}).slice(0, 2).map(([k, v]) => (
-                                <p key={k} className="text-[9px] text-white/30 truncate">{k}: <span className="text-white/50">{String(v)}</span></p>
-                              ))}
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
- 
-        {/* CATEGORY MANAGER (bottom section) */}
-        {categories.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-white/5">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Layers className="w-4 h-4 text-white/30" />
-                <span className="text-[11px] font-bold text-white/40 uppercase tracking-[0.3em]">Gérer les catégories</span>
-              </div>
-              <button onClick={openAddCat} disabled={catLimitReached}
-                className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold text-white/50 border border-white/10 rounded-lg hover:border-white/20 hover:text-white transition-all uppercase tracking-wider disabled:opacity-30">
-                <Plus className="w-3 h-3" /> Nouvelle catégorie
-              </button>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {categories.map(cat => (
-                <div key={cat.id} className="flex items-center justify-between p-3 bg-[#0D0D0D] border border-white/8 rounded-xl hover:border-white/15 transition-all group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-lg flex-shrink-0" style={{ backgroundColor: cat.color + '20', border: `1px solid ${cat.color}40` }}>
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-white">{cat.name}</p>
-                      <p className="text-[9px] text-white/30">{items.filter(i => i.category_id === cat.id).length} item(s) · {cat.attribute_schema?.length || 0} attr.</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <button onClick={() => openEditCat(cat)} className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white transition-all"><Pencil className="w-3 h-3" /></button>
-                    <button onClick={() => deleteCat(cat)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all"><Trash2 className="w-3 h-3" /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
- 
-      {/* ══════════════════════════════════════════════════════════════════════
-          MODAL — CATÉGORIE
-      ══════════════════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {showCatModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowCatModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-2xl bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
-              {/* Header */}
-              <div className="p-6 border-b border-white/5 flex items-center justify-between flex-shrink-0">
-                <div>
-                  <h2 className="text-lg font-bold text-white tracking-tight">{editingCat ? 'Modifier la catégorie' : 'Nouvelle catégorie'}</h2>
-                  <p className="text-[10px] text-white/30 mt-0.5 uppercase tracking-widest">Configuration du cluster</p>
-                </div>
-                <button onClick={() => setShowCatModal(false)} className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all"><X className="w-4 h-4" /></button>
-              </div>
-              {/* Body */}
-              <div className="p-6 space-y-6 overflow-y-auto flex-1">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Nom de la catégorie *</label>
-                    <input value={catForm.name} onChange={e => setCatForm({ ...catForm, name: e.target.value })}
-                      placeholder="Ex: Vêtements, Services, Appartements..."
-                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono placeholder:text-white/20" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Couleur</label>
-                    <div className="flex items-center gap-2">
-                      {PRESET_COLORS.map(c => (
-                        <button key={c} onClick={() => setCatForm({ ...catForm, color: c })}
-                          className={`w-6 h-6 rounded-full transition-all ${catForm.color === c ? 'scale-125 ring-2 ring-white/40 ring-offset-1 ring-offset-black' : 'hover:scale-110'}`}
-                          style={{ backgroundColor: c }} />
+                          </td>
+                          <td className="px-6 py-4">
+                            <p className="text-[11px] font-bold text-[#4ade80]">{item.price.toLocaleString()} <span className="text-[9px] text-white/20 ml-1">{item.currency}</span></p>
+                          </td>
+                          <td className="px-6 py-4">
+                             <div className="flex items-center gap-2">
+                               <div className="w-1 h-1 rounded-full" style={{ backgroundColor: STOCK_CONFIG[item.stock_status].color }} />
+                               <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: STOCK_CONFIG[item.stock_status].color }}>{STOCK_CONFIG[item.stock_status].label}</span>
+                             </div>
+                          </td>
+                          <td className="px-6 py-4">
+                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                <button onClick={() => { setEditingItem(item); setShowItemModal(true); }} className="p-2 rounded-lg hover:bg-white/10 text-white/30 hover:text-white transition-all"><Pencil className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => handleDeleteItem(item.id)} className="p-2 rounded-lg hover:bg-red-500/10 text-white/30 hover:text-red-400 transition-all"><Trash2 className="w-3.5 h-3.5" /></button>
+                             </div>
+                          </td>
+                        </tr>
                       ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Description (optionnel)</label>
-                  <input value={catForm.description} onChange={e => setCatForm({ ...catForm, description: e.target.value })}
-                    placeholder="Description courte de cette catégorie..."
-                    className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono placeholder:text-white/20" />
-                </div>
- 
-                {/* Attribute Builder */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">
-                      Attributs spécifiques
-                    </label>
-                    <span className="text-[9px] text-white/20">{attrSchema.length} attribut(s)</span>
-                  </div>
- 
-                  {attrSchema.length === 0 && (
-                    <div className="border border-dashed border-white/5 rounded-lg p-4 text-center">
-                      <p className="text-[10px] text-white/20">Aucun attribut défini</p>
+                    </tbody>
+                  </table>
+                  {filteredItems.length === 0 && (
+                    <div className="py-20 text-center">
+                       <p className="text-[10px] text-white/20 uppercase tracking-widest italic">Zero_Nodes_Synchronized_In_Lattice</p>
                     </div>
                   )}
- 
-                  <div className="space-y-2">
-                    {attrSchema.map((attr, i) => (
-                      <div key={i} className="bg-[#0a0a0a] border border-white/8 rounded-xl p-3 space-y-2">
-                        <div className="grid grid-cols-3 gap-2">
-                          <input value={attr.label} onChange={e => updateAttr(i, 'label', e.target.value)}
-                            placeholder="Nom"
-                            className="bg-transparent border border-white/10 rounded-lg px-3 py-2 text-white text-[11px] outline-none focus:border-[#4ade80]/40 placeholder:text-white/20" />
-                          <select value={attr.type} onChange={e => updateAttr(i, 'type', e.target.value)}
-                            className="bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-white text-[11px] outline-none focus:border-[#4ade80]/40">
-                            <option value="text">Texte</option>
-                            <option value="number">Nombre</option>
-                            <option value="boolean">Oui/Non</option>
-                            <option value="select">Select</option>
-                            <option value="multiselect">Multi-select</option>
-                            <option value="date">Date</option>
-                          </select>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                   {filteredItems.map(item => (
+                     <ItemCard 
+                        key={item.id} 
+                        item={item as any} 
+                        category={{ id: item.category_id! }} 
+                        onEdit={() => { setEditingItem(item); setShowItemModal(true); }} 
+                        onDelete={() => handleDeleteItem(item.id)} 
+                        onToggle={() => {}} 
+                     />
+                   ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {activePage === 'CATÉGORIES' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {categories.map(cat => (
+                 <motion.div key={cat.id} whileHover={{ y: -4 }} className="bg-white/[0.01] border border-white/5 p-8 rounded-3xl group transition-all hover:border-white/20">
+                    <div className="flex items-center justify-between mb-8">
+                       <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/5 border border-white/10 group-hover:border-white/30 transition-all">
+                          <Layers className="w-6 h-6 text-[#4ade80]" />
+                       </div>
+                       <div className="flex items-center gap-2">
+                          <button onClick={() => { setEditingCat(cat); setShowCatModal(true); }} className="p-2 rounded-lg hover:bg-white/10 text-white/20 hover:text-white transition-all"><Pencil className="w-4 h-4" /></button>
+                          <button className="p-2 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all"><Trash2 className="w-4 h-4" /></button>
+                       </div>
+                    </div>
+                    <div className="space-y-4">
+                       <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color, boxShadow: `0 0 10px ${cat.color}` }} />
+                          <h3 className="text-sm font-bold uppercase tracking-[0.2em]">{cat.name}</h3>
+                       </div>
+                       <p className="text-[10px] text-white/30 uppercase tracking-widest leading-relaxed">{cat.description || 'Lattice Cluster Protocol // Unspecified'}</p>
+                       <div className="pt-4 flex items-center justify-between border-t border-white/5">
                           <div className="flex items-center gap-2">
-                            <button onClick={() => removeAttr(i)} className="ml-auto p-1 rounded hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all"><X className="w-3 h-3" /></button>
+                             <Package className="w-3 h-3 text-white/20" />
+                             <span className="text-[9px] font-bold text-white/40">{items.filter(i => i.category_id === cat.id).length} Units</span>
                           </div>
-                        </div>
-                      </div>
-                    ))}
+                          <span className="text-[8px] font-black text-white/10 uppercase tracking-widest">{cat.attribute_schema?.length || 0} Attrib_Slots</span>
+                       </div>
+                    </div>
+                 </motion.div>
+               ))}
+               <button onClick={() => { setEditingCat(null); setShowCatModal(true); }} 
+                 className="bg-white/[0.01] border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center p-8 gap-4 hover:border-[#4ade80]/40 transition-all group">
+                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#4ade80]/20 transition-all">
+                     <Plus className="w-6 h-6 text-white/10 group-hover:text-[#4ade80]" />
                   </div>
- 
-                  <button onClick={addAttr}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-white/10 rounded-xl text-[11px] text-white/30 hover:text-white/60 hover:border-white/20 transition-all">
-                    <Plus className="w-3.5 h-3.5" /> Ajouter un attribut
-                  </button>
-                </div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20 group-hover:text-white">Initialize_New_Cluster</p>
+               </button>
+            </div>
+          )}
+
+        </div>
+
+        {/* BULK ACTIONS */}
+        <AnimatePresence>
+          {selectedIds.length > 0 && (
+            <motion.div 
+               initial={{ y: 100, x: '-50%' }} animate={{ y: 0, x: '-50%' }} exit={{ y: 100, x: '-50%' }}
+               className="fixed bottom-12 left-1/2 z-50 flex items-center gap-8 px-8 py-4 bg-[#111] border border-white/10 rounded-2xl shadow-2xl backdrop-blur-3xl"
+            >
+              <div className="flex items-center gap-4 pr-8 border-r border-white/10">
+                 <div className="w-8 h-8 rounded-lg bg-[#4ade80] text-black flex items-center justify-center font-black text-xs">
+                   {selectedIds.length}
+                 </div>
+                 <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Cluster_Nodes_Selected</p>
               </div>
-              {/* Footer */}
-              <div className="p-6 border-t border-white/5 flex justify-end gap-3 flex-shrink-0">
-                <button onClick={() => setShowCatModal(false)} className="px-6 py-2.5 text-[11px] font-bold text-white/40 rounded-lg bg-white/5 hover:bg-white/10 transition-all uppercase tracking-wider">Annuler</button>
-                <button onClick={saveCat} className="px-6 py-2.5 text-[11px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all uppercase tracking-wider shadow-[0_0_15px_rgba(74,222,128,0.2)]">
-                  {editingCat ? 'Mettre à jour' : 'Créer'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
- 
-      {/* ══════════════════════════════════════════════════════════════════════
-          MODAL — ITEM
-      ══════════════════════════════════════════════════════════════════════ */}
-      <AnimatePresence>
-        {showItemModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setShowItemModal(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-3xl bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-              {/* Header */}
-              <div className="p-6 border-b border-white/5 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  {selectedCategory && (
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: selectedCategory.color + '20', border: `1px solid ${selectedCategory.color}30` }}>
-                      <Package className="w-4 h-4" style={{ color: selectedCategory.color }} />
-                    </div>
-                  )}
-                  <div>
-                    <h2 className="text-lg font-bold text-white tracking-tight">
-                      {editingItem ? "Modifier l'item" : 'Nouvel item'}
-                    </h2>
-                    {selectedCategory && (
-                      <p className="text-[10px] mt-0.5 uppercase tracking-widest" style={{ color: selectedCategory.color }}>
-                        {selectedCategory.name}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <button onClick={() => setShowItemModal(false)}
-                  className="p-2 rounded-lg hover:bg-white/10 text-white/40 hover:text-white transition-all">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className="p-6 space-y-6 overflow-y-auto flex-1">
-
-                {/* Catégorie selector — uniquement en mode création */}
-                {!editingItem && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Catégorie *</label>
-                    <div className="flex flex-wrap gap-2">
-                      {categories.map(cat => (
-                        <button key={cat.id} type="button" onClick={() => setSelectedCategory(cat)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all ${
-                            selectedCategory?.id === cat.id
-                              ? 'text-white'
-                              : 'border-white/10 text-white/30 hover:border-white/20'
-                          }`}
-                          style={selectedCategory?.id === cat.id
-                            ? { borderColor: cat.color + '60', backgroundColor: cat.color + '15', color: cat.color }
-                            : {}}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                          {cat.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Image upload */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Image (optionnel)</label>
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 rounded-xl overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0">
-                      {itemForm.image_url
-                        ? <img src={itemForm.image_url} alt="" className="w-full h-full object-cover" />
-                        : <ImageIcon className="w-6 h-6 text-white/20" />}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
-                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); }} />
-                      <button type="button" onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center gap-2 px-4 py-2 text-[11px] font-bold text-white/50 border border-white/10 rounded-lg hover:border-white/20 hover:text-white transition-all">
-                        <Upload className="w-3.5 h-3.5" /> Uploader une image
-                      </button>
-                      {itemForm.image_url && (
-                        <button type="button"
-                          onClick={() => setItemForm((p: any) => ({ ...p, image_url: '' }))}
-                          className="text-[10px] text-red-400/60 hover:text-red-400 transition-all text-left">
-                          Supprimer l'image
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Nom + Description */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Nom *</label>
-                    <input value={itemForm.name}
-                      onChange={e => setItemForm({ ...itemForm, name: e.target.value })}
-                      placeholder="Nom du produit ou service"
-                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono placeholder:text-white/20" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Description</label>
-                    <input value={itemForm.description || ''}
-                      onChange={e => setItemForm({ ...itemForm, description: e.target.value })}
-                      placeholder="Description courte..."
-                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono placeholder:text-white/20" />
-                  </div>
-                </div>
-
-                {/* Prix + Unité + Devise */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Prix</label>
-                    <input type="number"
-                      value={itemForm.price}
-                      onChange={e => setItemForm({ ...itemForm, price: Number(e.target.value) })}
-                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono"
-                      min="0" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Devise</label>
-                    <select value={itemForm.currency}
-                      onChange={e => setItemForm({ ...itemForm, currency: e.target.value })}
-                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all">
-                      {['FCFA','EUR','USD','GBP','MAD','XOF','XAF'].map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Unité</label>
-                    <input value={itemForm.unit}
-                      onChange={e => setItemForm({ ...itemForm, unit: e.target.value })}
-                      placeholder="unité, heure, m², kg..."
-                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-lg px-3 py-2.5 text-white text-[12px] outline-none focus:border-[#4ade80]/50 transition-all font-mono placeholder:text-white/20" />
-                  </div>
-                </div>
-
-                {/* Stock status */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Disponibilité</label>
-                  <div className="flex gap-2">
-                    {Object.entries(STOCK_CONFIG).map(([key, cfg]) => (
-                      <button key={key} type="button"
-                        onClick={() => setItemForm({ ...itemForm, stock_status: key })}
-                        className={`flex-1 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border ${
-                          itemForm.stock_status === key
-                            ? ''
-                            : 'border-white/10 text-white/30 bg-white/5 hover:border-white/20'
-                        }`}
-                        style={itemForm.stock_status === key
-                          ? { backgroundColor: cfg.bg, borderColor: cfg.color + '40', color: cfg.color }
-                          : {}}>
-                        {cfg.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Attributs dynamiques selon la catégorie */}
-                {selectedCategory?.attribute_schema && selectedCategory.attribute_schema.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-px bg-white/5" />
-                      <span className="text-[9px] font-bold text-white/20 uppercase tracking-[0.4em]">
-                        Attributs — {selectedCategory.name}
-                      </span>
-                      <div className="flex-1 h-px bg-white/5" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      {selectedCategory.attribute_schema.map((field) => (
-                        <div key={field.key}
-                          className={`space-y-2 ${field.type === 'multiselect' ? 'col-span-2' : ''}`}>
-                          <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em]">
-                            {field.label}
-                            {field.required && <span className="text-red-400 ml-1">*</span>}
-                          </label>
-                          <AttributeInput
-                            field={field}
-                            value={itemForm.attributes[field.key]}
-                            onChange={(val) => setItemForm((prev: any) => ({
-                              ...prev,
-                              attributes: { ...prev.attributes, [field.key]: val }
-                            }))}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tags */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Tags</label>
-                  <div
-                    className="flex flex-wrap gap-2 p-3 bg-[#0a0a0a] border border-white/10 rounded-lg min-h-[44px] cursor-text focus-within:border-[#4ade80]/30 transition-all"
-                    onClick={() => document.getElementById('item-tag-input')?.focus()}>
-                    {(itemForm.tags || []).map((tag: string, i: number) => (
-                      <span key={i} className="flex items-center gap-1.5 bg-white/8 border border-white/10 text-white/60 text-[10px] font-bold px-2.5 py-1 rounded-full">
-                        {tag}
-                        <button type="button"
-                          onClick={() => setItemForm((p: any) => ({
-                            ...p, tags: p.tags.filter((_: string, j: number) => j !== i)
-                          }))}>
-                          <X className="w-2 h-2 hover:text-red-400 transition-colors" />
-                        </button>
-                      </span>
-                    ))}
-                    <input
-                      id="item-tag-input"
-                      value={tagInput}
-                      onChange={e => setTagInput(e.target.value)}
-                      className="bg-transparent text-white text-[11px] outline-none placeholder:text-white/20 min-w-[100px] flex-1 font-mono"
-                      placeholder="Ajouter un tag..."
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ',') {
-                          e.preventDefault();
-                          const val = tagInput.trim().toLowerCase();
-                          if (val && !(itemForm.tags || []).includes(val)) {
-                            setItemForm((p: any) => ({ ...p, tags: [...(p.tags || []), val] }));
-                          }
-                          setTagInput('');
-                        }
-                        if (e.key === 'Backspace' && !tagInput && (itemForm.tags || []).length > 0) {
-                          setItemForm((p: any) => ({ ...p, tags: p.tags.slice(0, -1) }));
-                        }
-                      }}
-                    />
-                  </div>
-                  <p className="text-[9px] text-white/15 tracking-wider">Entrée ou virgule pour ajouter</p>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="p-6 border-t border-white/5 flex items-center justify-between flex-shrink-0">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <button type="button"
-                    onClick={() => setItemForm({ ...itemForm, is_active: !itemForm.is_active })}
-                    className={`relative w-9 h-5 rounded-full transition-all ${itemForm.is_active ? 'bg-[#4ade80]/30' : 'bg-white/10'}`}>
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all ${
-                      itemForm.is_active ? 'left-[18px] bg-[#4ade80]' : 'left-0.5 bg-white/30'
-                    }`} />
-                  </button>
-                  <span className="text-[11px] text-white/40 uppercase tracking-wider">
-                    {itemForm.is_active ? 'Actif' : 'Inactif'}
-                  </span>
-                </label>
-                <div className="flex gap-3">
-                  <button onClick={() => setShowItemModal(false)}
-                    className="px-6 py-2.5 text-[11px] font-bold text-white/40 rounded-lg bg-white/5 hover:bg-white/10 transition-all uppercase tracking-wider">
-                    Annuler
-                  </button>
-                  <button onClick={saveItem}
-                    className="px-6 py-2.5 text-[11px] font-bold text-black bg-[#4ade80] rounded-lg hover:bg-[#3bc870] transition-all uppercase tracking-wider shadow-[0_0_15px_rgba(74,222,128,0.2)]">
-                    {editingItem ? 'Mettre à jour' : "Créer l'item"}
-                  </button>
-                </div>
+              <div className="flex items-center gap-4">
+                 <button className="flex items-center gap-2 text-[10px] font-bold text-white/40 hover:text-white transition-all uppercase tracking-widest">
+                    <Eye className="w-4 h-4" /> Toggle_Visibility
+                 </button>
+                 <button className="flex items-center gap-2 text-[10px] font-bold text-red-500/60 hover:text-red-500 transition-all uppercase tracking-widest">
+                    <Trash2 className="w-4 h-4" /> Purge_Selected
+                 </button>
+                 <button onClick={() => setSelectedIds([])} className="p-2 ml-4 rounded-xl bg-white/5 text-white/20 hover:text-white">
+                    <X className="w-4 h-4" />
+                 </button>
               </div>
             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>
+
+      </div>
+
+      {/* MODALS */}
+      <CategoryModal 
+        isOpen={showCatModal} 
+        onClose={() => setShowCatModal(false)}
+        onSave={handleSaveCategory}
+        editingCategory={editingCat as any}
+      />
+
+      <ItemModal 
+        isOpen={showItemModal}
+        onClose={() => setShowItemModal(false)}
+        onSave={handleSaveItem}
+        onUploadImage={handleUploadImage}
+        editingItem={editingItem as any}
+        selectedCategory={categories.find(c => c.id === (editingItem?.category_id || activeCatId)) || null}
+      />
+
     </div>
   );
 }

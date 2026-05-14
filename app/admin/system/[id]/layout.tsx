@@ -19,6 +19,8 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SystemProvider, useSystem } from './SystemContext';
 import { createClient } from '@/lib/supabase';
+import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
+
 const supabase = createClient();
 
 interface ClientData {
@@ -31,25 +33,9 @@ interface ClientData {
 
 function SystemLayoutInner({ children, clientData, id }: { children: React.ReactNode, clientData: ClientData, id: string }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { agentsState } = useSystem();
-  const [isPrimaryCollapsed, setIsPrimaryCollapsed] = useState(false);
-  const [isSecondaryOpen, setIsSecondaryOpen] = useState(false);
 
-  // Auto-collapse logic for agent pages (Primary Ribbon only)
-  useEffect(() => {
-    if (pathname.includes('/agent/')) {
-      setIsPrimaryCollapsed(true);
-    }
-  }, [pathname]);
-
-  // Determine agents visibility based on plan
-  let visibleAgents = clientData.agents;
-  if (clientData.level === "Projet Startup") visibleAgents = visibleAgents.slice(0, 2);
-  else if (clientData.level === "Projet Business") visibleAgents = visibleAgents.slice(0, 10);
-  // ENTERPRISE and ELITE have no limits in this view logic for now
-
-  const coreNav = [
+  const primaryNav: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: `/admin/system/${id}` },
     { id: 'inventory', label: 'Inventory', icon: Zap, path: `/admin/system/${id}/inventory` },
     { id: 'knowledge', label: 'Knowledge', icon: Database, path: `/admin/system/${id}/knowledge` },
@@ -59,140 +45,33 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
     { id: 'settings', label: 'Settings', icon: Settings, path: `/admin/system/${id}/settings` },
   ];
 
+  // Map visible agents to secondary items
+  let visibleAgents = clientData.agents;
+  if (clientData.level === "Projet Startup") visibleAgents = visibleAgents.slice(0, 2);
+  else if (clientData.level === "Projet Business") visibleAgents = visibleAgents.slice(0, 10);
+
+  const secondaryNav: NavItem[] = visibleAgents.map(agentId => ({
+    id: agentId,
+    label: agentsState[agentId]?.name || agentId.replace(/_/g, ' '),
+    icon: Cpu,
+    path: `/admin/system/${id}/agent/${agentId}`
+  }));
+
   return (
-    <div className="min-h-screen bg-[#000000] flex text-[#e0e0e0] font-sans selection:bg-[#4ade80]/30 selection:text-black overflow-hidden">
-      
-      {/* PRIMARY RIBBON (GLOBAL CONTROL) */}
-      <aside 
-        className={`fixed left-0 top-0 bottom-0 bg-[#000000] border-r border-white/10 transition-all duration-500 z-[100] flex flex-col items-center py-8 ${
-          isPrimaryCollapsed ? 'w-20' : 'w-72'
-        }`}
-      >
-         {/* CROCHET / TOGGLE */}
-         <button 
-           onClick={() => setIsPrimaryCollapsed(!isPrimaryCollapsed)}
-           className="mb-12 w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:border-[#4ade80]/40 transition-all text-white/20 hover:text-[#4ade80]"
-         >
-            {isPrimaryCollapsed ? <ChevronRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
-         </button>
-
-         {/* NAVIGATION ITEMS */}
-         <nav className="flex-1 w-full px-4 space-y-4">
-            {coreNav.map((item) => {
-               const isActive = pathname === item.path || (item.id === 'agents' && isSecondaryOpen);
-               return (
-                 <div key={item.id} className="relative group">
-                    <button
-                      onClick={() => {
-                        if ((item as any).type === 'trigger') {
-                          setIsSecondaryOpen(!isSecondaryOpen);
-                        } else if (item.path) {
-                          router.push(item.path);
-                          setIsSecondaryOpen(false);
-                        }
-                      }}
-                      className={`w-full flex items-center rounded-xl transition-all font-mono font-black uppercase text-[10px] tracking-widest ${
-                        isPrimaryCollapsed ? 'justify-center h-12' : 'px-4 py-4 gap-4'
-                      } ${isActive ? 'bg-[#4ade80]/10 text-[#4ade80] border border-[#4ade80]/20 shadow-[0_0_20px_rgba(74,222,128,0.05)]' : 'text-white/20 hover:text-white/60 hover:bg-white/5'}`}
-                    >
-                       <item.icon className={`w-4 h-4 ${isActive ? 'text-[#4ade80]' : ''}`} />
-                       {!isPrimaryCollapsed && <span>{item.label}</span>}
-                    </button>
-                    {isPrimaryCollapsed && (
-                       <div className="absolute left-full ml-4 px-3 py-2 bg-black border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest text-[#4ade80] opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-[110] whitespace-nowrap shadow-2xl">
-                          {item.label}
-                       </div>
-                    )}
-                 </div>
-               );
-            })}
-         </nav>
-
-         {/* EXIT NODE */}
-         <button 
-           onClick={() => {
-             router.push('/admin');
-             setIsSecondaryOpen(false);
-           }}
-           className="mt-auto w-10 h-10 rounded-xl bg-red-500/5 border border-red-500/10 flex items-center justify-center text-red-500/40 hover:text-red-500 hover:bg-red-500/10 transition-all"
-         >
-            <X className="w-4 h-4" />
-         </button>
-      </aside>
-
-      {/* SECONDARY RIBBON (AGENT SELECTOR) */}
-      <AnimatePresence>
-         {isSecondaryOpen && (
-            <motion.aside
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -20, opacity: 0 }}
-              className={`fixed top-0 bottom-0 bg-[#000000] border-r border-white/10 z-[90] flex flex-col py-24 transition-all duration-500 ${
-                isPrimaryCollapsed ? 'left-20 w-64' : 'left-72 w-80'
-              }`}
-            >
-               <div className="px-8 mb-10 flex flex-col gap-4">
-                  <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.4em] font-mono">Neural_Fleet_Nodes</h3>
-                  <Link 
-                    href={`/admin/system/${id}/agents`}
-                    onClick={() => setIsSecondaryOpen(false)}
-                    className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[#4ade80]/60 hover:text-[#4ade80] transition-all"
-                  >
-                    <Settings className="w-3 h-3" />
-                    Manage Fleet
-                  </Link>
-               </div>
-               <nav className="flex-1 overflow-y-auto custom-scrollbar px-4 space-y-2">
-                  {visibleAgents.map((agentId) => {
-                     const path = `/admin/system/${id}/agent/${agentId}`;
-                     const isActive = pathname === path;
-                     const agentData = agentsState[agentId];
-                     const isNodeActive = agentData?.isActive ?? true;
-
-                     return (
-                       <Link
-                         key={agentId}
-                         href={path}
-                         onClick={() => {
-                           setIsPrimaryCollapsed(true);
-                         }}
-                         className={`w-full flex items-center gap-4 px-6 py-5 rounded-2xl transition-all border group ${
-                           isActive 
-                            ? 'bg-[#4ade80]/10 border-[#4ade80]/20 text-[#4ade80]' 
-                            : 'border-transparent text-white/20 hover:text-white/60 hover:bg-white/5'
-                         }`}
-                       >
-                          <div className="relative">
-                             <Cpu className={`w-4 h-4 ${isActive ? 'text-[#4ade80]' : 'text-current opacity-40'}`} />
-                             {/* NEURAL PULSE */}
-                             <div className={`absolute -top-1 -right-1 w-1.5 h-1.5 rounded-full border border-black shadow-sm ${
-                               isNodeActive ? 'bg-[#4ade80] animate-pulse shadow-[0_0_5px_#4ade80]' : 'bg-gray-600'
-                             }`} />
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest font-mono truncate">
-                            {agentData?.name || agentId.replace(/_/g, ' ')}
-                          </span>
-                       </Link>
-                     );
-                  })}
-               </nav>
-            </motion.aside>
-         )}
-      </AnimatePresence>
-
-      {/* MAIN CONTENT AREA */}
-      <main 
-        className={`flex-1 relative min-h-screen transition-all duration-500 overflow-y-auto ${
-          isPrimaryCollapsed 
-            ? (isSecondaryOpen ? 'ml-[21rem]' : 'ml-20') 
-            : (isSecondaryOpen ? 'ml-[39rem]' : 'ml-72')
-        }`}
-      >
-        <div className="max-w-7xl mx-auto min-h-screen">
-           {children}
-        </div>
-      </main>
-    </div>
+    <DoubleRibbonIntelligent
+      primaryItems={primaryNav}
+      secondaryItems={secondaryNav}
+      brandName={clientData.companyName}
+      brandIcon={Shield}
+      userProfile={{
+        name: clientData.companyName,
+        email: clientData.level,
+      }}
+    >
+      <div className="max-w-7xl mx-auto min-h-screen">
+        {children}
+      </div>
+    </DoubleRibbonIntelligent>
   );
 }
 
