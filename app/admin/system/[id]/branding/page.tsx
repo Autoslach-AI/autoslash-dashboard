@@ -149,23 +149,15 @@ export default function BrandingPage() {
       const sanitized = sanitizeFilename(base);
       const path      = `${enterprise.enterprise_id}/branding/${field}_${sanitized}_${Date.now()}.${ext}`;
  
-      const { createClient } = await import('@supabase/supabase-js');
-      const client = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
- 
-      const { error: uploadError } = await client.storage
-        .from('enterprise-assets')
-        .upload(path, file, { upsert: true });
- 
-      if (uploadError) throw uploadError;
- 
-      const { data: urlData } = client.storage
-        .from('enterprise-assets')
-        .getPublicUrl(path);
- 
-      return urlData.publicUrl;
+      const form = new FormData();
+      form.append('file',   file);
+      form.append('path',   path);
+      form.append('bucket', 'enterprise-assets');
+
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: form });
+      const { url, error: uploadError } = await res.json();
+      if (uploadError) throw new Error(uploadError);
+      return url;
     } catch (err: any) {
       setError(err.message);
       return null;
