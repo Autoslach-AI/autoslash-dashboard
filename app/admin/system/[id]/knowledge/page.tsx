@@ -256,13 +256,26 @@ export default function EnterpriseKnowledgeBase() {
   const deleteNode = async (node: KBNode) => {
     const nodeId = node.id;
     if (!confirm('Supprimer ce nœud de connaissance ?')) return;
-    const supabase = createClient();
+
     try {
       if (node.file_path) {
-        await supabase.storage.from('enterprise-kb').remove([node.file_path]);
+        const delStorageRes = await fetch('/api/admin/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'storage', bucket: 'enterprise-kb', path: node.file_path })
+        });
+        const { error: storageError } = await delStorageRes.json();
+        if (storageError) throw new Error(storageError);
       }
-      const { error } = await supabase.from('enterprise_kb').delete().eq('id', nodeId);
-      if (error) throw error;
+
+      const delRowRes = await fetch('/api/admin/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'row', table: 'enterprise_kb', column: 'id', id: nodeId })
+      });
+      const { error: rowError } = await delRowRes.json();
+      if (rowError) throw new Error(rowError);
+
       setNodes(prev => prev.filter(n => n.id !== nodeId));
     } catch (err: any) {
       alert('Erreur: ' + err.message);
@@ -712,7 +725,7 @@ export default function EnterpriseKnowledgeBase() {
 
   if (loading) {
     return (
-      <div className="flex-1 min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+      <div className="flex-1 min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
           <div className="w-16 h-16 border-2 border-white/5 border-t-violet-500 rounded-full animate-spin shadow-[0_0_30px_rgba(168,85,247,0.2)]" />
           <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.5em] font-mono">Calibrating_Knowledge_Lattice...</p>
@@ -722,7 +735,7 @@ export default function EnterpriseKnowledgeBase() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1a1a] text-white font-mono flex">
+    <div className="min-h-screen bg-[#0A0A0A] text-white font-mono flex">
       {/* LOCAL SIDEBAR */}
       {renderSidebar()}
 

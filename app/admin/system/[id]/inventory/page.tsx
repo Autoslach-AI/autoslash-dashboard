@@ -206,10 +206,21 @@ export default function InventoryPage() {
 
   const handleDeleteItem = async (itemId: string) => {
     if (!confirm('Supprimer cet item ?')) return;
-    const supabase = createClient();
-    await supabase.from('inventory_items').delete().eq('id', itemId);
-    setItems(prev => prev.filter(i => i.id !== itemId));
-    setContextItemId(null);
+
+    try {
+      const res = await fetch('/api/admin/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'row', table: 'inventory_items', column: 'id', id: itemId })
+      });
+      const { error } = await res.json();
+      if (error) throw new Error(error);
+
+      setItems(prev => prev.filter(i => i.id !== itemId));
+      setContextItemId(null);
+    } catch (err: any) {
+      alert(err.message);
+    }
   };
 
   const uploadImage = async (file: File) => {
@@ -242,13 +253,13 @@ export default function InventoryPage() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-screen bg-black">
+    <div className="flex items-center justify-center min-h-screen bg-[#0A0A0A]">
       <div className="w-2 h-2 bg-[#4ade80] rounded-full shadow-[0_0_10px_#4ade80] animate-pulse" />
     </div>
   );
 
   return (
-    <div className="flex h-screen bg-[#1a1a1a] text-white font-mono overflow-hidden">
+    <div className="flex h-screen bg-[#0A0A0A] text-white font-mono overflow-hidden">
       
       {/* SIDEBAR */}
       <aside className="w-80 border-r border-white/5 p-8 flex flex-col bg-[#222222]">

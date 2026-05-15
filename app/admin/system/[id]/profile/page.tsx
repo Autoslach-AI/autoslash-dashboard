@@ -166,13 +166,13 @@ export default function ProfilePage() {
     : 0;
 
   if (loading) return (
-    <div className="min-h-screen bg-[#080808] flex items-center justify-center">
+    <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
       <div className="w-6 h-6 border-2 border-white/5 border-t-[#10B981] rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white p-8">
+    <div className="min-h-screen bg-[#0A0A0A] text-white p-8">
       <div className="max-w-3xl mx-auto space-y-4">
 
         {/* ── BLOC 1 — HEADER ENTREPRISE ── */}

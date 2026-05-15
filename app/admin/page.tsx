@@ -594,7 +594,7 @@ export default function NeuralCommandCenterV31() {
 
   if (booting || !isReady || authLoading) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
           <div className="w-10 h-10 border-2 border-white/5 border-t-white/40 rounded-full animate-spin" />
           <p className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/20">Booting Interface...</p>

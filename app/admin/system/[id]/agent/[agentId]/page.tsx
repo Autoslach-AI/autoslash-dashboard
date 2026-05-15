@@ -177,7 +177,7 @@ export default function OracleConfigPage() {
 
   if (booting) {
     return (
-      <div className="flex-1 min-h-screen bg-[#1a1a1a] flex items-center justify-center p-20">
+      <div className="flex-1 min-h-screen bg-[#0A0A0A] flex items-center justify-center p-20">
          <div className="flex flex-col items-center gap-6">
             <div className="w-16 h-16 border-2 border-white/5 border-t-[#4ade80] rounded-full animate-spin shadow-[0_0_30px_rgba(74,222,128,0.2)]" />
             <div className="text-center space-y-1">
@@ -192,7 +192,7 @@ export default function OracleConfigPage() {
   // MAÎTRE ACCESS GUARD
   if (!isMaître) {
     return (
-      <div className="flex-1 min-h-screen bg-black flex flex-col items-center justify-center p-20">
+      <div className="flex-1 min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-20">
          <div className="max-w-md w-full border border-red-500/20 bg-red-500/5 p-12 rounded-3xl text-center space-y-6">
             <Shield className="w-12 h-12 text-red-500 mx-auto" />
             <div className="space-y-2">
@@ -293,11 +293,17 @@ export default function OracleConfigPage() {
 
 
       // 4. SYNC_KNOWLEDGE_BASE
-      const supabaseClient = createClient();
-      await supabaseClient.from('enterprise_kb').delete().eq('enterprise_id', id);
+      const delRes = await fetch('/api/admin/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'row', table: 'enterprise_kb', column: 'enterprise_id', id: id })
+      });
+      const { error: delError } = await delRes.json();
+      if (delError) throw new Error(delError);
+
       const realNodes = kbNodes.filter(n => !n.id.startsWith('m'));
       if (realNodes.length > 0) {
-        await supabaseClient.from('enterprise_kb').insert(
+        await supabase.from('enterprise_kb').insert(
           realNodes.map(n => ({
             content: n.content,
             category: n.category,

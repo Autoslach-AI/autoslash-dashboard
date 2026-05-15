@@ -105,13 +105,13 @@ export default function DoubleRibbonIntelligent({
   };
 
   return (
-    <div className="min-h-screen bg-[#000000] text-[#e0e0e0] font-sans selection:bg-white selection:text-black flex overflow-hidden">
+    <div className="min-h-screen bg-[#0A0A0A] text-[#e0e0e0] font-sans selection:bg-white selection:text-black flex overflow-hidden">
       
       {/* PRIMARY RIBBON */}
       <aside 
         ref={sidebarRef}
         style={{ width: isPrimaryCollapsed ? 80 : primaryWidth }}
-        className={`fixed left-0 top-0 bottom-0 bg-[#000000] border-r border-white/10 z-[100] flex flex-col items-center py-8 ${
+        className={`fixed left-0 top-0 bottom-0 bg-[#0A0A0A] border-r border-white/10 z-[100] flex flex-col items-center py-8 ${
           isResizing ? '' : 'transition-all duration-500'
         }`}
       >
@@ -249,7 +249,7 @@ export default function DoubleRibbonIntelligent({
         style={{ 
           marginLeft: (isPrimaryCollapsed ? 80 : primaryWidth) + (isSecondaryOpen ? 340 : 16) 
         }}
-        className={`flex-1 flex flex-col overflow-hidden bg-[#000000] relative border border-white/10 m-4 rounded-2xl ${
+        className={`flex-1 flex flex-col overflow-hidden bg-[#0A0A0A] relative border border-white/10 m-4 rounded-2xl ${
           isResizing ? '' : 'transition-all duration-500'
         }`}
       >

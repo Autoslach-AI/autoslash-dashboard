@@ -355,14 +355,31 @@ export default function AgentSkillsPage() {
                             }}
                             onDelete={async () => {
                               if (!confirm('Supprimer ce skill ?')) return;
-                              const supabase = createClient();
-                              if (skill.storage_path) {
-                                await supabase.storage.from('agent-skills').remove([skill.storage_path]);
+                              
+                              try {
+                                if (skill.storage_path) {
+                                  const delStorageRes = await fetch('/api/admin/delete', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ type: 'storage', bucket: 'agent-skills', path: skill.storage_path })
+                                  });
+                                  const { error: storageError } = await delStorageRes.json();
+                                  if (storageError) throw new Error(storageError);
+                                }
+
+                                const delRowRes = await fetch('/api/admin/delete', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ type: 'row', table: 'agent_skills', column: 'id', id: skill.id })
+                                });
+                                const { error: rowError } = await delRowRes.json();
+                                if (rowError) throw new Error(rowError);
+
+                                setSkills(prev => prev.filter(s => s.id !== skill.id));
+                                if (selectedFile?.skillId === skill.id || selectedFile?.id === skill.id) setSelectedFile(null);
+                              } catch (err: any) {
+                                alert('Erreur: ' + err.message);
                               }
-                              const { error } = await supabase.from('agent_skills').delete().eq('id', skill.id);
-                              if (error) { alert('Erreur: ' + error.message); return; }
-                              setSkills(prev => prev.filter(s => s.id !== skill.id));
-                              if (selectedFile?.skillId === skill.id || selectedFile?.id === skill.id) setSelectedFile(null);
                             }}
                             expandedFolders={expandedFolders}
                             toggleFolder={toggleFolder}
@@ -783,12 +800,21 @@ export default function AgentSkillsPage() {
             <button
               onClick={async () => {
                 if (!confirm('Supprimer ce skill ?')) { setContextMenu(null); return; }
-                const supabase = createClient();
-                const { error } = await supabase.from('agent_skills').delete().eq('id', contextMenu.skillId);
-                if (error) { alert('Erreur: ' + error.message); return; }
-                setSkills((prev: any[]) => prev.filter(s => s.id !== contextMenu.skillId));
-                if (selectedFile?.id === contextMenu.skillId) setSelectedFile(null);
-                setContextMenu(null);
+                try {
+                  const res = await fetch('/api/admin/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'row', table: 'agent_skills', column: 'id', id: contextMenu.skillId })
+                  });
+                  const { error } = await res.json();
+                  if (error) throw new Error(error);
+
+                  setSkills((prev: any[]) => prev.filter(s => s.id !== contextMenu.skillId));
+                  if (selectedFile?.id === contextMenu.skillId) setSelectedFile(null);
+                  setContextMenu(null);
+                } catch (err: any) {
+                  alert('Erreur: ' + err.message);
+                }
               }}
               className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-red-500/10 rounded-lg text-[11px] font-bold text-red-400/70 hover:text-red-400 tracking-wider uppercase transition-all text-left"
             >

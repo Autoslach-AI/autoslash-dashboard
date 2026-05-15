@@ -15,7 +15,8 @@
   }
 
   html, body {
-    @apply bg-black text-white antialiased selection:bg-white selection:text-black font-sans;
+    background-color: #0A0A0A;
+    @apply text-white antialiased selection:bg-white selection:text-black font-sans;
     margin: 0;
     padding: 0;
     font-feature-settings: "ss01", "ss02", "cv01", "cv11";

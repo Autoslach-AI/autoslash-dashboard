@@ -110,7 +110,7 @@ export default function ClientSystemLayout({ children }: { children: React.React
     fetchClient();
   }, [id]);
 
-  if (!clientData) return <div className="min-h-screen bg-black flex items-center justify-center text-white/20 font-mono text-xs uppercase tracking-widest">Loading_System_Lattice...</div>;
+  if (!clientData) return <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center text-white/20 font-mono text-xs uppercase tracking-widest">Loading_System_Lattice...</div>;
 
   return (
     <SystemProvider enterpriseId={id}>

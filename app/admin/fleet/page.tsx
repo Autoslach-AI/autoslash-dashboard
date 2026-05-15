@@ -324,7 +324,7 @@ export default function FleetPage() {
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.email || 'admin'}`
       }}
     >
-      <div className="flex-1 flex flex-col min-h-screen bg-[#050505] overflow-y-auto custom-scrollbar relative">
+      <div className="flex-1 flex flex-col min-h-screen bg-[#0A0A0A] overflow-y-auto custom-scrollbar relative">
         <div className="px-8 py-10 flex flex-col gap-20">
           {/* STATS CARDS - ADMIN DASHBOARD STYLE */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
