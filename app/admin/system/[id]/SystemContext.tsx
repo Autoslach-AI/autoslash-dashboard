@@ -12,9 +12,11 @@ interface AgentState {
 
 interface SystemContextType {
   enterpriseId: string | null;
-  enterpriseData: any | null;
+  enterprise: any | null;
+  planDef: any | null;
   agentsState: Record<string, AgentState>;
   updateAgent: (agentId: string, newState: Partial<AgentState>) => void;
+  refreshEnterprise: () => Promise<void>;
   loading: boolean;
 }
 
@@ -22,21 +24,23 @@ const SystemContext = createContext<SystemContextType | undefined>(undefined);
 
 export function SystemProvider({ children, enterpriseId }: { children: React.ReactNode, enterpriseId: string | null }) {
   const [agentsState, setAgentsState] = useState<Record<string, AgentState>>({});
-  const [enterpriseData, setEnterpriseData] = useState<any | null>(null);
+  const [enterprise, setEnterprise] = useState<any | null>(null);
+  const [planDef, setPlanDef] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadData() {
-      if (!enterpriseId) {
-        setLoading(false);
-        return;
-      }
+  const loadData = async () => {
+    if (!enterpriseId) {
+      setLoading(false);
+      return;
+    }
 
+    try {
       const res = await fetch(`/api/admin/enterprise/${enterpriseId}`);
-      const { enterprise, agents: agentsData } = await res.json();
+      const { enterprise: ent, agents: agentsData, planDef: plan } = await res.json();
 
-      if (enterprise) {
-        setEnterpriseData(enterprise);
+      if (ent) {
+        setEnterprise(ent);
+        setPlanDef(plan);
         const newAgentsState: Record<string, AgentState> = {};
         agentsData?.forEach((agent: any) => {
           newAgentsState[agent.id] = {
@@ -46,11 +50,19 @@ export function SystemProvider({ children, enterpriseId }: { children: React.Rea
         });
         setAgentsState(newAgentsState);
       }
-      setLoading(false);
+    } catch (error) {
+      console.error('Error loading system context:', error);
     }
+    setLoading(false);
+  };
 
+  useEffect(() => {
     loadData();
   }, [enterpriseId]);
+
+  const refreshEnterprise = async () => {
+    await loadData();
+  };
 
   const updateAgent = (agentId: string, newState: Partial<AgentState>) => {
     setAgentsState(prev => ({
@@ -66,7 +78,15 @@ export function SystemProvider({ children, enterpriseId }: { children: React.Rea
   };
 
   return (
-    <SystemContext.Provider value={{ enterpriseId, enterpriseData, agentsState, updateAgent, loading }}>
+    <SystemContext.Provider value={{ 
+      enterpriseId, 
+      enterprise, 
+      planDef, 
+      agentsState, 
+      updateAgent, 
+      refreshEnterprise, 
+      loading 
+    }}>
       {children}
     </SystemContext.Provider>
   );
