@@ -176,7 +176,6 @@ export default function InventoryPage() {
   };
 
   const handleSaveItem = async (item: Partial<InventoryItem>) => {
-    const supabase = createClient();
     const payload = {
       ...item,
       enterprise_id: id,
@@ -184,12 +183,22 @@ export default function InventoryPage() {
     };
 
     if (editingItem) {
-      const { error } = await supabase.from('inventory_items').update(payload).eq('id', editingItem.id);
-      if (error) { alert(error.message); return; }
-      setItems(prev => prev.map(i => i.id === editingItem.id ? { ...i, ...payload } as InventoryItem : i));
+      const res = await fetch('/api/admin/inventory/item', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingItem.id, ...payload })
+      });
+      const { data, error } = await res.json();
+      if (error) { alert(error); return; }
+      setItems(prev => prev.map(i => i.id === editingItem.id ? data : i));
     } else {
-      const { data, error } = await supabase.from('inventory_items').insert(payload).select().single();
-      if (error) { alert(error.message); return; }
+      const res = await fetch('/api/admin/inventory/item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const { data, error } = await res.json();
+      if (error) { alert(error); return; }
       setItems(prev => [...prev, data]);
     }
     setShowItemModal(false);
