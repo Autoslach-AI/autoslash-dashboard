@@ -84,16 +84,16 @@ export default function AgentsPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-[#080808] flex items-center justify-center">
+    <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
       <div className="w-6 h-6 border-2 border-white/5 border-t-[#10B981] rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#080808] text-white">
-
+    <div className="min-h-screen bg-[#1a1a1a] text-white">
+      
       {/* ── PAGE HEADER ── */}
-      <div className="sticky top-0 z-10 bg-[#080808]/95 backdrop-blur border-b border-white/5 px-8 py-5">
+      <div className="sticky top-0 z-10 bg-[#1a1a1a]/95 backdrop-blur border-b border-white/5 px-8 py-5">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-[18px] font-black text-white uppercase tracking-tight">Agent Task Force</h1>
@@ -129,7 +129,7 @@ export default function AgentsPage() {
 
           {/* ── PLAN STARTUP ── */}
           {maxAgents === 0 && (
-            <div className="bg-[#111] border border-dashed border-white/10 rounded-2xl p-20 flex flex-col items-center justify-center text-center space-y-5">
+            <div className="bg-[#252525] border border-dashed border-white/10 rounded-2xl p-20 flex flex-col items-center justify-center text-center space-y-5">
               <Lock className="w-12 h-12 text-white/10" />
               <div>
                 <p className="text-[14px] font-black text-white/20 uppercase tracking-widest mb-2">Aucun agent — Plan Startup</p>
@@ -143,7 +143,7 @@ export default function AgentsPage() {
             {activeAgents.map((agent) => (
               <div 
                 key={agent.id} 
-                className="bg-[#111] border border-white/5 rounded-2xl overflow-hidden cursor-pointer hover:bg-white/[0.02] transition-all group"
+                className="bg-[#252525] border border-white/5 rounded-2xl overflow-hidden cursor-pointer hover:bg-white/[0.02] transition-all group"
                 onClick={() => router.push(`/admin/system/${id}/agent/${agent.id}`)}
               >
                 {/* CARTE HEADER */}

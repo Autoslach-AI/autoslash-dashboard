@@ -177,7 +177,7 @@ export default function OracleConfigPage() {
 
   if (booting) {
     return (
-      <div className="flex-1 min-h-screen bg-[#000000] flex items-center justify-center p-20">
+      <div className="flex-1 min-h-screen bg-[#1a1a1a] flex items-center justify-center p-20">
          <div className="flex flex-col items-center gap-6">
             <div className="w-16 h-16 border-2 border-white/5 border-t-[#4ade80] rounded-full animate-spin shadow-[0_0_30px_rgba(74,222,128,0.2)]" />
             <div className="text-center space-y-1">
@@ -388,7 +388,7 @@ export default function OracleConfigPage() {
                   <h2 className="text-sm font-bold text-white uppercase tracking-[0.3em]">Section_01 // Identity</h2>
                </div>
 
-               <div className="bg-[#080808] border border-white/20 rounded-2xl p-10 space-y-10 shadow-2xl relative overflow-hidden group">
+               <div className="bg-[#252525] border border-white/20 rounded-2xl p-10 space-y-10 shadow-2xl relative overflow-hidden group">
                   <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                      <Zap className="w-40 h-40 text-white" />
                   </div>
@@ -473,7 +473,7 @@ export default function OracleConfigPage() {
                      </div>
                   </div>
 
-                  <div className="bg-[#080808] border border-white/20 rounded-2xl p-10 space-y-8 shadow-sm">
+                  <div className="bg-[#252525] border border-white/20 rounded-2xl p-10 space-y-8 shadow-sm">
                      <div className="space-y-4">
                         <div className="flex justify-between items-center px-2">
                            <div className="space-y-1">
@@ -649,7 +649,7 @@ export default function OracleConfigPage() {
                       <div 
                         key={node.id} 
                         onClick={() => handleEditKbNode(node)}
-                        className="bg-[#080808] border border-white/20 p-8 rounded-2xl group hover:border-purple-500/40 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
+                        className="bg-[#252525] border border-white/20 p-8 rounded-2xl group hover:border-purple-500/40 transition-all relative overflow-hidden flex flex-col h-full cursor-pointer"
                       >
                          <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 blur-3xl rounded-full" />
                          <div className="flex justify-between items-start mb-4">
@@ -716,7 +716,7 @@ export default function OracleConfigPage() {
                initial={{ opacity: 0, scale: 0.95 }}
                animate={{ opacity: 1, scale: 1 }}
                exit={{ opacity: 0, scale: 0.95 }}
-               className="bg-[#080808] border border-white/20 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+               className="bg-[#222222] border border-white/20 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
              >
                 <div className="p-8 border-b border-white/10 flex justify-between items-center bg-purple-500/5">
                    <div className="flex items-center gap-4">
@@ -803,7 +803,7 @@ export default function OracleConfigPage() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 right-0 w-full lg:w-[500px] bg-[#050505] border-l border-white/10 z-[250] shadow-2xl flex flex-col p-10 font-mono"
+            className="fixed inset-y-0 right-0 w-full lg:w-[500px] bg-[#1a1a1a] border-l border-white/10 z-[250] shadow-2xl flex flex-col p-10 font-mono"
           >
              <div className="flex items-center justify-between mb-12">
                 <div className="flex items-center gap-4">

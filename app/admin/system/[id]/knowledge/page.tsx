@@ -68,7 +68,7 @@ interface Agent {
 
 function MetricCard({ title, value, subValue, icon: Icon, colorClass, shadowColor }: any) {
   return (
-    <div className={`bg-[#080808] border border-white/5 p-6 rounded-2xl relative overflow-hidden group hover:border-white/20 transition-all ${shadowColor}`}>
+    <div className={`bg-[#252525] border border-white/5 p-6 rounded-2xl relative overflow-hidden group hover:border-white/20 transition-all ${shadowColor}`}>
       <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
         <Icon className="w-16 h-16 text-white" />
       </div>
@@ -372,7 +372,7 @@ export default function EnterpriseKnowledgeBase() {
     ];
 
     return (
-      <aside className="w-64 border-r border-white/5 h-full flex flex-col pt-12 pb-24">
+      <aside className="w-64 border-r border-white/5 h-full flex flex-col pt-12 pb-24 bg-[#222222]">
         <div className="px-6 mb-12">
           <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.4em] mb-4">Navigation_Locus</p>
         </div>
@@ -460,7 +460,7 @@ export default function EnterpriseKnowledgeBase() {
                 <div 
                   key={node.id}
                   onClick={() => openInjectModal(node)}
-                  className="bg-[#080808] border border-white/10 p-6 rounded-2xl group hover:border-violet-500/40 transition-all cursor-pointer relative overflow-hidden"
+                  className="bg-[#252525] border border-white/10 p-6 rounded-2xl group hover:border-violet-500/40 transition-all cursor-pointer relative overflow-hidden"
                 >
                   <div className="flex justify-between items-start mb-4">
                     <SensitivityBadge level={node.sensitivity_level} />
@@ -594,7 +594,7 @@ export default function EnterpriseKnowledgeBase() {
           {filteredNodes.length > 0 ? filteredNodes.map(node => (
             <div 
               key={node.id}
-              className="bg-[#080808] border border-white/5 p-6 rounded-2xl hover:border-violet-500/40 transition-all group relative overflow-hidden"
+              className="bg-[#252525] border border-white/5 p-6 rounded-2xl hover:border-violet-500/40 transition-all group relative overflow-hidden"
             >
               <div className="flex items-start justify-between gap-6">
                 <div className="flex items-start gap-5 flex-1 min-w-0">
@@ -712,7 +712,7 @@ export default function EnterpriseKnowledgeBase() {
 
   if (loading) {
     return (
-      <div className="flex-1 min-h-screen bg-black flex items-center justify-center">
+      <div className="flex-1 min-h-screen bg-[#1a1a1a] flex items-center justify-center">
         <div className="flex flex-col items-center gap-6">
           <div className="w-16 h-16 border-2 border-white/5 border-t-violet-500 rounded-full animate-spin shadow-[0_0_30px_rgba(168,85,247,0.2)]" />
           <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.5em] font-mono">Calibrating_Knowledge_Lattice...</p>
@@ -722,7 +722,7 @@ export default function EnterpriseKnowledgeBase() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white font-mono flex">
+    <div className="min-h-screen bg-[#1a1a1a] text-white font-mono flex">
       {/* LOCAL SIDEBAR */}
       {renderSidebar()}
 
@@ -776,7 +776,7 @@ export default function EnterpriseKnowledgeBase() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-[#0A0A0A] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(168,85,247,0.1)]"
+              className="bg-[#222222] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(168,85,247,0.1)]"
             >
               <div className="p-8 border-b border-white/5 flex items-center justify-between bg-violet-500/5">
                 <div className="flex items-center gap-4">
