@@ -223,6 +223,50 @@ export default function InventoryPage() {
     }
   };
 
+  const handleDeleteCategory = async (catId: string) => {
+    if (!confirm('Supprimer cette catégorie ? Tous les items resteront mais seront sans catégorie.')) return;
+
+    try {
+      const res = await fetch('/api/admin/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'row', table: 'inventory_categories', column: 'id', id: catId })
+      });
+      const { error } = await res.json();
+      if (error) throw new Error(error);
+
+      setCategories(prev => prev.filter(c => c.id !== catId));
+      if (activeCatId === catId) setActiveCatId(categories[0]?.id || null);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Supprimer ces ${selectedIds.length} items ?`)) return;
+
+    try {
+      // We could do it in parallel or add a bulk delete endpoint. 
+      // For now, let's use the row delete for each ID.
+      const promises = selectedIds.map(id => fetch('/api/admin/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'row', table: 'inventory_items', column: 'id', id })
+      }));
+
+      const results = await Promise.all(promises);
+      for (const res of results) {
+        const { error } = await res.json();
+        if (error) throw new Error(error);
+      }
+
+      setItems(prev => prev.filter(i => !selectedIds.includes(i.id)));
+      setSelectedIds([]);
+    } catch (err: any) {
+      alert(err.message);
+    }
+  };
+
   const uploadImage = async (file: File) => {
     const supabase = createClient();
     const sanitizedName = sanitizeFilename(file.name);
@@ -471,7 +515,7 @@ export default function InventoryPage() {
                        </div>
                        <div className="flex items-center gap-2">
                           <button onClick={() => { setEditingCat(cat); setShowCatModal(true); }} className="p-2 rounded-lg hover:bg-white/10 text-white/20 hover:text-white transition-all"><Pencil className="w-4 h-4" /></button>
-                          <button className="p-2 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 rounded-lg hover:bg-red-500/10 text-white/20 hover:text-red-400 transition-all"><Trash2 className="w-4 h-4" /></button>
                        </div>
                     </div>
                     <div className="space-y-4">
@@ -519,7 +563,7 @@ export default function InventoryPage() {
                  <button className="flex items-center gap-2 text-[10px] font-bold text-white/40 hover:text-white transition-all uppercase tracking-widest">
                     <Eye className="w-4 h-4" /> Toggle_Visibility
                  </button>
-                 <button className="flex items-center gap-2 text-[10px] font-bold text-red-500/60 hover:text-red-500 transition-all uppercase tracking-widest">
+                 <button onClick={handleBulkDelete} className="flex items-center gap-2 text-[10px] font-bold text-red-500/60 hover:text-red-500 transition-all uppercase tracking-widest">
                     <Trash2 className="w-4 h-4" /> Purge_Selected
                  </button>
                  <button onClick={() => setSelectedIds([])} className="p-2 ml-4 rounded-xl bg-white/5 text-white/20 hover:text-white">
