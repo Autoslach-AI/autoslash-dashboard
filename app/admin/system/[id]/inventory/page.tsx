@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { createClient } from '@/lib/supabase';
 import { 
   Search, Plus, Package, Pencil, Trash2, Eye, EyeOff, 
@@ -65,6 +65,18 @@ const STOCK_CONFIG: Record<string, { label: string; color: string; bg: string }>
 export default function InventoryPage() {
   const params = useParams();
   const id = params?.id as string;
+
+  const sanitizeFilename = (filename: string): string => {
+    const ext = filename.split('.').pop() || '';
+    const nameWithoutExt = filename.slice(0, filename.lastIndexOf('.'));
+    const sanitized = nameWithoutExt
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_\-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+    return `${sanitized}.${ext}`;
+  };
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -191,9 +203,10 @@ export default function InventoryPage() {
     setContextItemId(null);
   };
 
-  const handleUploadImage = async (file: File) => {
+  const uploadImage = async (file: File) => {
     const supabase = createClient();
-    const path = `${id}/inventory/${Date.now()}-${file.name}`;
+    const sanitizedName = sanitizeFilename(file.name);
+    const path = `${id}/inventory/${Date.now()}-${sanitizedName}`;
     const { error } = await supabase.storage.from('enterprise-assets').upload(path, file);
     if (error) { alert(error.message); return; }
     const { data: urlData } = supabase.storage.from('enterprise-assets').getPublicUrl(path);
@@ -226,10 +239,10 @@ export default function InventoryPage() {
   );
 
   return (
-    <div className="flex h-screen bg-[#080808] text-white font-mono overflow-hidden">
+    <div className="flex h-screen bg-[#1a1a1a] text-white font-mono overflow-hidden">
       
       {/* SIDEBAR */}
-      <aside className="w-80 border-r border-white/5 p-8 flex flex-col bg-[#0a0a0a]">
+      <aside className="w-80 border-r border-white/5 p-8 flex flex-col bg-[#222222]">
         <InventorySidebar 
           categoriesCount={categories.length}
           itemsCount={items.length}
@@ -267,7 +280,7 @@ export default function InventoryPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         
         {/* HEADER */}
-        <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-[#080808] z-10">
+        <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-[#1a1a1a] z-10">
           <div>
             <h1 className="text-xl font-black tracking-tighter uppercase">{activePage} // {categories.find(c => c.id === activeCatId)?.name || 'ROOT'}</h1>
             <div className="flex items-center gap-4 mt-1">
@@ -299,7 +312,7 @@ export default function InventoryPage() {
         </header>
 
         {/* TOOLBAR */}
-        <div className="px-8 py-4 border-b border-white/5 flex items-center gap-4 bg-[#0a0a0a]">
+        <div className="px-8 py-4 border-b border-white/5 flex items-center gap-4 bg-[#202020]">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
             <input 
@@ -511,7 +524,7 @@ export default function InventoryPage() {
         isOpen={showItemModal}
         onClose={() => setShowItemModal(false)}
         onSave={handleSaveItem}
-        onUploadImage={handleUploadImage}
+        onUploadImage={uploadImage}
         editingItem={editingItem as any}
         selectedCategory={categories.find(c => c.id === (editingItem?.category_id || activeCatId)) || null}
       />
