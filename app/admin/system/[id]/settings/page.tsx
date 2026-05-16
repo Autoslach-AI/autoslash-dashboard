@@ -28,7 +28,7 @@ const sections = [
   { id: 'general',      label: 'GÉNÉRAL',         icon: Settings,      active: true  },
   { id: 'plan',         label: 'PLAN & CONTRAT',   icon: CreditCard,    active: true  },
   { id: 'integrations', label: 'INTÉGRATIONS',     icon: Plug,          active: true },
-  { id: 'notifications',label: 'NOTIFICATIONS',    icon: Bell,          active: true },
+  { id: 'notifications',label: 'NOTIFICATIONS',    icon: Bell,          active: false },
   { id: 'danger',       label: 'DANGER ZONE',      icon: AlertTriangle, active: true }
 ];
 
