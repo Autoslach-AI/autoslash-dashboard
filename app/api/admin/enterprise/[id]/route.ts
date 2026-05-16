@@ -27,9 +27,9 @@ export async function GET(
 
   const { data: planDef } = await supabase
     .from('plan_definitions')
-    .select('max_agents_allowed')
+    .select('*')
     .eq('plan_name', enterprise?.package_type)
     .single();
 
-  return NextResponse.json({ enterprise, agents, planDef, debug: { entError, params_id: params.id } });
+  return NextResponse.json({ enterprise, agents, planDef });
 }
