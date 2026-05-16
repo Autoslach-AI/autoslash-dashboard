@@ -16,7 +16,10 @@ import {
   Zap,
   Box,
   Server,
-  X
+  X,
+  Plus,
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import { useSystem } from '../SystemContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,7 +27,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const sections = [
   { id: 'general',      label: 'GÉNÉRAL',         icon: Settings,      active: true  },
   { id: 'plan',         label: 'PLAN & CONTRAT',   icon: CreditCard,    active: true  },
-  { id: 'integrations', label: 'INTÉGRATIONS',     icon: Plug,          active: false },
+  { id: 'integrations', label: 'INTÉGRATIONS',     icon: Plug,          active: true },
   { id: 'notifications',label: 'NOTIFICATIONS',    icon: Bell,          active: false },
   { id: 'danger',       label: 'DANGER ZONE',      icon: AlertTriangle, active: false }
 ];
@@ -56,6 +59,18 @@ export default function SettingsPage() {
     custom_notes: ''
   });
 
+  const [integrations, setIntegrations]       = useState<any[]>([])
+  const [loadingIntegrations, setLoadingIntegrations] = useState(false)
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false)
+  const [integrationForm, setIntegrationForm] = useState({
+    service_name: '',
+    integration_type: 'webhook_in',
+    endpoint_url: '',
+    secret_key: '',
+    connected_agent_id: '',
+    config: '{}'
+  })
+
   useEffect(() => {
     if (enterprise) {
       setGeneralForm({
@@ -76,6 +91,10 @@ export default function SettingsPage() {
       });
     }
   }, [enterprise]);
+
+  useEffect(() => {
+    if (activeSection === 'integrations') loadIntegrations()
+  }, [activeSection, enterprise?.enterprise_id])
 
   const handleSaveGeneral = async () => {
     setIsSaving(true);
@@ -131,6 +150,85 @@ export default function SettingsPage() {
       setIsSaving(false);
     }
   };
+
+  const loadIntegrations = async () => {
+    if (!enterprise?.enterprise_id) return
+    setLoadingIntegrations(true)
+    try {
+      const res = await fetch(`/api/admin/enterprise/integrations?enterprise_id=${enterprise.enterprise_id}`)
+      const { data, error } = await res.json()
+      if (error) throw new Error(error)
+      setIntegrations(data ?? [])
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoadingIntegrations(false)
+    }
+  }
+
+  const handleCreateIntegration = async () => {
+    setIsSaving(true)
+    setError(null)
+    try {
+      let parsedConfig = {}
+      try { parsedConfig = JSON.parse(integrationForm.config) } catch { parsedConfig = {} }
+
+      const res = await fetch('/api/admin/enterprise/integrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enterprise_id:      enterprise.enterprise_id,
+          service_name:       integrationForm.service_name,
+          integration_type:   integrationForm.integration_type,
+          endpoint_url:       integrationForm.endpoint_url || null,
+          secret_key:         integrationForm.secret_key || null,
+          connected_agent_id: integrationForm.connected_agent_id || null,
+          config:             parsedConfig
+        })
+      })
+      const { data, error: createError } = await res.json()
+      if (createError) throw new Error(createError)
+      setIntegrations(prev => [data, ...prev])
+      setShowIntegrationModal(false)
+      setIntegrationForm({ service_name: '', integration_type: 'webhook_in', endpoint_url: '', secret_key: '', connected_agent_id: '', config: '{}' })
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleToggleIntegration = async (id: string, current: boolean) => {
+    try {
+      const res = await fetch('/api/admin/enterprise/integrations', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, is_active: !current })
+      })
+      const { error: toggleError } = await res.json()
+      if (toggleError) throw new Error(toggleError)
+      setIntegrations(prev => prev.map(i => i.id === id ? { ...i, is_active: !current } : i))
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
+
+  const handleDeleteIntegration = async (id: string) => {
+    try {
+      const res = await fetch('/api/admin/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'row', table: 'enterprise_integrations', column: 'id', id })
+      })
+      const { error: delError } = await res.json()
+      if (delError) throw new Error(delError)
+      setIntegrations(prev => prev.filter(i => i.id !== id))
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }
 
   if (loading || !enterprise) {
     return (
@@ -497,7 +595,186 @@ export default function SettingsPage() {
 
           </motion.div>
         );
-      
+
+      case 'integrations':
+        return (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+
+            {/* Header + bouton créer */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">NEURAL_CONNECTOR</h2>
+                <p className="text-[9px] font-mono text-white/20">Tout outil connecté par Autoslash — webhooks entrants, sortants, API keys</p>
+              </div>
+              <button
+                onClick={() => setShowIntegrationModal(true)}
+                className="flex items-center gap-2 px-5 py-3 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[10px] font-black uppercase tracking-widest hover:bg-[#39FF14]/15 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                NEW_CONNECTOR
+              </button>
+            </div>
+
+            {/* Liste des intégrations */}
+            {loadingIntegrations ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-5 h-5 text-[#39FF14] animate-spin" />
+              </div>
+            ) : integrations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 border border-dashed border-white/10 rounded-3xl gap-4">
+                <Plug className="w-8 h-8 text-white/10" />
+                <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest">Aucun connecteur configuré</p>
+                <p className="text-[9px] font-mono text-white/10">Autoslash connecte les outils de l'enterprise ici</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {integrations.map((integration) => (
+                  <div key={integration.id} className="flex items-center gap-6 p-6 bg-white/[0.03] border border-white/10 rounded-2xl group hover:border-white/20 transition-all">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${integration.is_active ? 'bg-[#39FF14] shadow-[0_0_8px_#39FF14]' : 'bg-white/20'}`} />
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-black text-white uppercase tracking-wide">{integration.service_name}</span>
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest ${
+                          integration.integration_type === 'webhook_in'  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
+                          integration.integration_type === 'webhook_out' ? 'bg-violet-500/10 text-violet-400 border border-violet-500/20' :
+                          'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                        }`}>
+                          {integration.integration_type}
+                        </span>
+                      </div>
+                      {integration.endpoint_url && (
+                        <p className="text-[9px] font-mono text-white/30 truncate">{integration.endpoint_url}</p>
+                      )}
+                      {integration.connected_agent_id && (
+                        <p className="text-[9px] font-mono text-white/20">AGENT → {integration.connected_agent_id}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button
+                        onClick={() => handleToggleIntegration(integration.id, integration.is_active)}
+                        className={`w-10 h-5 rounded-full relative transition-all ${integration.is_active ? 'bg-[#39FF14]' : 'bg-white/10'}`}
+                      >
+                        <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${integration.is_active ? 'right-0.5' : 'left-0.5'}`} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteIntegration(integration.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg hover:bg-red-500/10 text-red-400"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Modal création */}
+            <AnimatePresence>
+              {showIntegrationModal && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-6"
+                  onClick={() => setShowIntegrationModal(false)}
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-[#0A0A0A] border border-white/10 rounded-3xl p-10 w-full max-w-lg space-y-6"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-black uppercase tracking-widest text-white">NEW_CONNECTOR</h3>
+                      <button onClick={() => setShowIntegrationModal(false)}>
+                        <X className="w-4 h-4 text-white/30 hover:text-white" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">SERVICE_NAME <span className="text-white/20">(nom libre — ex: WhatsApp Business, WooCommerce, ERP Client...)</span></label>
+                        <input
+                          type="text"
+                          value={integrationForm.service_name}
+                          onChange={(e) => setIntegrationForm({...integrationForm, service_name: e.target.value})}
+                          placeholder="Nom de l'outil ou service..."
+                          className="w-full bg-[#111111] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-[#39FF14]/50 outline-none transition-all font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">INTEGRATION_TYPE</label>
+                        <select
+                          value={integrationForm.integration_type}
+                          onChange={(e) => setIntegrationForm({...integrationForm, integration_type: e.target.value})}
+                          className="w-full bg-[#111111] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-[#39FF14]/50 outline-none transition-all font-mono text-white"
+                        >
+                          <option value="webhook_in">WEBHOOK_IN — L'outil envoie vers Autoslash</option>
+                          <option value="webhook_out">WEBHOOK_OUT — Autoslash envoie vers l'outil</option>
+                          <option value="api_key">API_KEY — Connexion par clé API</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">ENDPOINT_URL <span className="text-white/20">(optionnel)</span></label>
+                        <input
+                          type="text"
+                          value={integrationForm.endpoint_url}
+                          onChange={(e) => setIntegrationForm({...integrationForm, endpoint_url: e.target.value})}
+                          placeholder="https://..."
+                          className="w-full bg-[#111111] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-[#39FF14]/50 outline-none transition-all font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">SECRET_KEY <span className="text-white/20">(optionnel)</span></label>
+                        <input
+                          type="password"
+                          value={integrationForm.secret_key}
+                          onChange={(e) => setIntegrationForm({...integrationForm, secret_key: e.target.value})}
+                          placeholder="Clé secrète ou token..."
+                          className="w-full bg-[#111111] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-[#39FF14]/50 outline-none transition-all font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">CONNECTED_AGENT_ID <span className="text-white/20">(optionnel — ID de l'agent responsable)</span></label>
+                        <input
+                          type="text"
+                          value={integrationForm.connected_agent_id}
+                          onChange={(e) => setIntegrationForm({...integrationForm, connected_agent_id: e.target.value})}
+                          placeholder="ID agent..."
+                          className="w-full bg-[#111111] border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-[#39FF14]/50 outline-none transition-all font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => setShowIntegrationModal(false)}
+                        className="flex-1 py-3 rounded-xl border border-white/10 text-white/30 text-xs font-mono uppercase tracking-widest hover:border-white/20 transition-all"
+                      >
+                        ANNULER
+                      </button>
+                      <button
+                        onClick={handleCreateIntegration}
+                        disabled={isSaving || !integrationForm.service_name}
+                        className="flex-1 py-3 rounded-xl bg-[#39FF14] text-black text-xs font-black uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                      >
+                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plug className="w-4 h-4" />}
+                        COMMIT_CONNECTOR
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+          </motion.div>
+        );
+
       default:
         return null;
     }

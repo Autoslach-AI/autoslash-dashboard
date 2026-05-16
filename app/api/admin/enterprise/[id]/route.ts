@@ -16,10 +16,6 @@ export async function GET(
     .eq('enterprise_id', params.id)
     .single();
 
-  console.log('enterprise_id searched:', params.id);
-  console.log('enterprise result:', enterprise);
-  console.log('enterprise error:', entError);
-
   const { data: agents } = await supabase
     .from('agents')
     .select('id, name, status, primary_api, neural_load, current_task')
