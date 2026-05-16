@@ -13,7 +13,8 @@ import {
   ArrowLeft,
   X,
   Palette,
-  Database
+  Database,
+  Bell
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,8 +41,9 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
     { id: 'inventory', label: 'Inventory', icon: Zap, path: `/admin/system/${id}/inventory` },
     { id: 'knowledge', label: 'Knowledge', icon: Database, path: `/admin/system/${id}/knowledge` },
     { id: 'agents', label: 'Agents', icon: Cpu, type: 'trigger' },
-    { id: 'branding', label: 'Branding', icon: Palette, path: `/admin/system/${id}/branding` },
-    { id: 'profile', label: 'Profile', icon: User, path: `/admin/system/${id}/profile` },
+    { id: 'branding',       label: 'Branding',       icon: Palette, path: `/admin/system/${id}/branding` },
+    { id: 'notifications',  label: 'Notifications',   icon: Bell,    path: `/admin/system/${id}/notifications` },
+    { id: 'profile',        label: 'Profile',         icon: User,    path: `/admin/system/${id}/profile` },
     { id: 'settings', label: 'Settings', icon: Settings, path: `/admin/system/${id}/settings` },
   ];
 

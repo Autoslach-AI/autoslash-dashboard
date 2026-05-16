@@ -81,8 +81,6 @@ export default function SettingsPage() {
     TOKEN_WARNING:     true
   })
   const [savingAlerts, setSavingAlerts] = useState(false)
-  const [recentAlerts, setRecentAlerts] = useState<any[]>([])
-  const [loadingAlerts, setLoadingAlerts] = useState(false)
   const [confirmAction, setConfirmAction] = useState<string | null>(null)
   const [executingDanger, setExecutingDanger] = useState(false)
 
@@ -119,7 +117,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (activeSection === 'integrations') loadIntegrations()
-    if (activeSection === 'notifications') loadRecentAlerts()
   }, [activeSection, enterprise?.enterprise_id])
 
   const handleSaveGeneral = async () => {
@@ -301,23 +298,6 @@ export default function SettingsPage() {
       setError(err.message)
     } finally {
       setSavingAlerts(false)
-    }
-  }
-
-  const loadRecentAlerts = async () => {
-    if (!enterprise?.enterprise_id) return
-    setLoadingAlerts(true)
-    try {
-      const res = await fetch(
-        `/api/admin/enterprise/alerts?enterprise_id=${enterprise.enterprise_id}`
-      )
-      const { data, error } = await res.json()
-      if (error) throw new Error(error)
-      setRecentAlerts(data ?? [])
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setLoadingAlerts(false)
     }
   }
 
@@ -1009,88 +989,6 @@ export default function SettingsPage() {
                   {savingAlerts ? 'SAVING...' : 'SAVE_ALERT_CONFIG'}
                 </button>
               </div>
-            </div>
-
-            {/* BLOC 3 — Recent Alerts */}
-            <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Bell className="w-4 h-4 text-[#39FF14]" />
-                  <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">
-                    RECENT_ALERTS — 5 DERNIÈRES
-                  </h2>
-                </div>
-                <button
-                  onClick={loadRecentAlerts}
-                  className="text-[9px] font-mono text-white/30 hover:text-[#39FF14] transition-colors uppercase tracking-widest"
-                >
-                  REFRESH
-                </button>
-              </div>
-
-              {loadingAlerts ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-5 h-5 text-[#39FF14] animate-spin" />
-                </div>
-              ) : recentAlerts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-3">
-                  <div className="w-2 h-2 rounded-full bg-[#39FF14] animate-pulse" />
-                  <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest">
-                    Aucune alerte récente — système stable
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentAlerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className="flex items-start gap-4 p-4 bg-black/30 border border-white/5 rounded-2xl hover:border-white/10 transition-all"
-                    >
-                      <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
-                        alert.severity_level === 'CRITICAL' ? 'bg-red-400' :
-                        alert.severity_level === 'HIGH'     ? 'bg-orange-400' :
-                        alert.severity_level === 'MEDIUM'   ? 'bg-yellow-400' :
-                        'bg-white/30'
-                      }`} />
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-[9px] font-black uppercase tracking-widest ${
-                            alert.issue_type === 'AGENT_ERROR'      ? 'text-red-400'    :
-                            alert.issue_type === 'CHURN_RISK'       ? 'text-orange-400' :
-                            alert.issue_type === 'SECURITY'         ? 'text-yellow-400' :
-                            alert.issue_type === 'FEEDBACK_NEGATIF' ? 'text-violet-400' :
-                            alert.issue_type === 'TOKEN_WARNING'    ? 'text-blue-400'   :
-                            'text-white/40'
-                          }`}>
-                            {alert.issue_type}
-                          </span>
-                          {alert.severity_level && (
-                            <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-white/5 text-white/30 uppercase tracking-widest">
-                              {alert.severity_level}
-                            </span>
-                          )}
-                          {alert.is_upsell_opportunity && (
-                            <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-[#39FF14]/10 text-[#39FF14] uppercase tracking-widest border border-[#39FF14]/20">
-                              UPSELL
-                            </span>
-                          )}
-                        </div>
-                        {alert.raw_context && (
-                          <p className="text-[9px] font-mono text-white/30 truncate">
-                            {alert.raw_context}
-                          </p>
-                        )}
-                        <p className="text-[8px] font-mono text-white/20">
-                          {new Date(alert.created_at).toLocaleDateString('fr-FR', {
-                            day: '2-digit', month: '2-digit', year: 'numeric',
-                            hour: '2-digit', minute: '2-digit'
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
           </motion.div>
