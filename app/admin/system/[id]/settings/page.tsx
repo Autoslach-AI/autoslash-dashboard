@@ -28,8 +28,8 @@ const sections = [
   { id: 'general',      label: 'GÉNÉRAL',         icon: Settings,      active: true  },
   { id: 'plan',         label: 'PLAN & CONTRAT',   icon: CreditCard,    active: true  },
   { id: 'integrations', label: 'INTÉGRATIONS',     icon: Plug,          active: true },
-  { id: 'notifications',label: 'NOTIFICATIONS',    icon: Bell,          active: false },
-  { id: 'danger',       label: 'DANGER ZONE',      icon: AlertTriangle, active: false }
+  { id: 'notifications',label: 'NOTIFICATIONS',    icon: Bell,          active: true },
+  { id: 'danger',       label: 'DANGER ZONE',      icon: AlertTriangle, active: true }
 ];
 
 export default function SettingsPage() {
@@ -71,6 +71,21 @@ export default function SettingsPage() {
     config: '{}'
   })
 
+  const [thresholdValue, setThresholdValue] = useState<number>(80)
+  const [savingThreshold, setSavingThreshold] = useState(false)
+  const [alertConfig, setAlertConfig] = useState<Record<string, boolean>>({
+    AGENT_ERROR:       true,
+    CHURN_RISK:        true,
+    SECURITY:          true,
+    FEEDBACK_NEGATIF:  true,
+    TOKEN_WARNING:     true
+  })
+  const [savingAlerts, setSavingAlerts] = useState(false)
+  const [recentAlerts, setRecentAlerts] = useState<any[]>([])
+  const [loadingAlerts, setLoadingAlerts] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<string | null>(null)
+  const [executingDanger, setExecutingDanger] = useState(false)
+
   useEffect(() => {
     if (enterprise) {
       setGeneralForm({
@@ -89,11 +104,22 @@ export default function SettingsPage() {
         is_custom_pricing: enterprise.is_custom_pricing || false,
         custom_notes: enterprise.custom_notes || ''
       });
+      setThresholdValue(enterprise.alert_threshold ?? 80);
+      if (enterprise.notification_config && typeof enterprise.notification_config === 'object') {
+        setAlertConfig({
+          AGENT_ERROR:      enterprise.notification_config.AGENT_ERROR      ?? true,
+          CHURN_RISK:       enterprise.notification_config.CHURN_RISK       ?? true,
+          SECURITY:         enterprise.notification_config.SECURITY         ?? true,
+          FEEDBACK_NEGATIF: enterprise.notification_config.FEEDBACK_NEGATIF ?? true,
+          TOKEN_WARNING:    enterprise.notification_config.TOKEN_WARNING     ?? true
+        })
+      }
     }
   }, [enterprise]);
 
   useEffect(() => {
     if (activeSection === 'integrations') loadIntegrations()
+    if (activeSection === 'notifications') loadRecentAlerts()
   }, [activeSection, enterprise?.enterprise_id])
 
   const handleSaveGeneral = async () => {
@@ -227,6 +253,96 @@ export default function SettingsPage() {
       setIntegrations(prev => prev.filter(i => i.id !== id))
     } catch (err: any) {
       setError(err.message)
+    }
+  }
+
+  const handleSaveThreshold = async () => {
+    setSavingThreshold(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/enterprise/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enterprise_id: enterprise.enterprise_id,
+          alert_threshold: thresholdValue
+        })
+      })
+      const { error: saveError } = await res.json()
+      if (saveError) throw new Error(saveError)
+      await refreshEnterprise()
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSavingThreshold(false)
+    }
+  }
+
+  const handleSaveAlerts = async () => {
+    setSavingAlerts(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/enterprise/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enterprise_id:       enterprise.enterprise_id,
+          notification_config: alertConfig
+        })
+      })
+      const { error: saveError } = await res.json()
+      if (saveError) throw new Error(saveError)
+      await refreshEnterprise()
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSavingAlerts(false)
+    }
+  }
+
+  const loadRecentAlerts = async () => {
+    if (!enterprise?.enterprise_id) return
+    setLoadingAlerts(true)
+    try {
+      const res = await fetch(
+        `/api/admin/enterprise/alerts?enterprise_id=${enterprise.enterprise_id}`
+      )
+      const { data, error } = await res.json()
+      if (error) throw new Error(error)
+      setRecentAlerts(data ?? [])
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoadingAlerts(false)
+    }
+  }
+
+  const handleDangerAction = async (action: string) => {
+    setExecutingDanger(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/enterprise/danger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enterprise_id: enterprise.enterprise_id,
+          action
+        })
+      })
+      const { error: dangerError } = await res.json()
+      if (dangerError) throw new Error(dangerError)
+      await refreshEnterprise()
+      setConfirmAction(null)
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setExecutingDanger(false)
     }
   }
 
@@ -772,6 +888,324 @@ export default function SettingsPage() {
               )}
             </AnimatePresence>
 
+          </motion.div>
+        );
+
+      case 'notifications':
+        return (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-10">
+
+            {/* BLOC 1 — Alert Threshold */}
+            <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 space-y-8">
+              <div className="flex items-center gap-3">
+                <Bell className="w-4 h-4 text-[#39FF14]" />
+                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">ALERT_THRESHOLD_CONFIG</h2>
+              </div>
+
+              <p className="text-[9px] font-mono text-white/30 leading-relaxed">
+                Seuil de consommation tokens à partir duquel Autoslash génère une alerte critique pour cette enterprise.
+              </p>
+
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest">SEUIL_ACTUEL</span>
+                  <span className={`text-2xl font-black font-mono ${
+                    thresholdValue > 90 ? 'text-red-400' :
+                    thresholdValue > 70 ? 'text-orange-400' :
+                    'text-[#39FF14]'
+                  }`}>
+                    {thresholdValue}%
+                  </span>
+                </div>
+
+                <input
+                  type="range"
+                  min={10}
+                  max={100}
+                  step={5}
+                  value={thresholdValue}
+                  onChange={(e) => setThresholdValue(Number(e.target.value))}
+                  className="w-full accent-[#39FF14] cursor-pointer"
+                />
+
+                <div className="flex items-center justify-between text-[8px] font-mono text-white/20">
+                  <span>10% — ALERTE PRÉCOCE</span>
+                  <span>100% — CRITIQUE UNIQUEMENT</span>
+                </div>
+
+                {/* Barre visuelle de prévisualisation */}
+                <div className="space-y-2">
+                  <span className="text-[9px] font-mono text-white/30 uppercase tracking-widest">PREVIEW</span>
+                  <div className="h-2 bg-white/5 rounded-full overflow-hidden relative">
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${thresholdValue}%`,
+                        backgroundColor: thresholdValue > 90 ? '#EF4444' : thresholdValue > 70 ? '#F97316' : '#39FF14'
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <span className="text-[8px] font-mono text-white/20">
+                      Alerte déclenchée à {thresholdValue}% de consommation
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={handleSaveThreshold}
+                  disabled={savingThreshold}
+                  className="flex items-center gap-2 px-8 py-3 rounded-xl bg-[#39FF14] text-black text-xs font-black uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100"
+                >
+                  {savingThreshold ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {savingThreshold ? 'SAVING...' : 'SAVE_THRESHOLD'}
+                </button>
+              </div>
+            </div>
+
+            {/* BLOC 2 — Intelligence Alerts Config */}
+            <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 space-y-8">
+              <div className="flex items-center gap-3">
+                <Bell className="w-4 h-4 text-[#39FF14]" />
+                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">INTELLIGENCE_ALERTS_CONFIG</h2>
+              </div>
+
+              <p className="text-[9px] font-mono text-white/30 leading-relaxed">
+                Activer ou désactiver chaque type d'alerte métier pour cette enterprise. Les alertes désactivées n'apparaîtront plus dans l'Intelligence Hub.
+              </p>
+
+              <div className="space-y-4">
+                {[
+                  { key: 'AGENT_ERROR',      label: 'AGENT_ERROR',      desc: 'Erreurs critiques détectées sur les agents',          color: 'text-red-400'    },
+                  { key: 'CHURN_RISK',       label: 'CHURN_RISK',       desc: 'Signaux de risque de départ détectés',                color: 'text-orange-400' },
+                  { key: 'SECURITY',         label: 'SECURITY',         desc: 'Alertes de sécurité et accès suspects',               color: 'text-yellow-400' },
+                  { key: 'FEEDBACK_NEGATIF', label: 'FEEDBACK_NÉGATIF', desc: 'Retours négatifs capturés par les agents',            color: 'text-violet-400' },
+                  { key: 'TOKEN_WARNING',    label: 'TOKEN_WARNING',    desc: 'Consommation tokens approchant le seuil configuré',   color: 'text-blue-400'   }
+                ].map(({ key, label, desc, color }) => (
+                  <div key={key} className="flex items-center justify-between p-5 bg-black/30 border border-white/5 rounded-2xl hover:border-white/10 transition-all">
+                    <div className="space-y-1">
+                      <div className={`text-xs font-black uppercase tracking-wider ${color}`}>{label}</div>
+                      <div className="text-[9px] font-mono text-white/30">{desc}</div>
+                    </div>
+                    <button
+                      onClick={() => setAlertConfig(prev => ({ ...prev, [key]: !prev[key] }))}
+                      className={`w-12 h-6 rounded-full relative transition-all shrink-0 ml-6 ${alertConfig[key] ? 'bg-[#39FF14]' : 'bg-white/10'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${alertConfig[key] ? 'right-1' : 'left-1'}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={handleSaveAlerts}
+                  disabled={savingAlerts}
+                  className="flex items-center gap-2 px-8 py-3 rounded-xl bg-[#39FF14] text-black text-xs font-black uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100"
+                >
+                  {savingAlerts ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {savingAlerts ? 'SAVING...' : 'SAVE_ALERT_CONFIG'}
+                </button>
+              </div>
+            </div>
+
+            {/* BLOC 3 — Recent Alerts */}
+            <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Bell className="w-4 h-4 text-[#39FF14]" />
+                  <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">
+                    RECENT_ALERTS — 5 DERNIÈRES
+                  </h2>
+                </div>
+                <button
+                  onClick={loadRecentAlerts}
+                  className="text-[9px] font-mono text-white/30 hover:text-[#39FF14] transition-colors uppercase tracking-widest"
+                >
+                  REFRESH
+                </button>
+              </div>
+
+              {loadingAlerts ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-5 h-5 text-[#39FF14] animate-spin" />
+                </div>
+              ) : recentAlerts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="w-2 h-2 rounded-full bg-[#39FF14] animate-pulse" />
+                  <p className="text-[9px] font-mono text-white/20 uppercase tracking-widest">
+                    Aucune alerte récente — système stable
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentAlerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className="flex items-start gap-4 p-4 bg-black/30 border border-white/5 rounded-2xl hover:border-white/10 transition-all"
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
+                        alert.severity_level === 'CRITICAL' ? 'bg-red-400' :
+                        alert.severity_level === 'HIGH'     ? 'bg-orange-400' :
+                        alert.severity_level === 'MEDIUM'   ? 'bg-yellow-400' :
+                        'bg-white/30'
+                      }`} />
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[9px] font-black uppercase tracking-widest ${
+                            alert.issue_type === 'AGENT_ERROR'      ? 'text-red-400'    :
+                            alert.issue_type === 'CHURN_RISK'       ? 'text-orange-400' :
+                            alert.issue_type === 'SECURITY'         ? 'text-yellow-400' :
+                            alert.issue_type === 'FEEDBACK_NEGATIF' ? 'text-violet-400' :
+                            alert.issue_type === 'TOKEN_WARNING'    ? 'text-blue-400'   :
+                            'text-white/40'
+                          }`}>
+                            {alert.issue_type}
+                          </span>
+                          {alert.severity_level && (
+                            <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-white/5 text-white/30 uppercase tracking-widest">
+                              {alert.severity_level}
+                            </span>
+                          )}
+                          {alert.is_upsell_opportunity && (
+                            <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-[#39FF14]/10 text-[#39FF14] uppercase tracking-widest border border-[#39FF14]/20">
+                              UPSELL
+                            </span>
+                          )}
+                        </div>
+                        {alert.raw_context && (
+                          <p className="text-[9px] font-mono text-white/30 truncate">
+                            {alert.raw_context}
+                          </p>
+                        )}
+                        <p className="text-[8px] font-mono text-white/20">
+                          {new Date(alert.created_at).toLocaleDateString('fr-FR', {
+                            day: '2-digit', month: '2-digit', year: 'numeric',
+                            hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </motion.div>
+        );
+
+      case 'danger':
+        return (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+      
+            {/* Header warning */}
+            <div className="flex items-center gap-4 p-5 bg-red-500/5 border border-red-500/20 rounded-2xl">
+              <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+              <div className="space-y-1">
+                <p className="text-xs font-black uppercase tracking-widest text-red-400">ZONE CRITIQUE — AMADOU ONLY</p>
+                <p className="text-[9px] font-mono text-white/30">Ces actions sont irréversibles ou à impact immédiat sur l'infrastructure de l'enterprise.</p>
+              </div>
+            </div>
+      
+            {/* Action 1 — Suspend / Reactivate */}
+            <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-white">
+                    {enterprise.status === 'SUSPENDED' ? 'RÉACTIVER_ENTERPRISE' : 'SUSPENDRE_ENTERPRISE'}
+                  </h3>
+                  <p className="text-[9px] font-mono text-white/30">
+                    {enterprise.status === 'SUSPENDED' 
+                      ? 'Remet l\'enterprise en statut ACTIVE — agents et accès restaurés immédiatement.' 
+                      : 'Passe l\'enterprise en statut SUSPENDED — tous les agents sont désactivés immédiatement.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-6">
+                  <div className={`w-2 h-2 rounded-full ${enterprise.status === 'SUSPENDED' ? 'bg-red-400 animate-pulse' : 'bg-[#39FF14]'}`} />
+                  <span className="text-[9px] font-mono text-white/40 uppercase">{enterprise.status}</span>
+                </div>
+              </div>
+      
+              {confirmAction === 'SUSPEND' || confirmAction === 'REACTIVATE' ? (
+                <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                  <p className="text-[9px] font-mono text-red-400 flex-1">
+                    Confirmer l'action {confirmAction} sur {enterprise.name} ?
+                  </p>
+                  <button 
+                    onClick={() => handleDangerAction(confirmAction)}
+                    disabled={executingDanger}
+                    className="px-4 py-2 rounded-xl bg-red-500 text-white text-[9px] font-black uppercase tracking-widest hover:bg-red-400 transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {executingDanger ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                    CONFIRMER
+                  </button>
+                  <button 
+                    onClick={() => setConfirmAction(null)}
+                    className="px-4 py-2 rounded-xl border border-white/10 text-white/30 text-[9px] font-mono uppercase tracking-widest hover:border-white/20 transition-all"
+                  >
+                    ANNULER
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setConfirmAction(enterprise.status === 'SUSPENDED' ? 'REACTIVATE' : 'SUSPEND')}
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                    enterprise.status === 'SUSPENDED' 
+                      ? 'border-[#39FF14]/20 text-[#39FF14] hover:bg-[#39FF14]/5' 
+                      : 'border-red-500/20 text-red-400 hover:bg-red-500/5'
+                  }`}
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {enterprise.status === 'SUSPENDED' ? 'REACTIVATE_ENTERPRISE' : 'SUSPEND_ENTERPRISE'}
+                </button>
+              )}
+            </div>
+      
+            {/* Action 2 — Reset tokens */}
+            <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-8 space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-xs font-black uppercase tracking-widest text-white">RESET_TOKEN_COUNTER</h3>
+                <p className="text-[9px] font-mono text-white/30">
+                  Remet le compteur `total_tokens_consumed` à zéro pour cette enterprise. Action manuelle de fin de cycle de facturation.
+                </p>
+                <p className="text-[9px] font-mono text-orange-400">
+                  Consommation actuelle : {enterprise.total_tokens_consumed?.toLocaleString() ?? '0'} tokens
+                </p>
+              </div>
+      
+              {confirmAction === 'RESET_TOKENS' ? (
+                <div className="flex items-center gap-3 p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl">
+                  <p className="text-[9px] font-mono text-orange-400 flex-1">
+                    Remettre le compteur à zéro pour {enterprise.name} ?
+                  </p>
+                  <button 
+                    onClick={() => handleDangerAction('RESET_TOKENS')}
+                    disabled={executingDanger}
+                    className="px-4 py-2 rounded-xl bg-orange-500 text-white text-[9px] font-black uppercase tracking-widest hover:bg-orange-400 transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {executingDanger ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                    CONFIRMER
+                  </button>
+                  <button 
+                    onClick={() => setConfirmAction(null)}
+                    className="px-4 py-2 rounded-xl border border-white/10 text-white/30 text-[9px] font-mono uppercase tracking-widest hover:border-white/20 transition-all"
+                  >
+                    ANNULER
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setConfirmAction('RESET_TOKENS')}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-widest hover:bg-orange-500/5 transition-all"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  RESET_TOKEN_COUNTER
+                </button>
+              )}
+            </div>
+      
           </motion.div>
         );
 
