@@ -263,110 +263,95 @@ export default function ProspectsPage() {
       <div className="min-h-screen bg-[#0A0A0A] font-mono">
         <div className="max-w-[1600px] mx-auto px-6 lg:px-10 py-10 space-y-8">
 
-          {/* ── Header ──────────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-[#39FF14]" />
-                <h1 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/90">
-                  PIPELINE_PROSPECTS
-                </h1>
-                <span className="px-2 py-0.5 rounded bg-[#39FF14]/10 border border-[#39FF14]/20 text-[8px] font-black text-[#39FF14]">
-                  {total} TOTAL
+          {/* ── Header ── */}
+          <div className="flex flex-col space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h1 className="text-xl font-bold text-white tracking-tight">Companies</h1>
+                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#39FF14]/10 border border-[#39FF14]/20 text-[10px] font-medium text-[#39FF14]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#39FF14] animate-pulse" />
+                  Active
                 </span>
               </div>
-              <p className="text-[9px] font-mono text-white/20">
-                Tous les prospects depuis la vitrine — scroll infini
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Toggle view */}
-              <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setView('TABLE')}
-                  className={`p-2 rounded-lg transition-all ${view === 'TABLE' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white'}`}
+                  onClick={exportCSV}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 text-white/60 text-[11px] font-medium hover:bg-white/5 transition-all"
                 >
-                  <List className="w-3.5 h-3.5" />
+                  <Download className="w-3.5 h-3.5" />
+                  Export
                 </button>
-                <button
-                  onClick={() => setView('KANBAN')}
-                  className={`p-2 rounded-lg transition-all ${view === 'KANBAN' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white'}`}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
+                <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[11px] font-medium hover:bg-indigo-500 transition-all">
+                  <Zap className="w-3.5 h-3.5" />
+                  + New Company
                 </button>
               </div>
-
-              <button
-                onClick={() => loadProspects(true)}
-                className="p-2 rounded-xl border border-white/10 text-white/30 hover:text-[#39FF14] hover:border-[#39FF14]/20 transition-all"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-
-              <button
-                onClick={exportCSV}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 text-white/40 text-[9px] font-black uppercase tracking-widest hover:border-white/20 hover:text-white transition-all"
-              >
-                <Download className="w-3.5 h-3.5" />
-                EXPORT_CSV
-              </button>
-            </div>
-          </div>
-
-          {/* ── Filtres ─────────────────────────────────────────────────── */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Rechercher nom, email, contact..."
-                className="bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/30 transition-all w-64"
-              />
             </div>
 
-            {/* Filtre plan */}
-            <select
-              value={filterPackage}
-              onChange={e => setFilterPackage(e.target.value)}
-              className="bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-[9px] font-black uppercase text-white/60 focus:outline-none focus:border-[#39FF14]/30 transition-all"
-            >
-              {PACKAGE_TYPES.map(p => (
-                <option key={p} value={p}>{p === 'ALL' ? 'TOUS LES PLANS' : p}</option>
-              ))}
-            </select>
-
-            {/* Filtre statut */}
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-[9px] font-black uppercase text-white/60 focus:outline-none focus:border-[#39FF14]/30 transition-all"
-            >
-              {PROSPECT_STATUTS.map(s => (
-                <option key={s} value={s}>{s === 'ALL' ? 'TOUS LES STATUTS' : s}</option>
-              ))}
-            </select>
-
-            {/* Filtre période */}
-            <div className="flex items-center gap-1 p-1 bg-white/[0.03] border border-white/10 rounded-xl">
-              {PERIODS.map(p => (
+            {/* Tabs */}
+            <div className="flex items-center gap-8 border-b border-white/10 pb-px">
+              {['Companies', 'Deals', 'Forecast'].map((tab) => (
                 <button
-                  key={p.value}
-                  onClick={() => setFilterPeriod(p.value)}
-                  className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
-                    filterPeriod === p.value
-                      ? 'bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20'
-                      : 'text-white/30 hover:text-white'
+                  key={tab}
+                  className={`pb-3 text-xs font-semibold tracking-wide transition-all border-b-2 ${
+                    tab === 'Companies' ? 'text-white border-indigo-500' : 'text-white/40 border-transparent hover:text-white/60'
                   }`}
                 >
-                  {p.label}
+                  {tab}
                 </button>
               ))}
             </div>
+
+            {/* Filters Row */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white/70">
+                  <span className="text-white/30">Sort by:</span>
+                  <span className="font-medium text-white/90">Pipeline Value</span>
+                  <ChevronDown className="w-3 h-3" />
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white/70">
+                  <span className="text-white/30">Filter:</span>
+                  <span className="font-medium text-white/90">All Owners</span>
+                  <ChevronDown className="w-3 h-3" />
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white/70">
+                  <span className="text-white/30">Stage:</span>
+                  <span className="font-medium text-white/90">Any</span>
+                  <ChevronDown className="w-3 h-3" />
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[11px] text-white/70">
+                  <span className="text-white/30">Last Activity:</span>
+                  <span className="font-medium text-white/90">90 Days</span>
+                  <ChevronDown className="w-3 h-3" />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search companies..."
+                    className="bg-white/[0.03] border border-white/10 rounded-lg pl-9 pr-4 py-1.5 text-xs font-medium text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 transition-all w-48"
+                  />
+                </div>
+                {/* View Toggles */}
+                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-lg">
+                  <button onClick={() => setView('TABLE')} className={`p-1 rounded transition-all ${view === 'TABLE' ? 'bg-white/10 text-white' : 'text-white/30'}`}>
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => setView('KANBAN')} className={`p-1 rounded transition-all ${view === 'KANBAN' ? 'bg-white/10 text-white' : 'text-white/30'}`}>
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
+
 
           {/* ── Erreur ──────────────────────────────────────────────────── */}
           <AnimatePresence>
@@ -401,113 +386,126 @@ export default function ProspectsPage() {
           ) : (
             <>
               {view === 'TABLE' && (
-                <div className="overflow-x-auto rounded-2xl border border-white/5">
-                  <table className="w-full text-left border-collapse">
+                <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0B]">
+                  <table className="w-full text-left border-collapse table-auto">
                     <thead>
-                      <tr className="border-b border-white/5 bg-white/[0.02]">
-                        {['', 'NOM / CONTACT', 'PLAN', 'RÉGION', 'BUDGET FCFA', 'STATUT', 'RAPPEL', 'NEXT_ACTION', 'DATE'].map((col) => (
-                          <th key={col} className="px-4 py-4 text-[8px] font-black uppercase tracking-[0.2em] text-white/20">
-                            {col}
+                      <tr className="border-b border-white/5 bg-white/[0.01]">
+                        <th className="px-4 py-4 w-10">
+                          <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-0 cursor-pointer" />
+                        </th>
+                        {[
+                          { label: 'Companies', width: '220px' },
+                          { label: 'Segment & Stage', width: '240px' },
+                          { label: 'Account Owner', width: '180px' },
+                          { label: 'Open Deals', width: '100px' },
+                          { label: 'Pipeline Value', width: '150px' },
+                          { label: 'Win Probability', width: '180px' },
+                          { label: 'Activity Trend', width: '120px' },
+                          { label: 'Last Interaction', width: '160px' }
+                        ].map((col) => (
+                          <th key={col.label} style={{ width: col.width }} className="px-4 py-3 text-[10px] font-semibold text-white/40 tracking-wider">
+                            {col.label}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-white/[0.02]">
                       {prospects.map((p, idx) => {
-                        const heat    = getHeatBadge(p.prospect_score)
-                        const rappelDue = p.rappel_at && new Date(p.rappel_at) <= new Date()
+                        const score = p.prospect_score ?? 0;
+                        const probabilityColor = score > 75 ? 'bg-emerald-500' : score > 40 ? 'bg-amber-500' : 'bg-red-500';
+                        const ownerInitials = p.contact_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'AM';
+
                         return (
                           <motion.tr
                             key={p.enterprise_id}
                             initial={{ opacity: 0, y: 4 }}
                             animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: Math.min(idx * 0.02, 0.5) }}
+                            transition={{ delay: Math.min(idx * 0.01, 0.4) }}
                             onClick={() => setSelected(p)}
-                            className={`group border-b border-white/[0.03] hover:bg-white/[0.03] transition-all cursor-pointer ${
-                              rappelDue ? 'bg-orange-500/5' : ''
-                            }`}
+                            className="group hover:bg-white/[0.02] cursor-pointer transition-colors"
                           >
-                            {/* Heat badge */}
-                            <td className="px-4 py-4 w-16">
-                              <span className={`text-[8px] font-black uppercase ${heat.color}`}>
-                                {heat.label}
-                              </span>
+                            {/* Checkbox */}
+                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                              <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-0 cursor-pointer" />
                             </td>
 
-                            {/* Nom / Contact */}
+                            {/* Company */}
                             <td className="px-4 py-4">
-                              <div className="space-y-0.5">
-                                <div className="text-xs font-black text-white uppercase tracking-wide">
-                                  {p.name}
+                              <div className="flex items-center gap-3">
+                                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center border border-white/10 shrink-0">
+                                  <span className="text-[10px] font-bold text-white/40">{p.name[0]}</span>
                                 </div>
-                                {p.contact_name && (
-                                  <div className="text-[9px] font-mono text-white/40">{p.contact_name}</div>
-                                )}
-                                {p.email && (
-                                  <div className="text-[8px] font-mono text-white/20 truncate max-w-[180px]">{p.email}</div>
-                                )}
+                                <span className="text-[12px] font-bold text-white/90 truncate">{p.name}</span>
                               </div>
                             </td>
 
-                            {/* Plan */}
+                            {/* Segment & Stage */}
                             <td className="px-4 py-4">
-                              <span className={`text-[8px] font-black px-2 py-1 rounded border uppercase tracking-widest ${
-                                PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/30 border-white/10'
-                              }`}>
-                                {p.package_type ?? '—'}
-                              </span>
-                            </td>
-
-                            {/* Région */}
-                            <td className="px-4 py-4">
-                              <div className="space-y-0.5">
-                                <div className="text-[9px] font-mono text-white/60">{p.region ?? '—'}</div>
-                                {p.sector && (
-                                  <div className="text-[8px] font-mono text-white/20">{p.sector}</div>
-                                )}
-                              </div>
-                            </td>
-
-                            {/* Budget */}
-                            <td className="px-4 py-4">
-                              <span className="text-xs font-black font-mono text-white/80">
-                                {p.valeur_estimee_fcfa ? `${p.valeur_estimee_fcfa.toLocaleString()} F` : '—'}
-                              </span>
-                            </td>
-
-                            {/* Statut */}
-                            <td className="px-4 py-4">
-                              <span className={`text-[8px] font-black px-2 py-1 rounded border uppercase tracking-widest ${
-                                STATUS_COLORS[p.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/30 border-white/10'
-                              }`}>
-                                {p.prospect_status ?? 'NEW'}
-                              </span>
-                            </td>
-
-                            {/* Rappel */}
-                            <td className="px-4 py-4">
-                              {p.rappel_at ? (
-                                <span className={`text-[8px] font-mono ${rappelDue ? 'text-orange-400 font-black' : 'text-white/40'}`}>
-                                  {new Date(p.rappel_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                                  {rappelDue && ' ⚡'}
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-tight border ${
+                                  PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/40 border-white/10'
+                                }`}>
+                                  {p.package_type ?? 'New'}
                                 </span>
-                              ) : (
-                                <span className="text-[8px] font-mono text-white/20">—</span>
-                              )}
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-tight border ${
+                                  STATUS_COLORS[p.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/40 border-white/10'
+                                }`}>
+                                  {p.prospect_status ?? 'Lead'}
+                                </span>
+                              </div>
                             </td>
 
-                            {/* Next action */}
-                            <td className="px-4 py-4 max-w-[160px]">
-                              <span className="text-[8px] font-mono text-white/40 truncate block">
-                                {p.next_action ?? '—'}
-                              </span>
-                            </td>
-
-                            {/* Date */}
+                            {/* Account Owner */}
                             <td className="px-4 py-4">
-                              <span className="text-[8px] font-mono text-white/30">
-                                {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-[9px] font-black text-indigo-400 shrink-0 overflow-hidden">
+                                  {ownerInitials}
+                                </div>
+                                <span className="text-[11px] font-medium text-white/60 truncate">{p.contact_name || 'Amadou Penda'}</span>
+                              </div>
+                            </td>
+
+                            {/* Open Deals */}
+                            <td className="px-4 py-4">
+                              <span className="text-[11px] font-bold text-white/80">1</span>
+                            </td>
+
+                            {/* Pipeline Value */}
+                            <td className="px-4 py-4">
+                              <span className="text-[11px] font-bold text-white/90">
+                                {p.valeur_estimee_fcfa ? `$ ${p.valeur_estimee_fcfa.toLocaleString()}` : '$ 0'}
                               </span>
+                            </td>
+
+                            {/* Win Probability */}
+                            <td className="px-4 py-4">
+                              <div className="space-y-1.5 w-full max-w-[120px]">
+                                <div className="flex justify-between items-center text-[9px] font-bold">
+                                  <div className="flex gap-1 h-1.5 w-full bg-white/5 rounded-full overflow-hidden mr-2">
+                                    <div className={`h-full ${probabilityColor}`} style={{ width: `${score}%` }} />
+                                  </div>
+                                  <span className="text-white/60">{score}%</span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Activity Trend */}
+                            <td className="px-4 py-4">
+                              <div className="flex items-end gap-0.5 h-4">
+                                {[3, 5, 2, 8, 4, 6, 9].map((h, i) => (
+                                  <div key={i} className="w-1 bg-[#39FF14]/20 rounded-t-sm" style={{ height: `${h * 1.5}px` }} />
+                                ))}
+                              </div>
+                            </td>
+
+                            {/* Last Interaction */}
+                            <td className="px-4 py-4">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-bold text-white/80">
+                                  {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
+                                <span className="text-[9px] text-white/30 font-medium">Auto-Ingest</span>
+                              </div>
                             </td>
                           </motion.tr>
                         )
@@ -516,6 +514,7 @@ export default function ProspectsPage() {
                   </table>
                 </div>
               )}
+
 
               {view === 'KANBAN' && (
                 <div className="text-[9px] font-mono text-white/20 text-center py-8">
