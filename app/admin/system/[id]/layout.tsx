@@ -5,6 +5,7 @@ import { useParams, usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   User, 
+  Users,
   Settings, 
   Cpu, 
   Shield, 
@@ -39,6 +40,9 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
   const primaryNav: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: `/admin/system/${id}` },
     { id: 'prospects', label: 'Prospect', icon: Users, path: `/admin/system/${id}/prospects` },
+    { id: 'lifecycle', label: 'Lifecycle', icon: Zap, path: `/admin/system/${id}/lifecycle` },
+    { id: 'analytics', label: 'Analytics', icon: Cpu, path: `/admin/system/${id}/analytics` },
+    { id: 'projects', label: 'Projects', icon: LayoutDashboard, path: `/admin/system/${id}/projects` },
     { id: 'inventory', label: 'Inventory', icon: Zap, path: `/admin/system/${id}/inventory` },
     { id: 'knowledge', label: 'Knowledge', icon: Database, path: `/admin/system/${id}/knowledge` },
     { id: 'agents', label: 'Agents', icon: Cpu, type: 'trigger' },
