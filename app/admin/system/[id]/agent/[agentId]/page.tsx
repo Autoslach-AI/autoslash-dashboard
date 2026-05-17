@@ -71,16 +71,37 @@ export default function OracleConfigPage() {
   const [showShadowChat, setShowShadowChat] = useState(false);
   const [showKbModal, setShowKbModal] = useState(false);
   const [editingNode, setEditingNode] = useState<KnowledgeNode | null>(null);
-  const [activeTab, setActiveTab] = useState<'CORE' | 'KNOWLEDGE'>('CORE');
+  const [activeTab, setActiveTab] = useState<'CORE' | 'KNOWLEDGE' | 'PERFORMANCE'>('CORE');
+
+  // Performance states
+  const [perfLogs, setPerfLogs]         = useState<any[]>([])
+  const [loadingPerf, setLoadingPerf]   = useState(false)
+  const [perfError, setPerfError]       = useState<string | null>(null)
+  const [showLogModal, setShowLogModal] = useState(false)
+  const [logForm, setLogForm]           = useState({
+    period_start:     '',
+    period_end:       '',
+    tokens_consumed:  '',
+    tasks_completed:  '',
+    avg_response_time:'',
+    quality_score:    ''
+  })
+  const [savingLog, setSavingLog]       = useState(false)
 
   useEffect(() => {
     const tab = searchParams.get('tab');
     if (tab === 'KNOWLEDGE') {
       setActiveTab('KNOWLEDGE');
+    } else if (tab === 'PERFORMANCE') {
+      setActiveTab('PERFORMANCE');
     } else {
       setActiveTab('CORE');
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (activeTab === 'PERFORMANCE') loadPerfLogs()
+  }, [activeTab, agentId])
   
   const [skillForm, setSkillForm] = useState({ name: '', category: 'GENERAL', content: '' });
   const [kbForm, setKbForm] = useState({ content: '', category: 'GENERAL' });
@@ -270,6 +291,52 @@ export default function OracleConfigPage() {
     setShowKbModal(false);
   };
 
+  const loadPerfLogs = async () => {
+    if (!agentId) return
+    setLoadingPerf(true)
+    setPerfError(null)
+    try {
+      const res = await fetch(`/api/admin/agent/performance?agent_id=${agentId}`)
+      const { data, error } = await res.json()
+      if (error) throw new Error(error)
+      setPerfLogs(data ?? [])
+    } catch (err: any) {
+      setPerfError(err.message)
+    } finally {
+      setLoadingPerf(false)
+    }
+  }
+
+  const handleSaveLog = async () => {
+    setSavingLog(true)
+    setPerfError(null)
+    try {
+      const res = await fetch('/api/admin/agent/performance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id:          agentId,
+          enterprise_id:     id,
+          period_start:      logForm.period_start,
+          period_end:        logForm.period_end,
+          tokens_consumed:   parseInt(logForm.tokens_consumed)   || 0,
+          tasks_completed:   parseInt(logForm.tasks_completed)   || 0,
+          avg_response_time: parseInt(logForm.avg_response_time) || 0,
+          quality_score:     parseInt(logForm.quality_score)     || 0
+        })
+      })
+      const { error: saveError } = await res.json()
+      if (saveError) throw new Error(saveError)
+      setShowLogModal(false)
+      setLogForm({ period_start: '', period_end: '', tokens_consumed: '', tasks_completed: '', avg_response_time: '', quality_score: '' })
+      await loadPerfLogs()
+    } catch (err: any) {
+      setPerfError(err.message)
+    } finally {
+      setSavingLog(false)
+    }
+  }
+
   const handleSync = async () => {
     setIsSyncing(true);
     try {
@@ -368,6 +435,15 @@ export default function OracleConfigPage() {
         >
           Knowledge_Base
           {activeTab === 'KNOWLEDGE' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-500 shadow-[0_0_10px_#a855f7]" />}
+        </button>
+        <button 
+          onClick={() => setActiveTab('PERFORMANCE')}
+          className={`pb-4 text-[10px] font-bold uppercase tracking-[0.3em] transition-all relative ${
+            activeTab === 'PERFORMANCE' ? 'text-white' : 'text-white/20 hover:text-white/40'
+          }`}
+        >
+          Performance
+          {activeTab === 'PERFORMANCE' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-400 shadow-[0_0_10px_#fb923c]" />}
         </button>
         <button 
           onClick={() => router.push(`/admin/system/${id}/agent/${agentId}/skills`)}
@@ -609,7 +685,7 @@ export default function OracleConfigPage() {
                </div>
             </section>
           </motion.div>
-        ) : (
+        ) : activeTab === 'KNOWLEDGE' ? (
           <motion.div
             key="knowledge"
             initial={{ opacity: 0, x: 10 }}
@@ -710,6 +786,90 @@ export default function OracleConfigPage() {
                 </div>
              </section>
           </motion.div>
+        ) : (
+          <motion.div
+            key="performance"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-8"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="w-4 h-4 text-orange-400" />
+                <h2 className="text-[10px] font-black uppercase tracking-[0.3em] font-mono text-white/70">
+                  AGENT_PERFORMANCE_LOGS
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowLogModal(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-400/10 border border-orange-400/20 text-orange-400 text-[9px] font-black uppercase tracking-widest hover:bg-orange-400/15 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                LOG_PERFORMANCE
+              </button>
+            </div>
+
+            {/* Error handling */}
+            {perfError && (
+              <div className="flex items-center gap-3 px-5 py-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <span className="text-xs font-mono text-red-400">{perfError}</span>
+                <button onClick={() => setPerfError(null)} className="ml-auto">
+                  <X className="w-4 h-4 text-red-400/50 hover:text-red-400" />
+                </button>
+              </div>
+            )}
+
+            {/* Content loading state */}
+            {loadingPerf ? (
+              <div className="flex items-center justify-center py-24">
+                <div className="w-5 h-5 border-2 border-orange-400/20 border-t-orange-400 rounded-full animate-spin" />
+              </div>
+            ) : perfLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 border border-dashed border-white/10 rounded-3xl gap-4">
+                <BarChart3 className="w-8 h-8 text-white/10" />
+                <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
+                  Aucun log de performance
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {perfLogs.map((log) => (
+                  <div key={log.id} className="p-5 bg-white/[0.03] border border-white/10 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[8px] font-mono text-white/30 uppercase tracking-widest">
+                        {new Date(log.period_start).toLocaleDateString()} → {new Date(log.period_end).toLocaleDateString()}
+                      </span>
+                      <span className={`text-[8px] font-black px-2 py-0.5 rounded border uppercase ${
+                        log.quality_score >= 80 ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                        log.quality_score >= 50 ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                        'bg-red-500/10 text-red-400 border-red-500/20'
+                      }`}>
+                        QUALITÉ {log.quality_score ?? '—'}/100
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <div className="text-[8px] text-white/20 uppercase tracking-widest">TOKENS</div>
+                        <div className="text-sm font-black text-white font-mono">{log.tokens_consumed?.toLocaleString() ?? '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[8px] text-white/20 uppercase tracking-widest">TÂCHES</div>
+                        <div className="text-sm font-black text-white font-mono">{log.tasks_completed ?? '—'}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[8px] text-white/20 uppercase tracking-widest">TEMPS RÉP.</div>
+                        <div className="text-sm font-black text-white font-mono">{log.avg_response_time ?? '—'}ms</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -772,6 +932,94 @@ export default function OracleConfigPage() {
                    </button>
                 </div>
              </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* PERFORMANCE LOG MODAL */}
+      <AnimatePresence>
+        {showLogModal && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm shadow-2xl">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-[#0A0A0A] border border-white/10 rounded-3xl p-10 w-full max-w-lg space-y-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-orange-400">LOG_PERFORMANCE</h3>
+                <button onClick={() => setShowLogModal(false)}>
+                  <X className="w-4 h-4 text-white/30 hover:text-white" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">PERIOD_START</label>
+                  <input type="datetime-local" value={logForm.period_start}
+                    onChange={e => setLogForm({...logForm, period_start: e.target.value})}
+                    className="w-full bg-[#111111] border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono text-white focus:border-orange-400/50 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">PERIOD_END</label>
+                  <input type="datetime-local" value={logForm.period_end}
+                    onChange={e => setLogForm({...logForm, period_end: e.target.value})}
+                    className="w-full bg-[#111111] border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono text-white focus:border-orange-400/50 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">TOKENS_CONSUMED</label>
+                  <input type="number" value={logForm.tokens_consumed}
+                    onChange={e => setLogForm({...logForm, tokens_consumed: e.target.value})}
+                    placeholder="0"
+                    className="w-full bg-[#111111] border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono text-white focus:border-orange-400/50 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">TASKS_COMPLETED</label>
+                  <input type="number" value={logForm.tasks_completed}
+                    onChange={e => setLogForm({...logForm, tasks_completed: e.target.value})}
+                    placeholder="0"
+                    className="w-full bg-[#111111] border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono text-white focus:border-orange-400/50 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">AVG_RESPONSE_TIME (ms)</label>
+                  <input type="number" value={logForm.avg_response_time}
+                    onChange={e => setLogForm({...logForm, avg_response_time: e.target.value})}
+                    placeholder="0"
+                    className="w-full bg-[#111111] border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono text-white focus:border-orange-400/50 outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase tracking-widest text-white/40 mb-2 font-bold">QUALITY_SCORE (0-100)</label>
+                  <input type="number" min="0" max="100" value={logForm.quality_score}
+                    onChange={e => setLogForm({...logForm, quality_score: e.target.value})}
+                    placeholder="0"
+                    className="w-full bg-[#111111] border border-white/10 rounded-xl px-3 py-2.5 text-xs font-mono text-white focus:border-orange-400/50 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowLogModal(false)}
+                  className="flex-1 py-3 rounded-xl border border-white/10 text-white/30 text-xs font-mono uppercase tracking-widest hover:border-white/20 transition-all font-bold"
+                >
+                  ANNULER
+                </button>
+                <button
+                  onClick={handleSaveLog}
+                  disabled={savingLog || !logForm.period_start || !logForm.period_end}
+                  className="flex-1 py-3 rounded-xl bg-orange-400 text-black text-xs font-black uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2"
+                >
+                  {savingLog ? <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" /> : <BarChart3 className="w-4 h-4" />}
+                  {savingLog ? 'SAVING...' : 'COMMIT_LOG'}
+                </button>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
