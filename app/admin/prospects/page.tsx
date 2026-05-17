@@ -277,10 +277,6 @@ export default function ProspectsPage() {
                     {total} ENTITÉS DÉTECTÉES — SYNC_OFF_CHAIN
                   </p>
                 </div>
-                <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#39FF14]/10 border border-[#39FF14]/20 text-[10px] font-medium text-[#39FF14]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#39FF14] animate-pulse" />
-                  LIVE_FEED
-                </span>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -296,25 +292,7 @@ export default function ProspectsPage() {
                   <Download className="w-3.5 h-3.5" />
                   EXPORT_CSV
                 </button>
-                <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#39FF14] text-black text-[11px] font-black uppercase hover:bg-[#32e612] transition-all">
-                  <Zap className="w-3.5 h-3.5" />
-                  NOUVEAU_PROSPECT
-                </button>
               </div>
-            </div>
-
-            {/* Tabs Design */}
-            <div className="flex items-center gap-8 border-b border-white/10 pb-px">
-              {['TOUS_LES_PROSPECTS', 'CONTACTS_ACTIFS', 'CONVERTIS'].map((tab) => (
-                <button
-                  key={tab}
-                  className={`pb-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${
-                    tab === 'TOUS_LES_PROSPECTS' ? 'text-[#39FF14] border-[#39FF14]' : 'text-white/40 border-transparent hover:text-white/60'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
             </div>
 
             {/* Filters Row - Restoring Logic */}
