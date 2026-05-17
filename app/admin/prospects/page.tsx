@@ -114,6 +114,7 @@ export default function ProspectsPage() {
     valeur_estimee_fcfa: '',
     source_contact:      ''
   })
+  const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
 
   // ── Load ─────────────────────────────────────────────────────────────────
   const loadProspects = useCallback(async (reset = false) => {
@@ -494,13 +495,69 @@ export default function ProspectsPage() {
                               </span>
                             </td>
 
-                            {/* Statut */}
-                            <td className="px-4 py-4">
-                              <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border ${
-                                STATUS_COLORS[p.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/40 border-white/10'
-                              }`}>
+                            {/* Statut — dropdown inline */}
+                            <td className="px-4 py-4 relative" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => setEditingStatusId(
+                                  editingStatusId === p.enterprise_id ? null : p.enterprise_id
+                                )}
+                                className={`flex items-center gap-1.5 px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border transition-all hover:opacity-80 ${
+                                  STATUS_COLORS[p.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/40 border-white/10'
+                                }`}
+                              >
                                 {p.prospect_status ?? 'NEW'}
-                              </span>
+                                <ChevronDown className="w-2.5 h-2.5 shrink-0" />
+                              </button>
+
+                              <AnimatePresence>
+                                {editingStatusId === p.enterprise_id && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: -4 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -4 }}
+                                    className="absolute top-full left-0 mt-1 z-[50] bg-[#111111] border border-white/10 rounded-xl overflow-hidden shadow-2xl min-w-[160px]"
+                                  >
+                                    {['NEW', 'EN_CONTACT', 'NÉGOCIATION', 'EN_ATTENTE', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ'].map(s => (
+                                      <button
+                                        key={s}
+                                        onClick={async () => {
+                                          setEditingStatusId(null)
+                                          try {
+                                            const res = await fetch('/api/admin/prospects', {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({
+                                                enterprise_id:   p.enterprise_id,
+                                                prospect_status: s
+                                              })
+                                            })
+                                            const { data, error: saveError } = await res.json()
+                                            if (saveError) throw new Error(saveError)
+                                            setProspects(prev => prev.map(pr =>
+                                              pr.enterprise_id === p.enterprise_id
+                                                ? { ...pr, prospect_status: s }
+                                                : pr
+                                            ))
+                                            if (selected?.enterprise_id === p.enterprise_id) {
+                                              setSelected(prev => prev ? { ...prev, prospect_status: s } : null)
+                                            }
+                                          } catch (err: any) {
+                                            setError(err.message)
+                                          }
+                                        }}
+                                        className={`w-full flex items-center px-4 py-2.5 text-[8px] font-black uppercase tracking-widest transition-all hover:bg-white/5 ${
+                                          p.prospect_status === s ? STATUS_COLORS[s] : 'text-white/40'
+                                        }`}
+                                      >
+                                        {p.prospect_status === s && (
+                                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 shrink-0" />
+                                        )}
+                                        {s}
+                                      </button>
+                                    ))}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </td>
 
                             {/* Région */}
