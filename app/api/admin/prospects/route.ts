@@ -88,3 +88,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
+
+export async function POST(req: Request) {
+  return PATCH(req)
+}

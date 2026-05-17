@@ -104,6 +104,16 @@ export default function ProspectsPage() {
 
   // ── Selected prospect (side panel) ───────────────────────────────────────
   const [selected, setSelected] = useState<Prospect | null>(null)
+  const [savingAction, setSavingAction]     = useState(false)
+  const [panelForm, setPanelForm]           = useState({
+    prospect_status:     '',
+    rappel_at:           '',
+    internal_notes:      '',
+    verbatim:            '',
+    next_action:         '',
+    valeur_estimee_fcfa: '',
+    source_contact:      ''
+  })
 
   // ── Load ─────────────────────────────────────────────────────────────────
   const loadProspects = useCallback(async (reset = false) => {
@@ -165,6 +175,22 @@ export default function ProspectsPage() {
     return () => observer.disconnect()
   }, [hasMore, loadingMore, loading, loadProspects])
 
+  useEffect(() => {
+    if (selected) {
+      setPanelForm({
+        prospect_status:     selected.prospect_status     ?? 'NEW',
+        rappel_at:           selected.rappel_at
+                               ? new Date(selected.rappel_at).toISOString().slice(0, 16)
+                               : '',
+        internal_notes:      selected.internal_notes      ?? '',
+        verbatim:            selected.verbatim             ?? '',
+        next_action:         selected.next_action          ?? '',
+        valeur_estimee_fcfa: selected.valeur_estimee_fcfa?.toString() ?? '',
+        source_contact:      selected.source_contact       ?? ''
+      })
+    }
+  }, [selected])
+
   // ── Export CSV ────────────────────────────────────────────────────────────
   const exportCSV = () => {
     const headers = ['NOM', 'CONTACT', 'EMAIL', 'TÉLÉPHONE', 'RÉGION', 'SECTEUR', 'PLAN', 'STATUT', 'BUDGET_FCFA', 'RAPPEL', 'NEXT_ACTION', 'DATE']
@@ -182,6 +208,38 @@ export default function ProspectsPage() {
     link.href = url
     link.setAttribute('download', `prospects_${new Date().toISOString().split('T')[0]}.csv`);
     link.click()
+  }
+
+  const handleSavePanel = async (fields: Partial<typeof panelForm>) => {
+    if (!selected) return
+    setSavingAction(true)
+    try {
+      const payload: any = { enterprise_id: selected.enterprise_id }
+      if (fields.prospect_status !== undefined)     payload.prospect_status     = fields.prospect_status
+      if (fields.rappel_at !== undefined)           payload.rappel_at           = fields.rappel_at || null
+      if (fields.internal_notes !== undefined)      payload.internal_notes      = fields.internal_notes
+      if (fields.verbatim !== undefined)            payload.verbatim            = fields.verbatim
+      if (fields.next_action !== undefined)         payload.next_action         = fields.next_action
+      if (fields.source_contact !== undefined)      payload.source_contact      = fields.source_contact
+      if (fields.valeur_estimee_fcfa !== undefined) payload.valeur_estimee_fcfa = parseInt(fields.valeur_estimee_fcfa) || 0
+
+      const res = await fetch('/api/admin/prospects', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload)
+      })
+      const { data, error: saveError } = await res.json()
+      if (saveError) throw new Error(saveError)
+
+      setProspects(prev => prev.map(p =>
+        p.enterprise_id === selected.enterprise_id ? { ...p, ...data } : p
+      ))
+      setSelected(prev => prev ? { ...prev, ...data } : null)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSavingAction(false)
+    }
   }
 
   // ── Nav ──────────────────────────────────────────────────────────────────
@@ -342,10 +400,128 @@ export default function ProspectsPage() {
             </div>
           ) : (
             <>
-              {/* Placeholder — TABLE sera Étape 3 */}
-              <div className="text-[9px] font-mono text-white/20 text-center py-8">
-                {prospects.length} prospects chargés — TABLE et KANBAN arrivent à l'étape suivante
-              </div>
+              {view === 'TABLE' && (
+                <div className="overflow-x-auto rounded-2xl border border-white/5">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-white/5 bg-white/[0.02]">
+                        {['', 'NOM / CONTACT', 'PLAN', 'RÉGION', 'BUDGET FCFA', 'STATUT', 'RAPPEL', 'NEXT_ACTION', 'DATE'].map((col) => (
+                          <th key={col} className="px-4 py-4 text-[8px] font-black uppercase tracking-[0.2em] text-white/20">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {prospects.map((p, idx) => {
+                        const heat    = getHeatBadge(p.prospect_score)
+                        const rappelDue = p.rappel_at && new Date(p.rappel_at) <= new Date()
+                        return (
+                          <motion.tr
+                            key={p.enterprise_id}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: Math.min(idx * 0.02, 0.5) }}
+                            onClick={() => setSelected(p)}
+                            className={`group border-b border-white/[0.03] hover:bg-white/[0.03] transition-all cursor-pointer ${
+                              rappelDue ? 'bg-orange-500/5' : ''
+                            }`}
+                          >
+                            {/* Heat badge */}
+                            <td className="px-4 py-4 w-16">
+                              <span className={`text-[8px] font-black uppercase ${heat.color}`}>
+                                {heat.label}
+                              </span>
+                            </td>
+
+                            {/* Nom / Contact */}
+                            <td className="px-4 py-4">
+                              <div className="space-y-0.5">
+                                <div className="text-xs font-black text-white uppercase tracking-wide">
+                                  {p.name}
+                                </div>
+                                {p.contact_name && (
+                                  <div className="text-[9px] font-mono text-white/40">{p.contact_name}</div>
+                                )}
+                                {p.email && (
+                                  <div className="text-[8px] font-mono text-white/20 truncate max-w-[180px]">{p.email}</div>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Plan */}
+                            <td className="px-4 py-4">
+                              <span className={`text-[8px] font-black px-2 py-1 rounded border uppercase tracking-widest ${
+                                PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/30 border-white/10'
+                              }`}>
+                                {p.package_type ?? '—'}
+                              </span>
+                            </td>
+
+                            {/* Région */}
+                            <td className="px-4 py-4">
+                              <div className="space-y-0.5">
+                                <div className="text-[9px] font-mono text-white/60">{p.region ?? '—'}</div>
+                                {p.sector && (
+                                  <div className="text-[8px] font-mono text-white/20">{p.sector}</div>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Budget */}
+                            <td className="px-4 py-4">
+                              <span className="text-xs font-black font-mono text-white/80">
+                                {p.valeur_estimee_fcfa ? `${p.valeur_estimee_fcfa.toLocaleString()} F` : '—'}
+                              </span>
+                            </td>
+
+                            {/* Statut */}
+                            <td className="px-4 py-4">
+                              <span className={`text-[8px] font-black px-2 py-1 rounded border uppercase tracking-widest ${
+                                STATUS_COLORS[p.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/30 border-white/10'
+                              }`}>
+                                {p.prospect_status ?? 'NEW'}
+                              </span>
+                            </td>
+
+                            {/* Rappel */}
+                            <td className="px-4 py-4">
+                              {p.rappel_at ? (
+                                <span className={`text-[8px] font-mono ${rappelDue ? 'text-orange-400 font-black' : 'text-white/40'}`}>
+                                  {new Date(p.rappel_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                  {rappelDue && ' ⚡'}
+                                </span>
+                              ) : (
+                                <span className="text-[8px] font-mono text-white/20">—</span>
+                              )}
+                            </td>
+
+                            {/* Next action */}
+                            <td className="px-4 py-4 max-w-[160px]">
+                              <span className="text-[8px] font-mono text-white/40 truncate block">
+                                {p.next_action ?? '—'}
+                              </span>
+                            </td>
+
+                            {/* Date */}
+                            <td className="px-4 py-4">
+                              <span className="text-[8px] font-mono text-white/30">
+                                {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                              </span>
+                            </td>
+                          </motion.tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {view === 'KANBAN' && (
+                <div className="text-[9px] font-mono text-white/20 text-center py-8">
+                  KANBAN — Étape suivante
+                </div>
+              )}
 
               {/* Sentinel scroll infini */}
               <div ref={sentinelRef} className="h-4" />
@@ -359,6 +535,261 @@ export default function ProspectsPage() {
 
         </div>
       </div>
+
+      {/* ── Side Panel ────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {selected && (
+          <>
+            {/* Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelected(null)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100]"
+            />
+
+            {/* Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed inset-y-0 right-0 w-full max-w-[520px] bg-[#0A0A0A] border-l border-white/10 z-[101] flex flex-col font-mono overflow-hidden"
+            >
+              {/* Panel Header */}
+              <div className="flex items-center justify-between px-8 py-6 border-b border-white/5">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-black uppercase tracking-widest text-white">
+                    {selected.name}
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[7px] font-black px-2 py-0.5 rounded border uppercase ${
+                      PACKAGE_COLORS[selected.package_type ?? ''] ?? 'bg-white/5 text-white/30 border-white/10'
+                    }`}>
+                      {selected.package_type ?? '—'}
+                    </span>
+                    <span className={`text-[7px] font-black px-2 py-0.5 rounded border uppercase ${
+                      STATUS_COLORS[selected.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/30 border-white/10'
+                    }`}>
+                      {selected.prospect_status ?? 'NEW'}
+                    </span>
+                    <span className={`text-[7px] font-black uppercase ${getHeatBadge(selected.prospect_score).color}`}>
+                      {getHeatBadge(selected.prospect_score).label}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelected(null)}
+                  className="p-2 rounded-xl border border-white/10 text-white/30 hover:text-white hover:border-white/20 transition-all"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Panel Content — scrollable */}
+              <div className="flex-1 overflow-y-auto px-8 py-6 space-y-8 no-scrollbar">
+
+                {/* Infos formulaire */}
+                <div className="space-y-3">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">INFOS_FORMULAIRE</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: 'CONTACT',   value: selected.contact_name },
+                      { label: 'EMAIL',     value: selected.email        },
+                      { label: 'TÉLÉPHONE', value: selected.phone        },
+                      { label: 'RÉGION',    value: selected.region       },
+                      { label: 'SECTEUR',   value: selected.sector       },
+                      { label: 'DATE',      value: new Date(selected.created_at).toLocaleDateString('fr-FR') }
+                    ].map(({ label, value }) => (
+                      <div key={label} className="space-y-1">
+                        <div className="text-[7px] font-black uppercase tracking-widest text-white/20">{label}</div>
+                        <div className="text-[10px] font-mono text-white/70">{value ?? '—'}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Message complet */}
+                {selected.message && (
+                  <div className="space-y-2">
+                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">MESSAGE_ORIGINAL</h3>
+                    <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
+                      <p className="text-[10px] font-mono text-white/60 leading-relaxed whitespace-pre-wrap">
+                        {selected.message}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Template info */}
+                {selected.assets_urls?.meta?.slogan && (
+                  <div className="space-y-2">
+                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">TEMPLATE_DEMANDÉ</h3>
+                    <div className="text-[10px] font-mono text-white/60">
+                      {selected.template_id ?? '—'} · {selected.monthly_cost ? `${selected.monthly_cost.toLocaleString()} FCFA/mois` : '—'}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions statut rapides */}
+                <div className="space-y-3">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">CHANGER_STATUT</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {['NEW', 'EN_CONTACT', 'NÉGOCIATION', 'EN_ATTENTE', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ'].map(s => (
+                      <button
+                        key={s}
+                        onClick={() => {
+                          setPanelForm(f => ({ ...f, prospect_status: s }))
+                          handleSavePanel({ prospect_status: s })
+                        }}
+                        disabled={savingAction}
+                        className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
+                          (panelForm.prospect_status || selected.prospect_status) === s
+                            ? STATUS_COLORS[s]
+                            : 'border-white/5 text-white/20 hover:border-white/20 hover:text-white/60'
+                        } disabled:opacity-50`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date rappel */}
+                <div className="space-y-2">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">DATE_RAPPEL</h3>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="datetime-local"
+                      value={panelForm.rappel_at}
+                      onChange={e => setPanelForm(f => ({ ...f, rappel_at: e.target.value }))}
+                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                    />
+                    <button
+                      onClick={() => handleSavePanel({ rappel_at: panelForm.rappel_at })}
+                      disabled={savingAction}
+                      className="px-4 py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
+                    >
+                      {savingAction ? '...' : 'OK'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Valeur estimée */}
+                <div className="space-y-2">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">VALEUR_ESTIMÉE_FCFA</h3>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      value={panelForm.valeur_estimee_fcfa}
+                      onChange={e => setPanelForm(f => ({ ...f, valeur_estimee_fcfa: e.target.value }))}
+                      placeholder="0"
+                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                    />
+                    <button
+                      onClick={() => handleSavePanel({ valeur_estimee_fcfa: panelForm.valeur_estimee_fcfa })}
+                      disabled={savingAction}
+                      className="px-4 py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
+                    >
+                      {savingAction ? '...' : 'OK'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Next action */}
+                <div className="space-y-2">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">NEXT_ACTION</h3>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      value={panelForm.next_action}
+                      onChange={e => setPanelForm(f => ({ ...f, next_action: e.target.value }))}
+                      placeholder="Ex: Envoyer devis, Rappeler lundi..."
+                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                    />
+                    <button
+                      onClick={() => handleSavePanel({ next_action: panelForm.next_action })}
+                      disabled={savingAction}
+                      className="px-4 py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
+                    >
+                      {savingAction ? '...' : 'OK'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Source contact */}
+                <div className="space-y-2">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">SOURCE_CONTACT</h3>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      value={panelForm.source_contact}
+                      onChange={e => setPanelForm(f => ({ ...f, source_contact: e.target.value }))}
+                      placeholder="Ex: Formulaire vitrine, LinkedIn, Recommandation..."
+                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                    />
+                    <button
+                      onClick={() => handleSavePanel({ source_contact: panelForm.source_contact })}
+                      disabled={savingAction}
+                      className="px-4 py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
+                    >
+                      {savingAction ? '...' : 'OK'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Verbatim prospect */}
+                <div className="space-y-2">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">VERBATIM_PROSPECT</h3>
+                  <textarea
+                    value={panelForm.verbatim}
+                    onChange={e => setPanelForm(f => ({ ...f, verbatim: e.target.value }))}
+                    placeholder="Ce que le prospect a dit exactement..."
+                    rows={3}
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all resize-none"
+                  />
+                  <button
+                    onClick={() => handleSavePanel({ verbatim: panelForm.verbatim })}
+                    disabled={savingAction}
+                    className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[8px] font-black uppercase tracking-widest hover:border-white/20 hover:text-white transition-all disabled:opacity-50"
+                  >
+                    {savingAction ? 'SAVING...' : 'SAVE_VERBATIM'}
+                  </button>
+                </div>
+
+                {/* Note interne */}
+                <div className="space-y-2">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">NOTE_INTERNE_AMADOU</h3>
+                  <textarea
+                    value={panelForm.internal_notes}
+                    onChange={e => setPanelForm(f => ({ ...f, internal_notes: e.target.value }))}
+                    placeholder="Mes observations personnelles sur ce prospect..."
+                    rows={4}
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all resize-none"
+                  />
+                  <button
+                    onClick={() => handleSavePanel({ internal_notes: panelForm.internal_notes })}
+                    disabled={savingAction}
+                    className="w-full py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
+                  >
+                    {savingAction ? 'SAVING...' : 'SAVE_NOTE_INTERNE'}
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Panel Footer */}
+              <div className="px-8 py-4 border-t border-white/5">
+                <p className="text-[7px] font-mono text-white/20 text-center uppercase tracking-widest">
+                  CONVERTI ≠ ACTIF — Activation depuis Dashboard 2 → Profile
+                </p>
+              </div>
+
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </DoubleRibbonIntelligent>
   )
 }
