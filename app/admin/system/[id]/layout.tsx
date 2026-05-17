@@ -38,7 +38,7 @@ function SystemLayoutInner({ children, clientData, id }: { children: React.React
 
   const primaryNav: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: `/admin/system/${id}` },
-    { id: 'prospects', label: 'Prospects', icon: User, path: `/admin/system/${id}/prospects` },
+    { id: 'prospects', label: 'Prospect', icon: Users, path: `/admin/system/${id}/prospects` },
     { id: 'inventory', label: 'Inventory', icon: Zap, path: `/admin/system/${id}/inventory` },
     { id: 'knowledge', label: 'Knowledge', icon: Database, path: `/admin/system/${id}/knowledge` },
     { id: 'agents', label: 'Agents', icon: Cpu, type: 'trigger' },

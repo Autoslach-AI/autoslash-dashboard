@@ -168,6 +168,12 @@ export default function ClientIsolatedSystemPage() {
         <div className="flex items-center gap-6">
           <nav className="flex items-center bg-[#111] p-1 rounded-lg border border-white/5">
             <button className="px-5 py-1.5 bg-[#1a1a1a] text-white rounded-md text-[9px] font-black uppercase tracking-widest shadow-lg">Neural Hub</button>
+            <button 
+              onClick={() => router.push(`/admin/system/${id}/prospects`)}
+              className="px-5 py-1.5 text-white/20 hover:text-white/50 text-[9px] font-black uppercase tracking-widest transition-all"
+            >
+              Prospect
+            </button>
             <button className="px-5 py-1.5 text-white/20 hover:text-white/50 text-[9px] font-black uppercase tracking-widest transition-all">Telemetry</button>
             <button className="px-5 py-1.5 text-white/20 hover:text-white/50 text-[9px] font-black uppercase tracking-widest transition-all">Security</button>
           </nav>
