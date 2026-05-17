@@ -430,19 +430,20 @@ export default function ProspectsPage() {
                     <thead>
                       <tr className="border-b border-white/5 bg-white/[0.01]">
                         <th className="px-4 py-4 w-10">
-                          <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-indigo-500 focus:ring-0 cursor-pointer" />
+                          <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-[#39FF14] focus:ring-0 cursor-pointer" />
                         </th>
                         {[
-                          { label: 'Companies', width: '220px' },
-                          { label: 'Segment & Stage', width: '240px' },
-                          { label: 'Account Owner', width: '180px' },
-                          { label: 'Open Deals', width: '100px' },
-                          { label: 'Pipeline Value', width: '150px' },
-                          { label: 'Win Probability', width: '180px' },
-                          { label: 'Activity Trend', width: '120px' },
-                          { label: 'Last Interaction', width: '160px' }
+                          { label: 'NOM / CONTACT',  width: '220px' },
+                          { label: 'PLAN',           width: '140px' },
+                          { label: 'STATUT',         width: '140px' },
+                          { label: 'RÉGION',         width: '140px' },
+                          { label: 'CHALEUR',        width: '80px'  },
+                          { label: 'BUDGET FCFA',    width: '140px' },
+                          { label: 'RAPPEL',         width: '140px' },
+                          { label: 'NEXT_ACTION',    width: '160px' },
+                          { label: 'DATE',           width: '100px' }
                         ].map((col) => (
-                          <th key={col.label} style={{ width: col.width }} className="px-4 py-3 text-[10px] font-semibold text-white/40 tracking-wider">
+                          <th key={col.label} style={{ width: col.width }} className="px-4 py-3 text-[9px] font-black text-white/30 tracking-[0.2em] uppercase">
                             {col.label}
                           </th>
                         ))}
@@ -450,11 +451,8 @@ export default function ProspectsPage() {
                     </thead>
                     <tbody className="divide-y divide-white/[0.02]">
                       {prospects.map((p, idx) => {
-                        const score = p.prospect_score ?? 0;
-                        const probabilityColor = score > 75 ? 'bg-[#39FF14]' : score > 40 ? 'bg-amber-400' : 'bg-red-500';
-                        const ownerInitials = p.contact_name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'AM';
-                        const rappelDue = p.rappel_at && new Date(p.rappel_at) <= new Date();
-
+                        const heat      = getHeatBadge(p.prospect_score)
+                        const rappelDue = p.rappel_at && new Date(p.rappel_at) <= new Date()
                         return (
                           <motion.tr
                             key={p.enterprise_id}
@@ -469,95 +467,90 @@ export default function ProspectsPage() {
                               <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-[#39FF14] focus:ring-0 cursor-pointer" />
                             </td>
 
-                            {/* Company */}
+                            {/* Nom / Contact */}
                             <td className="px-4 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center border border-white/10 shrink-0">
+                                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
                                   <span className="text-[10px] font-black text-white/40">{p.name[0].toUpperCase()}</span>
                                 </div>
                                 <div className="flex flex-col">
                                   <span className="text-[11px] font-black text-white uppercase tracking-wider truncate max-w-[150px]">{p.name}</span>
-                                  <span className="text-[9px] font-mono text-white/20 truncate max-w-[150px]">{p.region || 'REGION_INCONNUE'}</span>
+                                  {p.contact_name && (
+                                    <span className="text-[9px] font-mono text-white/40 truncate max-w-[150px]">{p.contact_name}</span>
+                                  )}
+                                  {p.email && (
+                                    <span className="text-[8px] font-mono text-white/20 truncate max-w-[150px]">{p.email}</span>
+                                  )}
                                 </div>
                               </div>
                             </td>
 
-                            {/* Segment & Stage */}
+                            {/* Plan */}
                             <td className="px-4 py-4">
-                              <div className="flex items-center gap-2">
-                                <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                                  PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/40 border-white/10'
-                                }`}>
-                                  {p.package_type || 'PLAN_NON_DÉFINI'}
-                                </span>
-                                <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border ${
-                                  STATUS_COLORS[p.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/40 border-white/10'
-                                }`}>
-                                  {p.prospect_status || 'NEW'}
-                                </span>
-                              </div>
-                            </td>
-
-                            {/* Account Owner */}
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-6 h-6 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-black text-white/40 shrink-0 overflow-hidden">
-                                  {ownerInitials}
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[10px] font-bold text-white/70 truncate max-w-[120px]">{p.contact_name || 'AMADOU_PENDA'}</span>
-                                  <span className="text-[8px] font-mono text-white/20 truncate max-w-[120px]">{p.email || 'NO_EMAIL'}</span>
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* Open Deals / Heat */}
-                            <td className="px-4 py-4">
-                              <span className={`text-[10px] font-black uppercase ${getHeatBadge(p.prospect_score).color}`}>
-                                {getHeatBadge(p.prospect_score).label}
+                              <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border ${
+                                PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/40 border-white/10'
+                              }`}>
+                                {p.package_type ?? '—'}
                               </span>
                             </td>
 
-                            {/* Pipeline Value */}
+                            {/* Statut */}
                             <td className="px-4 py-4">
-                              <span className="text-[11px] font-black font-mono text-[#39FF14]/90">
-                                {p.valeur_estimee_fcfa ? `${p.valeur_estimee_fcfa.toLocaleString()} F` : '0 F'}
+                              <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border ${
+                                STATUS_COLORS[p.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/40 border-white/10'
+                              }`}>
+                                {p.prospect_status ?? 'NEW'}
                               </span>
                             </td>
 
-                            {/* Win Probability / Score */}
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-3 w-full max-w-[120px]">
-                                <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
-                                  <motion.div 
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${score}%` }}
-                                    className={`h-full ${probabilityColor}`} 
-                                  />
-                                </div>
-                                <span className="text-[9px] font-black font-mono text-white/40">{score}%</span>
-                              </div>
-                            </td>
-
-                            {/* Activity Trend */}
-                            <td className="px-4 py-4">
-                              <div className="flex items-end gap-0.5 h-4">
-                                {[3, 5, 2, 8, 4, 6, 9].map((h, i) => (
-                                  <div key={i} className="w-1 bg-[#39FF14]/20 rounded-t-sm" style={{ height: `${h * 1.5}px` }} />
-                                ))}
-                              </div>
-                            </td>
-
-                            {/* Last Interaction */}
+                            {/* Région */}
                             <td className="px-4 py-4">
                               <div className="flex flex-col">
-                                <span className={`text-[10px] font-black ${rappelDue ? 'text-orange-400' : 'text-white/80'}`}>
-                                  {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
-                                </span>
-                                <span className="text-[8px] text-white/20 font-black uppercase tracking-tighter">
-                                  {p.next_action ? p.next_action.slice(0, 15) + '...' : 'AUTO_INGEST'}
-                                </span>
+                                <span className="text-[9px] font-mono text-white/60">{p.region ?? '—'}</span>
+                                {p.sector && (
+                                  <span className="text-[8px] font-mono text-white/20">{p.sector}</span>
+                                )}
                               </div>
+                            </td>
+
+                            {/* Chaleur */}
+                            <td className="px-4 py-4">
+                              <span className={`text-[8px] font-black uppercase ${heat.color}`}>
+                                {heat.label}
+                              </span>
+                            </td>
+
+                            {/* Budget */}
+                            <td className="px-4 py-4">
+                              <span className="text-[11px] font-black font-mono text-[#39FF14]/90">
+                                {p.valeur_estimee_fcfa ? `${p.valeur_estimee_fcfa.toLocaleString()} F` : '—'}
+                              </span>
+                            </td>
+
+                            {/* Rappel */}
+                            <td className="px-4 py-4">
+                              {p.rappel_at ? (
+                                <span className={`text-[8px] font-mono ${rappelDue ? 'text-orange-400 font-black' : 'text-white/40'}`}>
+                                  {new Date(p.rappel_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                  {rappelDue && ' ⚡'}
+                                </span>
+                              ) : (
+                                <span className="text-[8px] font-mono text-white/20">—</span>
+                              )}
+                            </td>
+
+                            {/* Next action */}
+                            <td className="px-4 py-4">
+                              <span className="text-[8px] font-mono text-white/40 truncate block max-w-[140px]">
+                                {p.next_action ?? '—'}
+                              </span>
+                            </td>
+
+                            {/* Date */}
+                            <td className="px-4 py-4">
+                              <span className="text-[8px] font-mono text-white/30">
+                                {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                              </span>
                             </td>
                           </motion.tr>
                         )
