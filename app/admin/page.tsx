@@ -610,6 +610,7 @@ export default function NeuralCommandCenterV31() {
     { id: 'UNIVERSAL_INVENTORY', label: 'Projects', icon: Package, onClick: () => setActiveTab('UNIVERSAL_INVENTORY') },
     { id: 'DATA_LIB', label: 'Data Library', icon: Database },
     { id: 'REPORTS', label: 'Reports', icon: FileText },
+    { id: 'PROSPECT', label: 'Prospect', icon: Users, path: '/admin/prospects' },
     { id: 'WORD_ASSISTANT', label: 'Word Assistant', icon: Zap, type: 'trigger' }
   ];
 
