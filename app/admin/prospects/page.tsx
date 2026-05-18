@@ -4,43 +4,72 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Users, Search, Filter, Download, RefreshCw,
+  Users, Search, Download, RefreshCw,
   LayoutGrid, List, X, AlertTriangle, Loader2,
-  Calendar, ChevronDown
+  ChevronDown, ExternalLink
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
 import { LayoutDashboard, Zap } from 'lucide-react';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Prospect {
-  enterprise_id:       string;
-  name:                string;
-  contact_name:        string | null;
-  email:               string | null;
-  phone:               string | null;
-  region:              string | null;
-  sector:              string | null;
-  package_type:        string | null;
-  template_id:         string | null;
-  monthly_cost:        number | null;
-  message:             string | null;
-  status:              string;
-  prospect_status:     string | null;
-  prospect_score:      number | null;
-  rappel_at:           string | null;
-  internal_notes:      string | null;
-  verbatim:            string | null;
-  source_contact:      string | null;
-  next_action:         string | null;
-  valeur_estimee_fcfa: number | null;
-  created_at:          string;
-  activated_at:        string | null;
-  assets_urls:         any;
+  enterprise_id:        string;
+  name:                 string;
+  contact_name:         string | null;
+  email:                string | null;
+  phone:                string | null;
+  region:               string | null;
+  sector:               string | null;
+  package_type:         string | null;
+  template_id:          string | null;
+  template_title:       string | null;
+  template_price_fcfa:  number | null;
+  template_preview_url: string | null;
+  monthly_cost:         number | null;
+  message:              string | null;
+  status:               string;
+  prospect_status:      string | null;
+  prospect_score:       number | null;
+  rappel_at:            string | null;
+  internal_notes:       string | null;
+  verbatim:             string | null;
+  source_contact:       string | null;
+  next_action:          string | null;
+  valeur_estimee_fcfa:  number | null;
+  created_at:           string;
+  activated_at:         string | null;
 }
 
-// ─── Constantes ─────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Extrait "Budget : X FCFA" depuis le message brut */
+function parseBudgetFromMessage(message: string | null): number | null {
+  if (!message) return null
+  const match = message.match(/Budget\s*:\s*([\d\s]+)\s*FCFA/i)
+  if (!match) return null
+  const cleaned = match[1].replace(/\s/g, '')
+  const val = parseInt(cleaned)
+  return isNaN(val) ? null : val
+}
+
+/** Résolution de la valeur budget à afficher */
+function resolveBudget(p: Prospect): { value: number; source: 'estimee' | 'message' | 'template' } | null {
+  if (p.valeur_estimee_fcfa && p.valeur_estimee_fcfa > 0) {
+    return { value: p.valeur_estimee_fcfa, source: 'estimee' }
+  }
+  const fromMsg = parseBudgetFromMessage(p.message)
+  if (fromMsg && fromMsg > 0) {
+    return { value: fromMsg, source: 'message' }
+  }
+  if (p.template_price_fcfa && p.template_price_fcfa > 0) {
+    return { value: p.template_price_fcfa, source: 'template' }
+  }
+  return null
+}
+
+// ─── Constantes ──────────────────────────────────────────────────────────────
 
 const PACKAGE_TYPES    = ['ALL', 'STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']
 const PROSPECT_STATUTS = ['ALL', 'NEW', 'EN_CONTACT', 'NÉGOCIATION', 'EN_ATTENTE', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ']
@@ -78,34 +107,29 @@ function getHeatBadge(score: number | null): { label: string; color: string } {
 
 const LIMIT = 50
 
-// ─── Composant principal ─────────────────────────────────────────────────────
+// ─── Composant principal ──────────────────────────────────────────────────────
 
 export default function ProspectsPage() {
-  const router       = useRouter()
-  const { user, profile } = useUser()
+  const router             = useRouter()
+  const { user, profile }  = useUser()
 
-  // ── View state ───────────────────────────────────────────────────────────
-  const [view, setView] = useState<'TABLE' | 'KANBAN'>('TABLE')
+  const [view, setView]               = useState<'TABLE' | 'KANBAN'>('TABLE')
+  const [search, setSearch]           = useState('')
+  const [filterPackage, setFilterPackage] = useState('ALL')
+  const [filterStatus, setFilterStatus]   = useState('ALL')
+  const [filterPeriod, setFilterPeriod]   = useState('ALL')
 
-  // ── Filters ──────────────────────────────────────────────────────────────
-  const [search,          setSearch]          = useState('')
-  const [filterPackage,   setFilterPackage]   = useState('ALL')
-  const [filterStatus,    setFilterStatus]    = useState('ALL')
-  const [filterPeriod,    setFilterPeriod]    = useState('ALL')
-
-  // ── Data ─────────────────────────────────────────────────────────────────
-  const [prospects,    setProspects]    = useState<Prospect[]>([])
-  const [total,        setTotal]        = useState(0)
-  const [loading,      setLoading]      = useState(true)
-  const [loadingMore,  setLoadingMore]  = useState(false)
-  const [error,        setError]        = useState<string | null>(null)
-  const [hasMore,      setHasMore]      = useState(true)
+  const [prospects, setProspects]     = useState<Prospect[]>([])
+  const [total, setTotal]             = useState(0)
+  const [loading, setLoading]         = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError]             = useState<string | null>(null)
+  const [hasMore, setHasMore]         = useState(true)
   const offsetRef = useRef(0)
 
-  // ── Selected prospect (side panel) ───────────────────────────────────────
-  const [selected, setSelected] = useState<Prospect | null>(null)
-  const [savingAction, setSavingAction]     = useState(false)
-  const [panelForm, setPanelForm]           = useState({
+  const [selected, setSelected]           = useState<Prospect | null>(null)
+  const [savingAction, setSavingAction]   = useState(false)
+  const [panelForm, setPanelForm]         = useState({
     prospect_status:     '',
     rappel_at:           '',
     internal_notes:      '',
@@ -116,18 +140,16 @@ export default function ProspectsPage() {
   })
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
 
-  // ── Load ─────────────────────────────────────────────────────────────────
+  // ── Load ──────────────────────────────────────────────────────────────────
   const loadProspects = useCallback(async (reset = false) => {
     if (reset) {
       offsetRef.current = 0
       setProspects([])
       setHasMore(true)
     }
-
     const currentOffset = offsetRef.current
     if (currentOffset === 0) setLoading(true)
     else setLoadingMore(true)
-
     setError(null)
 
     try {
@@ -139,7 +161,7 @@ export default function ProspectsPage() {
       if (filterPeriod  !== 'ALL') params.set('period',          filterPeriod)
       if (search)                  params.set('search',          search)
 
-      const res              = await fetch(`/api/admin/prospects?${params.toString()}`)
+      const res = await fetch(`/api/admin/prospects?${params.toString()}`)
       const { data, total: t, error: err } = await res.json()
       if (err) throw new Error(err)
 
@@ -155,16 +177,12 @@ export default function ProspectsPage() {
     }
   }, [filterPackage, filterStatus, filterPeriod, search])
 
-  // Reset on filter change
   useEffect(() => { loadProspects(true) }, [filterPackage, filterStatus, filterPeriod])
-
-  // Debounced search
   useEffect(() => {
     const t = setTimeout(() => loadProspects(true), 400)
     return () => clearTimeout(t)
   }, [search])
 
-  // Infinite scroll
   const sentinelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
@@ -194,20 +212,25 @@ export default function ProspectsPage() {
 
   // ── Export CSV ────────────────────────────────────────────────────────────
   const exportCSV = () => {
-    const headers = ['NOM', 'CONTACT', 'EMAIL', 'TÉLÉPHONE', 'RÉGION', 'SECTEUR', 'PLAN', 'STATUT', 'BUDGET_FCFA', 'RAPPEL', 'NEXT_ACTION', 'DATE']
-    const rows = prospects.map(p => [
-      p.name, p.contact_name, p.email, p.phone, p.region, p.sector,
-      p.package_type, p.prospect_status, p.valeur_estimee_fcfa,
-      p.rappel_at ? new Date(p.rappel_at).toLocaleDateString('fr-FR') : '',
-      p.next_action,
-      new Date(p.created_at).toLocaleDateString('fr-FR')
-    ])
+    const headers = ['NOM', 'CONTACT', 'EMAIL', 'TÉLÉPHONE', 'RÉGION', 'SECTEUR', 'PLAN', 'STATUT', 'BUDGET_FCFA', 'RAPPEL', 'NEXT_ACTION', 'TEMPLATE', 'DATE']
+    const rows = prospects.map(p => {
+      const budget = resolveBudget(p)
+      return [
+        p.name, p.contact_name, p.email, p.phone, p.region, p.sector,
+        p.package_type, p.prospect_status,
+        budget ? budget.value : '',
+        p.rappel_at ? new Date(p.rappel_at).toLocaleDateString('fr-FR') : new Date(p.created_at).toLocaleDateString('fr-FR'),
+        p.next_action ?? p.phone ?? '',
+        p.template_title ?? '',
+        new Date(p.created_at).toLocaleDateString('fr-FR')
+      ]
+    })
     const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ''}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url  = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `prospects_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `prospects_${new Date().toISOString().split('T')[0]}.csv`)
     link.click()
   }
 
@@ -243,10 +266,9 @@ export default function ProspectsPage() {
     }
   }
 
-  // ── Nav ──────────────────────────────────────────────────────────────────
   const primaryItems: NavItem[] = [
-    { id: 'dashboard',  label: 'Dashboard',  icon: LayoutDashboard, onClick: () => router.push('/admin') },
-    { id: 'prospects',  label: 'Prospects',  icon: Users,           path: '/admin/prospects' }
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, onClick: () => router.push('/admin') },
+    { id: 'prospects', label: 'Prospects', icon: Users,           path: '/admin/prospects' }
   ]
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -257,8 +279,8 @@ export default function ProspectsPage() {
       brandName="AUTOSLASH"
       brandIcon={Zap}
       userProfile={{
-        name:   profile?.full_name || 'Amadou',
-        email:  user?.email        || 'admin@autoslash.ai',
+        name:  profile?.full_name || 'Amadou',
+        email: user?.email        || 'admin@autoslash.ai',
       }}
     >
       <div className="min-h-screen bg-[#0A0A0A] font-mono">
@@ -295,10 +317,9 @@ export default function ProspectsPage() {
               </div>
             </div>
 
-            {/* Filters Row - Restoring Logic */}
+            {/* Filters */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
               <div className="flex flex-wrap items-center gap-3">
-                {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
                   <input
@@ -309,9 +330,7 @@ export default function ProspectsPage() {
                     className="bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-4 py-2 text-[10px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/30 transition-all w-64"
                   />
                 </div>
-
-                {/* Filtre plan */}
-                <div className="relative group">
+                <div className="relative">
                   <select
                     value={filterPackage}
                     onChange={e => setFilterPackage(e.target.value)}
@@ -323,9 +342,7 @@ export default function ProspectsPage() {
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
                 </div>
-
-                {/* Filtre statut */}
-                <div className="relative group">
+                <div className="relative">
                   <select
                     value={filterStatus}
                     onChange={e => setFilterStatus(e.target.value)}
@@ -337,8 +354,6 @@ export default function ProspectsPage() {
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
                 </div>
-
-                {/* Filtre période */}
                 <div className="flex items-center gap-1 p-1 bg-white/[0.03] border border-white/10 rounded-xl">
                   {PERIODS.map(p => (
                     <button
@@ -355,21 +370,16 @@ export default function ProspectsPage() {
                   ))}
                 </div>
               </div>
-
-              <div className="flex items-center gap-3">
-                {/* View Toggles */}
-                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
-                  <button onClick={() => setView('TABLE')} className={`p-2 rounded-lg transition-all ${view === 'TABLE' ? 'bg-[#39FF14]/10 text-[#39FF14]' : 'text-white/30 hover:text-white'}`}>
-                    <List className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => setView('KANBAN')} className={`p-2 rounded-lg transition-all ${view === 'KANBAN' ? 'bg-[#39FF14]/10 text-[#39FF14]' : 'text-white/30 hover:text-white'}`}>
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+              <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
+                <button onClick={() => setView('TABLE')} className={`p-2 rounded-lg transition-all ${view === 'TABLE' ? 'bg-[#39FF14]/10 text-[#39FF14]' : 'text-white/30 hover:text-white'}`}>
+                  <List className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => setView('KANBAN')} className={`p-2 rounded-lg transition-all ${view === 'KANBAN' ? 'bg-[#39FF14]/10 text-[#39FF14]' : 'text-white/30 hover:text-white'}`}>
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           </div>
-
 
           {/* ── Erreur ──────────────────────────────────────────────────── */}
           <AnimatePresence>
@@ -389,7 +399,7 @@ export default function ProspectsPage() {
             )}
           </AnimatePresence>
 
-          {/* ── Contenu principal ────────────────────────────────────────── */}
+          {/* ── Contenu ─────────────────────────────────────────────────── */}
           {loading ? (
             <div className="flex items-center justify-center py-32">
               <Loader2 className="w-6 h-6 text-[#39FF14] animate-spin" />
@@ -397,9 +407,7 @@ export default function ProspectsPage() {
           ) : prospects.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 border border-dashed border-white/10 rounded-3xl gap-4">
               <Users className="w-8 h-8 text-white/10" />
-              <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
-                Aucun prospect trouvé
-              </p>
+              <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest">Aucun prospect trouvé</p>
             </div>
           ) : (
             <>
@@ -412,16 +420,16 @@ export default function ProspectsPage() {
                           <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-[#39FF14] focus:ring-0 cursor-pointer" />
                         </th>
                         {[
-                          { label: 'NOM / CONTACT',  width: '220px' },
-                          { label: 'PLAN',           width: '140px' },
-                          { label: 'STATUT',         width: '140px' },
-                          { label: 'RÉGION',         width: '140px' },
-                          { label: 'CHALEUR',        width: '80px'  },
-                          { label: 'BUDGET FCFA',    width: '140px' },
-                          { label: 'RAPPEL',         width: '140px' },
-                          { label: 'NEXT_ACTION',    width: '160px' },
-                          { label: 'DATE',           width: '100px' }
-                        ].map((col) => (
+                          { label: 'NOM / CONTACT', width: '220px' },
+                          { label: 'PLAN',          width: '140px' },
+                          { label: 'STATUT',        width: '140px' },
+                          { label: 'RÉGION',        width: '140px' },
+                          { label: 'CHALEUR',       width: '80px'  },
+                          { label: 'BUDGET FCFA',   width: '140px' },
+                          { label: 'RAPPEL',        width: '120px' },
+                          { label: 'NEXT_ACTION',   width: '160px' },
+                          { label: 'DATE',          width: '100px' }
+                        ].map(col => (
                           <th key={col.label} style={{ width: col.width }} className="px-4 py-3 text-[9px] font-black text-white/30 tracking-[0.2em] uppercase">
                             {col.label}
                           </th>
@@ -432,6 +440,8 @@ export default function ProspectsPage() {
                       {prospects.map((p, idx) => {
                         const heat      = getHeatBadge(p.prospect_score)
                         const rappelDue = p.rappel_at && new Date(p.rappel_at) <= new Date()
+                        const budget    = resolveBudget(p)
+
                         return (
                           <motion.tr
                             key={p.enterprise_id}
@@ -441,12 +451,11 @@ export default function ProspectsPage() {
                             onClick={() => setSelected(p)}
                             className={`group hover:bg-white/[0.02] cursor-pointer transition-colors ${rappelDue ? 'bg-orange-500/5' : ''}`}
                           >
-                            {/* Checkbox */}
-                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                            <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
                               <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-[#39FF14] focus:ring-0 cursor-pointer" />
                             </td>
 
-                            {/* Nom / Contact */}
+                            {/* NOM / CONTACT */}
                             <td className="px-4 py-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
@@ -457,28 +466,29 @@ export default function ProspectsPage() {
                                   {p.contact_name && (
                                     <span className="text-[9px] font-mono text-white/40 truncate max-w-[150px]">{p.contact_name}</span>
                                   )}
-                                  {p.email && (
-                                    <span className="text-[8px] font-mono text-white/20 truncate max-w-[150px]">{p.email}</span>
-                                  )}
+                                  <span className="text-[8px] font-mono text-white/20 truncate max-w-[150px]">{p.email ?? p.phone ?? '—'}</span>
                                 </div>
                               </div>
                             </td>
 
-                            {/* Plan */}
+                            {/* PLAN */}
                             <td className="px-4 py-4">
-                              <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border ${
-                                PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/40 border-white/10'
-                              }`}>
-                                {p.package_type ?? '—'}
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border w-fit ${
+                                  PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/40 border-white/10'
+                                }`}>
+                                  {p.package_type ?? '—'}
+                                </span>
+                                {p.template_title && (
+                                  <span className="text-[7px] font-mono text-white/25 truncate max-w-[120px]">{p.template_title}</span>
+                                )}
+                              </div>
                             </td>
 
-                            {/* Statut — dropdown inline */}
-                            <td className="px-4 py-4 relative" onClick={(e) => e.stopPropagation()}>
+                            {/* STATUT */}
+                            <td className="px-4 py-4 relative" onClick={e => e.stopPropagation()}>
                               <button
-                                onClick={() => setEditingStatusId(
-                                  editingStatusId === p.enterprise_id ? null : p.enterprise_id
-                                )}
+                                onClick={() => setEditingStatusId(editingStatusId === p.enterprise_id ? null : p.enterprise_id)}
                                 className={`flex items-center gap-1.5 px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border transition-all hover:opacity-80 ${
                                   STATUS_COLORS[p.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/40 border-white/10'
                                 }`}
@@ -486,7 +496,6 @@ export default function ProspectsPage() {
                                 {p.prospect_status ?? 'NEW'}
                                 <ChevronDown className="w-2.5 h-2.5 shrink-0" />
                               </button>
-
                               <AnimatePresence>
                                 {editingStatusId === p.enterprise_id && (
                                   <motion.div
@@ -504,32 +513,23 @@ export default function ProspectsPage() {
                                             const res = await fetch('/api/admin/prospects', {
                                               method: 'POST',
                                               headers: { 'Content-Type': 'application/json' },
-                                              body: JSON.stringify({
-                                                enterprise_id:   p.enterprise_id,
-                                                prospect_status: s
-                                              })
+                                              body: JSON.stringify({ enterprise_id: p.enterprise_id, prospect_status: s })
                                             })
-                                            const { data, error: saveError } = await res.json()
+                                            const { error: saveError } = await res.json()
                                             if (saveError) throw new Error(saveError)
                                             setProspects(prev => prev.map(pr =>
-                                              pr.enterprise_id === p.enterprise_id
-                                                ? { ...pr, prospect_status: s }
-                                                : pr
+                                              pr.enterprise_id === p.enterprise_id ? { ...pr, prospect_status: s } : pr
                                             ))
                                             if (selected?.enterprise_id === p.enterprise_id) {
                                               setSelected(prev => prev ? { ...prev, prospect_status: s } : null)
                                             }
-                                          } catch (err: any) {
-                                            setError(err.message)
-                                          }
+                                          } catch (err: any) { setError(err.message) }
                                         }}
                                         className={`w-full flex items-center px-4 py-2.5 text-[8px] font-black uppercase tracking-widest transition-all hover:bg-white/5 ${
                                           p.prospect_status === s ? STATUS_COLORS[s] : 'text-white/40'
                                         }`}
                                       >
-                                        {p.prospect_status === s && (
-                                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 shrink-0" />
-                                        )}
+                                        {p.prospect_status === s && <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 shrink-0" />}
                                         {s}
                                       </button>
                                     ))}
@@ -538,31 +538,39 @@ export default function ProspectsPage() {
                               </AnimatePresence>
                             </td>
 
-                            {/* Région */}
+                            {/* RÉGION */}
                             <td className="px-4 py-4">
                               <div className="flex flex-col">
                                 <span className="text-[9px] font-mono text-white/60">{p.region ?? '—'}</span>
-                                {p.sector && (
-                                  <span className="text-[8px] font-mono text-white/20">{p.sector}</span>
-                                )}
+                                {p.sector && <span className="text-[8px] font-mono text-white/20">{p.sector}</span>}
                               </div>
                             </td>
 
-                            {/* Chaleur */}
+                            {/* CHALEUR */}
                             <td className="px-4 py-4">
-                              <span className={`text-[8px] font-black uppercase ${heat.color}`}>
-                                {heat.label}
-                              </span>
+                              <span className={`text-[8px] font-black uppercase ${heat.color}`}>{heat.label}</span>
                             </td>
 
-                            {/* Budget */}
+                            {/* BUDGET — valeur_estimee_fcfa > message regex > template price */}
                             <td className="px-4 py-4">
-                              <span className="text-[11px] font-black font-mono text-[#39FF14]/90">
-                                {p.valeur_estimee_fcfa ? `${p.valeur_estimee_fcfa.toLocaleString()} F` : '—'}
-                              </span>
+                              {budget ? (
+                                <div className="flex flex-col">
+                                  <span className="text-[11px] font-black font-mono text-[#39FF14]/90">
+                                    {budget.value.toLocaleString('fr-FR')} F
+                                  </span>
+                                  {budget.source === 'template' && (
+                                    <span className="text-[7px] font-mono text-white/20">template</span>
+                                  )}
+                                  {budget.source === 'message' && (
+                                    <span className="text-[7px] font-mono text-white/20">extrait msg</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[8px] font-mono text-white/20">—</span>
+                              )}
                             </td>
 
-                            {/* Rappel */}
+                            {/* RAPPEL — rappel_at sinon created_at */}
                             <td className="px-4 py-4">
                               {p.rappel_at ? (
                                 <span className={`text-[8px] font-mono ${rappelDue ? 'text-orange-400 font-black' : 'text-white/40'}`}>
@@ -570,18 +578,20 @@ export default function ProspectsPage() {
                                   {rappelDue && ' ⚡'}
                                 </span>
                               ) : (
-                                <span className="text-[8px] font-mono text-white/20">—</span>
+                                <span className="text-[8px] font-mono text-white/20">
+                                  {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                </span>
                               )}
                             </td>
 
-                            {/* Next action */}
+                            {/* NEXT_ACTION — next_action sinon phone */}
                             <td className="px-4 py-4">
                               <span className="text-[8px] font-mono text-white/40 truncate block max-w-[140px]">
-                                {p.next_action ?? '—'}
+                                {p.next_action ?? p.phone ?? '—'}
                               </span>
                             </td>
 
-                            {/* Date */}
+                            {/* DATE */}
                             <td className="px-4 py-4">
                               <span className="text-[8px] font-mono text-white/30">
                                 {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
@@ -595,14 +605,10 @@ export default function ProspectsPage() {
                 </div>
               )}
 
-
               {view === 'KANBAN' && (
-                <div className="text-[9px] font-mono text-white/20 text-center py-8">
-                  KANBAN — Étape suivante
-                </div>
+                <div className="text-[9px] font-mono text-white/20 text-center py-8">KANBAN — Étape suivante</div>
               )}
 
-              {/* Sentinel scroll infini */}
               <div ref={sentinelRef} className="h-4" />
               {loadingMore && (
                 <div className="flex items-center justify-center py-4">
@@ -611,7 +617,6 @@ export default function ProspectsPage() {
               )}
             </>
           )}
-
         </div>
       </div>
 
@@ -619,7 +624,6 @@ export default function ProspectsPage() {
       <AnimatePresence>
         {selected && (
           <>
-            {/* Overlay */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -627,8 +631,6 @@ export default function ProspectsPage() {
               onClick={() => setSelected(null)}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100]"
             />
-
-            {/* Panel */}
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
@@ -636,12 +638,10 @@ export default function ProspectsPage() {
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed inset-y-0 right-0 w-full max-w-[520px] bg-[#0A0A0A] border-l border-white/10 z-[101] flex flex-col font-mono overflow-hidden"
             >
-              {/* Panel Header */}
+              {/* Header */}
               <div className="flex items-center justify-between px-8 py-6 border-b border-white/5">
                 <div className="space-y-1">
-                  <h2 className="text-sm font-black uppercase tracking-widest text-white">
-                    {selected.name}
-                  </h2>
+                  <h2 className="text-sm font-black uppercase tracking-widest text-white">{selected.name}</h2>
                   <div className="flex items-center gap-2">
                     <span className={`text-[7px] font-black px-2 py-0.5 rounded border uppercase ${
                       PACKAGE_COLORS[selected.package_type ?? ''] ?? 'bg-white/5 text-white/30 border-white/10'
@@ -666,7 +666,7 @@ export default function ProspectsPage() {
                 </button>
               </div>
 
-              {/* Panel Content — scrollable */}
+              {/* Content */}
               <div className="flex-1 overflow-y-auto px-8 py-6 space-y-8 no-scrollbar">
 
                 {/* Infos formulaire */}
@@ -689,39 +689,60 @@ export default function ProspectsPage() {
                   </div>
                 </div>
 
-                {/* Message complet */}
+                {/* Template demandé */}
+                {selected.template_id && (
+                  <div className="space-y-2">
+                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">TEMPLATE_DEMANDÉ</h3>
+                    <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-white uppercase tracking-wider">
+                          {selected.template_title ?? '—'}
+                        </span>
+                        <span className={`text-[7px] font-black px-2 py-0.5 rounded border uppercase ${
+                          PACKAGE_COLORS[selected.package_type ?? ''] ?? 'bg-white/5 text-white/30 border-white/10'
+                        }`}>
+                          {selected.package_type}
+                        </span>
+                      </div>
+                      {selected.template_price_fcfa && selected.template_price_fcfa > 0 && (
+                        <div className="text-[11px] font-black font-mono text-[#39FF14]">
+                          {selected.template_price_fcfa.toLocaleString('fr-FR')} FCFA
+                        </div>
+                      )}
+                      {selected.template_preview_url && (
+                        <a
+                          href={selected.template_preview_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-[8px] font-mono text-white/40 hover:text-[#39FF14] transition-colors"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          VOIR_PREVIEW
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Message original */}
                 {selected.message && (
                   <div className="space-y-2">
                     <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">MESSAGE_ORIGINAL</h3>
                     <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                      <p className="text-[10px] font-mono text-white/60 leading-relaxed whitespace-pre-wrap">
-                        {selected.message}
-                      </p>
+                      <p className="text-[10px] font-mono text-white/60 leading-relaxed whitespace-pre-wrap">{selected.message}</p>
                     </div>
                   </div>
                 )}
 
-                {/* Template info */}
-                {selected.assets_urls?.meta?.slogan && (
-                  <div className="space-y-2">
-                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">TEMPLATE_DEMANDÉ</h3>
-                    <div className="text-[10px] font-mono text-white/60">
-                      {selected.template_id ?? '—'} · {selected.monthly_cost ? `${selected.monthly_cost.toLocaleString()} FCFA/mois` : '—'}
-                    </div>
-                  </div>
-                )}
-
-                {/* Actions statut rapides */}
+                {/* Changer statut */}
                 <div className="space-y-3">
                   <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">CHANGER_STATUT</h3>
                   <div className="flex flex-wrap gap-2">
                     {['NEW', 'EN_CONTACT', 'NÉGOCIATION', 'EN_ATTENTE', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ'].map(s => (
                       <button
                         key={s}
-                        onClick={() => {
-                          setPanelForm(f => ({ ...f, prospect_status: s }))
-                          handleSavePanel({ prospect_status: s })
-                        }}
+                        onClick={() => { setPanelForm(f => ({ ...f, prospect_status: s })); handleSavePanel({ prospect_status: s }) }}
                         disabled={savingAction}
                         className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
                           (panelForm.prospect_status || selected.prospect_status) === s
@@ -818,7 +839,7 @@ export default function ProspectsPage() {
                   </div>
                 </div>
 
-                {/* Verbatim prospect */}
+                {/* Verbatim */}
                 <div className="space-y-2">
                   <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">VERBATIM_PROSPECT</h3>
                   <textarea
@@ -858,13 +879,12 @@ export default function ProspectsPage() {
 
               </div>
 
-              {/* Panel Footer */}
+              {/* Footer */}
               <div className="px-8 py-4 border-t border-white/5">
                 <p className="text-[7px] font-mono text-white/20 text-center uppercase tracking-widest">
                   CONVERTI ≠ ACTIF — Activation depuis Dashboard 2 → Profile
                 </p>
               </div>
-
             </motion.div>
           </>
         )}
