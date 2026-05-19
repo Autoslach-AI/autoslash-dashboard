@@ -420,16 +420,16 @@ export default function ProspectsPage() {
                           <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-[#39FF14] focus:ring-0 cursor-pointer" />
                         </th>
                         {[
-                          { label: 'NOM',          width: '180px' },
-                          { label: 'EMAIL',        width: '200px' },
-                          { label: 'PLAN',         width: '160px' },
-                          { label: 'STATUT',       width: '150px' },
-                          { label: 'RÉGION',       width: '130px' },
-                          { label: 'BUDGET FCFA',  width: '140px' },
-                          { label: 'RAPPEL',       width: '110px' },
-                          { label: 'NEXT_ACTION',  width: '160px' },
-                          { label: 'TEMPLATE',     width: '160px' },
-                          { label: 'DATE',         width: '90px'  }
+                          { label: 'NOM',         width: '160px' },
+                          { label: 'EMAIL',       width: '180px' },
+                          { label: 'PLAN',        width: '140px' },
+                          { label: 'STATUT',      width: '130px' },
+                          { label: 'RÉGION',      width: '100px' },
+                          { label: 'BUDGET FCFA', width: '130px' },
+                          { label: 'RAPPEL',      width: '90px'  },
+                          { label: 'TÉLÉPHONE',   width: '140px' },
+                          { label: 'TEMPLATE',    width: '150px' },
+                          { label: 'DATE',        width: '80px'  }
                         ].map(col => (
                           <th key={col.label} style={{ width: col.width }} className="px-4 py-3 text-[10px] font-black text-white/30 tracking-[0.2em] uppercase">
                             {col.label}
@@ -542,10 +542,7 @@ export default function ProspectsPage() {
 
                             {/* RÉGION */}
                             <td className="px-4 py-5">
-                              <div className="flex flex-col">
-                                <span className="text-[10px] font-mono text-white/60">{p.region ?? '—'}</span>
-                                {p.sector && <span className="text-[9px] font-mono text-white/20">{p.sector}</span>}
-                              </div>
+                              <span className="text-[10px] font-mono text-white/60">{p.region ?? '—'}</span>
                             </td>
 
                             {/* BUDGET FCFA — logique resolveBudget inchangée */}
@@ -570,14 +567,14 @@ export default function ProspectsPage() {
                             {/* RAPPEL */}
                             <td className="px-4 py-5">
                               {p.rappel_at ? (
-                                <span className={`text-[9px] font-mono ${rappelDue ? 'text-orange-400 font-black' : 'text-white/40'}`}>
+                                <span className={`text-[9px] font-mono ${
+                                  new Date(p.rappel_at) <= new Date() ? 'text-orange-400 font-black' : 'text-white/40'
+                                }`}>
                                   {new Date(p.rappel_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                                  {rappelDue && ' ⚡'}
+                                  {new Date(p.rappel_at) <= new Date() && ' ⚡'}
                                 </span>
                               ) : (
-                                <span className="text-[9px] font-mono text-white/20">
-                                  {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                                </span>
+                                <span className="text-[9px] font-mono text-white/15">—</span>
                               )}
                             </td>
 
@@ -589,21 +586,24 @@ export default function ProspectsPage() {
                             </td>
 
                             {/* TEMPLATE — titre + lien preview */}
-                            <td className="px-4 py-5">
+                            <td className="px-4 py-5" onClick={e => e.stopPropagation()}>
                               {p.template_title ? (
                                 <div className="flex flex-col gap-1">
-                                  <span className="text-[9px] font-mono text-white/50 truncate max-w-[140px]">{p.template_title}</span>
-                                  {p.template_preview_url && (
+                                  <span className="text-[9px] font-mono text-white/50 truncate max-w-[140px]">
+                                    {p.template_title}
+                                  </span>
+                                  {p.template_preview_url ? (
                                     <a
                                       href={p.template_preview_url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      onClick={e => e.stopPropagation()}
-                                      className="flex items-center gap-1 text-[8px] font-mono text-white/25 hover:text-[#39FF14] transition-colors"
+                                      className="flex items-center gap-1 text-[8px] font-mono text-[#39FF14]/60 hover:text-[#39FF14] transition-colors underline underline-offset-2"
                                     >
-                                      <ExternalLink className="w-2.5 h-2.5" />
-                                      PREVIEW
+                                      <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                                      VOIR PREVIEW
                                     </a>
+                                  ) : (
+                                    <span className="text-[8px] font-mono text-white/15">pas de lien</span>
                                   )}
                                 </div>
                               ) : (
