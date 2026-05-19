@@ -365,20 +365,19 @@ export default function ProspectsPage() {
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
                 </div>
-                <div className="flex items-center gap-1 p-1 bg-white/[0.03] border border-white/10 rounded-xl">
-                  {PERIODS.map(p => (
-                    <button
-                      key={p.value}
-                      onClick={() => setFilterPeriod(p.value)}
-                      className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
-                        filterPeriod === p.value
-                          ? 'bg-[#39FF14]/10 text-[#39FF14] border border-[#39FF14]/20'
-                          : 'text-white/30 hover:text-white'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <select
+                    value={filterPeriod}
+                    onChange={e => setFilterPeriod(e.target.value)}
+                    className="appearance-none bg-white/[0.03] border border-white/10 rounded-xl pl-4 pr-10 py-2 text-[9px] font-black uppercase text-white hover:text-white/80 focus:outline-none focus:border-[#39FF14]/30 transition-all cursor-pointer"
+                  >
+                    {PERIODS.map(p => (
+                      <option key={p.value} value={p.value} style={{ color: 'black', backgroundColor: 'white' }}>
+                        {p.value === 'ALL' ? 'TOUTE LA PÉRIODE' : p.label.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
                 </div>
               </div>
               <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
