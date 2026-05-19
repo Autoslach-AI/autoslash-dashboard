@@ -341,10 +341,12 @@ export default function ProspectsPage() {
                   <select
                     value={filterPackage}
                     onChange={e => setFilterPackage(e.target.value)}
-                    className="appearance-none bg-white/[0.03] border border-white/10 rounded-xl pl-4 pr-10 py-2 text-[9px] font-black uppercase text-white/60 focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                    className="appearance-none bg-white/[0.03] border border-white/10 rounded-xl pl-4 pr-10 py-2 text-[9px] font-black uppercase text-white hover:text-white/80 focus:outline-none focus:border-[#39FF14]/30 transition-all cursor-pointer"
                   >
                     {PACKAGE_TYPES.map(p => (
-                      <option key={p} value={p}>{p === 'ALL' ? 'TOUS LES PLANS' : p}</option>
+                      <option key={p} value={p} style={{ color: 'black', backgroundColor: 'white' }}>
+                        {p === 'ALL' ? 'TOUS LES PLANS' : p}
+                      </option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
@@ -353,10 +355,12 @@ export default function ProspectsPage() {
                   <select
                     value={filterStatus}
                     onChange={e => setFilterStatus(e.target.value)}
-                    className="appearance-none bg-white/[0.03] border border-white/10 rounded-xl pl-4 pr-10 py-2 text-[9px] font-black uppercase text-white/60 focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                    className="appearance-none bg-white/[0.03] border border-white/10 rounded-xl pl-4 pr-10 py-2 text-[9px] font-black uppercase text-white hover:text-white/80 focus:outline-none focus:border-[#39FF14]/30 transition-all cursor-pointer"
                   >
                     {PROSPECT_STATUTS.map(s => (
-                      <option key={s} value={s}>{s === 'ALL' ? 'TOUS LES STATUTS' : s}</option>
+                      <option key={s} value={s} style={{ color: 'black', backgroundColor: 'white' }}>
+                        {s === 'ALL' ? 'TOUS LES STATUTS' : s}
+                      </option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
