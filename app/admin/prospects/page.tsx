@@ -41,6 +41,9 @@ interface Prospect {
   valeur_estimee_fcfa:  number | null;
   created_at:           string;
   activated_at:         string | null;
+  avatar_url:           string | null;
+  logo_url:             string | null;
+  assets_urls:          any;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -512,8 +515,24 @@ export default function ProspectsPage() {
                             {/* NOM — avatar + nom uniquement */}
                             <td className="px-4 py-5">
                               <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                                  <span className="text-[11px] font-black text-white/40">{p.name[0].toUpperCase()}</span>
+                                <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                                  {(p.logo_url || p.avatar_url) ? (
+                                    <img
+                                      src={p.logo_url ?? p.avatar_url ?? ''}
+                                      alt={p.name}
+                                      className="w-full h-full object-cover rounded-lg"
+                                      onError={e => {
+                                        e.currentTarget.style.display = 'none'
+                                        e.currentTarget.nextElementSibling?.removeAttribute('style')
+                                      }}
+                                    />
+                                  ) : null}
+                                  <span
+                                    className="text-[11px] font-black text-white/40"
+                                    style={{ display: (p.logo_url || p.avatar_url) ? 'none' : 'block' }}
+                                  >
+                                    {p.name[0].toUpperCase()}
+                                  </span>
                                 </div>
                                 <span className="text-[12px] font-black text-white uppercase tracking-wider truncate max-w-[130px]">{p.name}</span>
                               </div>
@@ -678,8 +697,8 @@ export default function ProspectsPage() {
           )}
 
           {!loading && prospects.length > 0 && (
-            <div className="sticky bottom-0 left-0 right-0 z-40 mt-4">
-              <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-6 py-4">
+            <div className="sticky bottom-0 z-40 mt-6 pb-2">
+              <div className="bg-[#0D0D0D]/95 backdrop-blur-sm border border-white/10 rounded-2xl px-8 py-5 shadow-2xl">
                 <div className="flex flex-wrap items-center justify-between gap-4">
 
                   {/* Total prospects */}
@@ -830,6 +849,68 @@ export default function ProspectsPage() {
                     </p>
                   </div>
                 </div>
+
+                {/* Fichiers joints */}
+                {selected.assets_urls?.files && selected.assets_urls.files.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">
+                      FICHIERS_JOINTS
+                    </h3>
+                    <div className="space-y-2">
+                      {selected.assets_urls.files.map((file: any, idx: number) => (
+                        <a
+                          key={idx}
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="flex items-center gap-3 p-3 bg-white/[0.03] border border-white/10 rounded-xl hover:border-[#39FF14]/30 hover:bg-white/[0.05] transition-all group"
+                        >
+                          <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-black text-white/40 uppercase">
+                              {file.name?.split('.').pop() ?? 'FILE'}
+                            </span>
+                          </div>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className="text-[11px] font-mono text-white truncate">
+                              {file.name ?? 'Fichier'}
+                            </span>
+                            {file.size && (
+                              <span className="text-[8px] font-mono text-white/30">
+                                {(file.size / 1024).toFixed(0)} KB
+                              </span>
+                            )}
+                          </div>
+                          <ExternalLink className="w-3.5 h-3.5 text-white/20 group-hover:text-[#39FF14] transition-colors shrink-0" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Logo du prospect */}
+                {(selected.logo_url || selected.avatar_url) && (
+                  <div className="space-y-3">
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">
+                      LOGO_ENTREPRISE
+                    </h3>
+                    <div className="flex items-center gap-4 p-4 bg-white/[0.03] border border-white/10 rounded-2xl">
+                      <img
+                        src={selected.logo_url ?? selected.avatar_url ?? ''}
+                        alt={selected.name}
+                        className="w-16 h-16 rounded-xl object-cover border border-white/10"
+                      />
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[12px] font-black text-white uppercase">
+                          {selected.name}
+                        </span>
+                        <span className="text-[9px] font-mono text-white/40">
+                          {selected.package_type}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Template demandé */}
                 {selected.template_id && selected.template_title && (
