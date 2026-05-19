@@ -599,7 +599,7 @@ export default function ProspectsPage() {
                             {/* DATE */}
                             <td className="px-4 py-5">
                               <span className="text-[9px] font-mono text-white/30">
-                                {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                                {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                               </span>
                             </td>
                           </motion.tr>
