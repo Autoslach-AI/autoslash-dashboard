@@ -72,7 +72,7 @@ function resolveBudget(p: Prospect): { value: number; source: 'estimee' | 'messa
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 const PACKAGE_TYPES    = ['ALL', 'STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']
-const PROSPECT_STATUTS = ['ALL', 'NEW', 'EN_CONTACT', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ']
+const PROSPECT_STATUTS = ['ALL', 'RAPPELER', 'CONVERTI', 'ANNULÉ']
 const PERIODS          = [
   { label: 'Tout',    value: 'ALL'   },
   { label: 'Jour',    value: 'DAY'   },
@@ -82,12 +82,9 @@ const PERIODS          = [
 ]
 
 const STATUS_COLORS: Record<string, string> = {
-  NEW:          'bg-white/5 text-white/40 border-white/10',
-  EN_CONTACT:   'bg-blue-500/10 text-blue-400 border-blue-500/20',
   RAPPELER:     'bg-orange-500/10 text-orange-400 border-orange-500/20',
   CONVERTI:     'bg-[#39FF14]/10 text-[#39FF14] border-[#39FF14]/20',
-  PERDU:        'bg-red-500/10 text-red-400 border-red-500/20',
-  ANNULÉ:       'bg-white/5 text-white/20 border-white/10'
+  ANNULÉ:       'bg-white/5 text-white/30 border-white/10'
 }
 
 const PACKAGE_COLORS: Record<string, string> = {
@@ -336,7 +333,7 @@ export default function ProspectsPage() {
                     type="text"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="RECHERCHER NOM, CONTACT, EMAIL..."
+                    placeholder="NOM, TÉLÉPHONE, ID..."
                     className="bg-white/[0.03] border border-white/10 rounded-xl pl-9 pr-4 py-2 text-[10px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/30 transition-all w-64"
                   />
                 </div>
@@ -477,7 +474,7 @@ export default function ProspectsPage() {
 
                             {/* EMAIL */}
                             <td className="px-4 py-5">
-                              <span className="text-[10px] font-mono text-white/50 truncate block max-w-[180px]">
+                              <span className="text-[10px] font-mono text-white/80 truncate block max-w-[180px]">
                                 {p.email ?? '—'}
                               </span>
                             </td>
@@ -486,12 +483,12 @@ export default function ProspectsPage() {
                             <td className="px-4 py-5">
                               <div className="flex flex-col gap-1">
                                 <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest border w-fit ${
-                                  PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/40 border-white/10'
+                                  PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/70 border-white/10'
                                 }`}>
                                   {p.package_type ?? '—'}
                                 </span>
                                 {p.template_title && (
-                                  <span className="text-[8px] font-mono text-white/25 truncate max-w-[140px]">{p.template_title}</span>
+                                  <span className="text-[8px] font-mono text-white/30 truncate max-w-[140px]">{p.template_title}</span>
                                 )}
                               </div>
                             </td>
@@ -501,10 +498,10 @@ export default function ProspectsPage() {
                               <button
                                 onClick={() => setEditingStatusId(editingStatusId === p.enterprise_id ? null : p.enterprise_id)}
                                 className={`flex items-center gap-1.5 px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border transition-all hover:opacity-80 ${
-                                  STATUS_COLORS[p.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/40 border-white/10'
+                                  STATUS_COLORS[p.prospect_status ?? 'RAPPELER'] ?? 'bg-white/5 text-white/70 border-white/10'
                                 }`}
                               >
-                                {p.prospect_status ?? 'NEW'}
+                                {p.prospect_status ?? 'RAPPELER'}
                                 <ChevronDown className="w-2.5 h-2.5 shrink-0" />
                               </button>
                               <AnimatePresence>
@@ -515,7 +512,7 @@ export default function ProspectsPage() {
                                     exit={{ opacity: 0, y: -4 }}
                                     className="absolute top-full left-0 mt-1 z-[50] bg-[#111111] border border-white/10 rounded-xl overflow-hidden shadow-2xl min-w-[160px]"
                                   >
-                                    {['NEW', 'EN_CONTACT', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ'].map(s => (
+                                    {['RAPPELER', 'CONVERTI', 'ANNULÉ'].map(s => (
                                       <button
                                         key={s}
                                         onClick={async () => {
@@ -537,7 +534,7 @@ export default function ProspectsPage() {
                                           } catch (err: any) { setError(err.message) }
                                         }}
                                         className={`w-full flex items-center px-4 py-2.5 text-[8px] font-black uppercase tracking-widest transition-all hover:bg-white/5 ${
-                                          p.prospect_status === s ? STATUS_COLORS[s] : 'text-white/40'
+                                          p.prospect_status === s ? STATUS_COLORS[s] : 'text-white/70'
                                         }`}
                                       >
                                         {p.prospect_status === s && <span className="w-1.5 h-1.5 rounded-full bg-current mr-2 shrink-0" />}
@@ -551,7 +548,7 @@ export default function ProspectsPage() {
 
                             {/* RÉGION */}
                             <td className="px-4 py-5">
-                              <span className="text-[10px] font-mono text-white/60">{p.region ?? '—'}</span>
+                              <span className="text-[10px] font-mono text-white/90">{p.region ?? '—'}</span>
                             </td>
 
                             {/* BUDGET FCFA — logique resolveBudget inchangée */}
@@ -562,20 +559,20 @@ export default function ProspectsPage() {
                                     {budget.value.toLocaleString('fr-FR')} F
                                   </span>
                                   {budget.source === 'template' && (
-                                    <span className="text-[8px] font-mono text-white/20">template</span>
+                                    <span className="text-[8px] font-mono text-white/40">template</span>
                                   )}
                                   {budget.source === 'message' && (
-                                    <span className="text-[8px] font-mono text-white/20">extrait msg</span>
+                                    <span className="text-[8px] font-mono text-white/40">extrait msg</span>
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-[9px] font-mono text-white/20">—</span>
+                                <span className="text-[9px] font-mono text-white/40">—</span>
                               )}
                             </td>
 
                             {/* NEXT_ACTION */}
                             <td className="px-4 py-5">
-                              <span className="text-[9px] font-mono text-white/40 truncate block max-w-[140px]">
+                              <span className="text-[9px] font-mono text-white/70 truncate block max-w-[140px]">
                                 {p.next_action ?? p.phone ?? '—'}
                               </span>
                             </td>
@@ -584,7 +581,7 @@ export default function ProspectsPage() {
                             <td className="px-4 py-5" onClick={e => e.stopPropagation()}>
                               {p.template_title ? (
                                 <div className="flex flex-col gap-1">
-                                  <span className="text-[9px] font-mono text-white/50 truncate max-w-[140px]">
+                                  <span className="text-[9px] font-mono text-white/80 truncate max-w-[140px]">
                                     {p.template_title}
                                   </span>
                                   {p.template_preview_url ? (
@@ -598,17 +595,17 @@ export default function ProspectsPage() {
                                       VOIR PREVIEW
                                     </a>
                                   ) : (
-                                    <span className="text-[8px] font-mono text-white/15">pas de lien</span>
+                                    <span className="text-[8px] font-mono text-white/30">pas de lien</span>
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-[9px] font-mono text-white/15">—</span>
+                                <span className="text-[9px] font-mono text-white/30">—</span>
                               )}
                             </td>
 
                             {/* DATE */}
                             <td className="px-4 py-5">
-                              <span className="text-[9px] font-mono text-white/30">
+                              <span className="text-[9px] font-mono text-white/60">
                                 {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                               </span>
                             </td>
@@ -664,9 +661,9 @@ export default function ProspectsPage() {
                       {selected.package_type ?? '—'}
                     </span>
                     <span className={`text-[7px] font-black px-2 py-0.5 rounded border uppercase ${
-                      STATUS_COLORS[selected.prospect_status ?? 'NEW'] ?? 'bg-white/5 text-white/30 border-white/10'
+                      STATUS_COLORS[selected.prospect_status ?? 'RAPPELER'] ?? 'bg-white/5 text-white/30 border-white/10'
                     }`}>
-                      {selected.prospect_status ?? 'NEW'}
+                      {selected.prospect_status ?? 'RAPPELER'}
                     </span>
                     <span className={`text-[7px] font-black uppercase ${getHeatBadge(selected.prospect_score).color}`}>
                       {getHeatBadge(selected.prospect_score).label}
@@ -682,66 +679,39 @@ export default function ProspectsPage() {
               </div>
 
               {/* Content */}
-              <div className="flex-1 overflow-y-auto px-8 py-6 space-y-8 no-scrollbar">
+              <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 no-scrollbar">
 
-                {/* Infos formulaire */}
+                {/* Message original du client */}
                 <div className="space-y-3">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">INFOS_FORMULAIRE</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: 'CONTACT',   value: selected.contact_name },
-                      { label: 'EMAIL',     value: selected.email        },
-                      { label: 'TÉLÉPHONE', value: selected.phone        },
-                      { label: 'RÉGION',    value: selected.region       },
-                      { label: 'SECTEUR',   value: selected.sector       },
-                      { label: 'DATE',      value: new Date(selected.created_at).toLocaleDateString('fr-FR') }
-                    ].map(({ label, value }) => (
-                      <div key={label} className="space-y-1">
-                        <div className="text-[7px] font-black uppercase tracking-widest text-white/40">{label}</div>
-                        <div className="text-[10px] font-mono text-white">{value ?? '—'}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Changer statut */}
-                <div className="space-y-3">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">CHANGER_STATUT</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {['NEW', 'EN_CONTACT', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ'].map(s => (
-                      <button
-                        key={s}
-                        onClick={() => { setPanelForm(f => ({ ...f, prospect_status: s })); handleSavePanel({ prospect_status: s }) }}
-                        disabled={savingAction}
-                        className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
-                          (panelForm.prospect_status || selected.prospect_status) === s
-                            ? STATUS_COLORS[s]
-                            : 'border-white/5 text-white/40 hover:border-white/20 hover:text-white/70'
-                        } disabled:opacity-50`}
-                      >
-                        {s}
-                      </button>
-                    ))}
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">
+                    MESSAGE_CLIENT
+                  </h3>
+                  <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl">
+                    <p className="text-[12px] font-mono text-white leading-relaxed whitespace-pre-wrap">
+                      {selected.message ?? '— Aucun message —'}
+                    </p>
                   </div>
                 </div>
 
                 {/* Template demandé */}
-                {(selected.template_id && selected.template_title) && (
-                  <div className="space-y-2">
-                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">TEMPLATE_DEMANDÉ</h3>
-                    <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-2">
+                {selected.template_id && selected.template_title && (
+                  <div className="space-y-3">
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">
+                      TEMPLATE_DEMANDÉ
+                    </h3>
+                    <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-white uppercase tracking-wider">
-                          {selected.template_title ?? '—'}
+                        <span className="text-[13px] font-black text-white uppercase tracking-wider">
+                          {selected.template_title}
                         </span>
-                        <span className={`text-[7px] font-black px-2 py-0.5 rounded border uppercase ${
-                          PACKAGE_COLORS[selected.package_type ?? ''] ?? 'bg-white/5 text-white/50 border-white/10'
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded border uppercase ${
+                          PACKAGE_COLORS[selected.package_type ?? ''] ?? 'bg-white/5 text-white/30 border-white/10'
                         }`}>
                           {selected.package_type}
                         </span>
                       </div>
                       {selected.template_price_fcfa && selected.template_price_fcfa > 0 && (
-                        <div className="text-[11px] font-black font-mono text-[#39FF14]">
+                        <div className="text-[14px] font-black font-mono text-[#39FF14]">
                           {selected.template_price_fcfa.toLocaleString('fr-FR')} FCFA
                         </div>
                       )}
@@ -750,106 +720,124 @@ export default function ProspectsPage() {
                           href={selected.template_preview_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-[8px] font-mono text-white/70 hover:text-[#39FF14] transition-colors"
+                          className="flex items-center gap-1.5 text-[10px] font-mono text-[#39FF14]/70 hover:text-[#39FF14] transition-colors"
                           onClick={e => e.stopPropagation()}
                         >
-                          <ExternalLink className="w-3 h-3" />
-                          VOIR_PREVIEW
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          VOIR PREVIEW
                         </a>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Message original */}
-                {selected.message && (
-                  <div className="space-y-2">
-                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">MESSAGE_ORIGINAL</h3>
-                    <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                      <p className="text-[10px] font-mono text-white/90 leading-relaxed whitespace-pre-wrap">{selected.message}</p>
+                {/* Statut actuel */}
+                <div className="space-y-3">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">
+                    STATUT
+                  </h3>
+                  <div className="flex gap-2">
+                    {(['RAPPELER', 'CONVERTI', 'ANNULÉ'] as const).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => {
+                          setPanelForm(f => ({ ...f, prospect_status: s }))
+                          handleSavePanel({ prospect_status: s })
+                        }}
+                        disabled={savingAction}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                          (panelForm.prospect_status || selected.prospect_status) === s
+                            ? STATUS_COLORS[s] ?? 'bg-white/10 text-white border-white/20'
+                            : 'border-white/10 text-white/40 hover:border-white/30 hover:text-white/80'
+                        } disabled:opacity-50`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date de rappel — visible uniquement si statut RAPPELER */}
+                {(panelForm.prospect_status === 'RAPPELER' || selected.prospect_status === 'RAPPELER') && (
+                  <div className="space-y-3">
+                    <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">
+                      DATE_RAPPEL
+                    </h3>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="datetime-local"
+                        value={panelForm.rappel_at}
+                        onChange={e => setPanelForm(f => ({ ...f, rappel_at: e.target.value }))}
+                        className="flex-1 bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white focus:outline-none focus:border-[#39FF14]/50 transition-all"
+                      />
+                      <button
+                        onClick={() => handleSavePanel({ rappel_at: panelForm.rappel_at })}
+                        disabled={savingAction}
+                        className="px-5 py-3 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] text-[10px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
+                      >
+                        {savingAction ? '...' : 'OK'}
+                      </button>
                     </div>
                   </div>
                 )}
 
-                {/* Date rappel */}
-                <div className="space-y-2">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">DATE_RAPPEL</h3>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="datetime-local"
-                      value={panelForm.rappel_at}
-                      onChange={e => setPanelForm(f => ({ ...f, rappel_at: e.target.value }))}
-                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all font-mono"
-                    />
-                    <button
-                      onClick={() => handleSavePanel({ rappel_at: panelForm.rappel_at })}
-                      disabled={savingAction}
-                      className="px-4 py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
-                    >
-                      {savingAction ? '...' : 'OK'}
-                    </button>
-                  </div>
+                {/* Commentaire — toujours visible, label change selon statut */}
+                <div className="space-y-3">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">
+                    {(panelForm.prospect_status || selected.prospect_status) === 'RAPPELER'
+                      ? 'COMMENTAIRE_RELANCE'
+                      : (panelForm.prospect_status || selected.prospect_status) === 'CONVERTI'
+                      ? 'COMMENTAIRE_CONVERSION'
+                      : (panelForm.prospect_status || selected.prospect_status) === 'ANNULÉ'
+                      ? 'COMMENTAIRE_ANNULATION'
+                      : 'COMMENTAIRE'}
+                  </h3>
+                  <textarea
+                    value={panelForm.internal_notes}
+                    onChange={e => setPanelForm(f => ({ ...f, internal_notes: e.target.value }))}
+                    placeholder={
+                      (panelForm.prospect_status || selected.prospect_status) === 'RAPPELER'
+                        ? 'Pourquoi relancer ? Que lui dire ?...'
+                        : (panelForm.prospect_status || selected.prospect_status) === 'CONVERTI'
+                        ? 'Comment la conversion s\'est passée ?...'
+                        : (panelForm.prospect_status || selected.prospect_status) === 'ANNULÉ'
+                        ? 'Pourquoi annulé ? Objection principale ?...'
+                        : 'Vos notes sur ce prospect...'
+                    }
+                    rows={5}
+                    className="w-full bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-[#39FF14]/50 transition-all resize-none"
+                  />
+                  <button
+                    onClick={() => handleSavePanel({ internal_notes: panelForm.internal_notes })}
+                    disabled={savingAction}
+                    className="w-full py-3 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] text-[10px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
+                  >
+                    {savingAction ? 'SAVING...' : 'SAUVEGARDER_COMMENTAIRE'}
+                  </button>
                 </div>
 
                 {/* Source contact */}
-                <div className="space-y-2">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">SOURCE_CONTACT</h3>
+                <div className="space-y-3 pb-10">
+                  <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/60">
+                    SOURCE_CONTACT
+                  </h3>
                   <div className="flex items-center gap-3">
                     <input
                       type="text"
                       value={panelForm.source_contact}
                       onChange={e => setPanelForm(f => ({ ...f, source_contact: e.target.value }))}
-                      placeholder="Ex: Formulaire vitrine, LinkedIn, Recommandation..."
-                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                      placeholder="Formulaire vitrine, LinkedIn, Recommandation..."
+                      className="flex-1 bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-[#39FF14]/50 transition-all"
                     />
                     <button
                       onClick={() => handleSavePanel({ source_contact: panelForm.source_contact })}
                       disabled={savingAction}
-                      className="px-4 py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
+                      className="px-5 py-3 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] text-[10px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
                     >
                       {savingAction ? '...' : 'OK'}
                     </button>
                   </div>
                 </div>
-
-                {/* Verbatim */}
-                <div className="space-y-2">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">VERBATIM_PROSPECT</h3>
-                  <textarea
-                    value={panelForm.verbatim}
-                    onChange={e => setPanelForm(f => ({ ...f, verbatim: e.target.value }))}
-                    placeholder="Ce que le prospect a dit exactement..."
-                    rows={3}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white/70 focus:outline-none focus:border-[#39FF14]/30 transition-all resize-none"
-                  />
-                  <button
-                    onClick={() => handleSavePanel({ verbatim: panelForm.verbatim })}
-                    disabled={savingAction}
-                    className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[8px] font-black uppercase tracking-widest hover:border-white/20 hover:text-white transition-all disabled:opacity-50"
-                  >
-                    {savingAction ? 'SAVING...' : 'SAVE_VERBATIM'}
-                  </button>
-                </div>
-
-                {/* Note interne */}
-                <div className="space-y-2 pb-10">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">NOTE_INTERNE_AMADOU</h3>
-                  <textarea
-                    value={panelForm.internal_notes}
-                    onChange={e => setPanelForm(f => ({ ...f, internal_notes: e.target.value }))}
-                    placeholder="Mes observations personnelles sur ce prospect..."
-                    rows={4}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white/70 focus:outline-none focus:border-[#39FF14]/30 transition-all resize-none"
-                  />
-                  <button
-                    onClick={() => handleSavePanel({ internal_notes: panelForm.internal_notes })}
-                    disabled={savingAction}
-                    className="w-full py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
-                  >
-                    {savingAction ? 'SAVING...' : 'SAVE_NOTE_INTERNE'}
-                  </button>
-                </div>
-
               </div>
 
               {/* Footer */}
