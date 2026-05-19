@@ -504,13 +504,13 @@ export async function exportWord(
             })
           ],
           alignment: AlignmentType.CENTER,
-          spacing:   { before: 60, after: 60 }
+          spacing:   { before: 80, after: 80 }
         })
       ],
-      shading:  { type: ShadingType.SOLID, fill: 'EEEEEE' },
+      shading:  { type: ShadingType.CLEAR, fill: 'EEEEEE' },
       borders:  allBorders,
       width:    { size: widthDXA, type: WidthType.DXA },
-      margins:  { top: 80, bottom: 80, left: 120, right: 120 }
+      margins:  { top: 120, bottom: 120, left: 160, right: 160 }
     })
 
   // ── Cellule données tableau ──
@@ -534,17 +534,17 @@ export async function exportWord(
               color: opts.color ?? '222222'
             })
           ],
-          spacing: { before: 40, after: 40 }
+          spacing: { before: 80, after: 80 }
         })
       ],
       shading:  opts.bg
-        ? { type: ShadingType.SOLID, fill: opts.bg }
-        : undefined,
+        ? { type: ShadingType.CLEAR, fill: opts.bg }
+        : { type: ShadingType.CLEAR, fill: 'FFFFFF' },
       borders:  allBorders,
       width:    opts.width
         ? { size: opts.width, type: WidthType.DXA }
         : undefined,
-      margins:  { top: 80, bottom: 80, left: 120, right: 120 }
+      margins:  { top: 100, bottom: 100, left: 160, right: 160 }
     })
 
   // ── Paragraphe titre section ──
@@ -657,6 +657,7 @@ export async function exportWord(
       makeHeaderCell('TÉLÉPHONE',     1600),
       makeHeaderCell('PLAN',          1000),
       makeHeaderCell('TEMPLATE',      1800),
+      makeHeaderCell('LIEN PREVIEW',  3000),
       makeHeaderCell('BUDGET (FCFA)', 1400),
       makeHeaderCell('STATUT',        1100),
       makeHeaderCell('RÉGION',        1200),
@@ -683,6 +684,7 @@ export async function exportWord(
         makeDataCell(p.phone ?? '',           { bg }),
         makeDataCell(p.package_type ?? '',    { bg }),
         makeDataCell(p.template_title ?? '',  { bg }),
+        makeDataCell(p.template_preview_url ?? '', { bg, color: '2255CC' }),
         makeDataCell(
           p.budget ? p.budget.toLocaleString('fr-FR') + ' F' : '—',
           { bg, bold: true, color: '116611' }
@@ -783,7 +785,7 @@ export async function exportWord(
             italics: !p.message
           })
         ],
-        shading:  { type: ShadingType.SOLID, fill: 'F8F8F8' },
+        shading:  { type: ShadingType.CLEAR, fill: 'F8F8F8' },
         spacing:  { before: 80, after: 80 },
         indent:   { left: 200, right: 200 },
         border: {
@@ -807,7 +809,7 @@ export async function exportWord(
             italics: !p.internal_notes
           })
         ],
-        shading:  { type: ShadingType.SOLID, fill: 'FFFBEA' },
+        shading:  { type: ShadingType.CLEAR, fill: 'FFFBEA' },
         spacing:  { before: 80, after: 80 },
         indent:   { left: 200, right: 200 },
         border: {
