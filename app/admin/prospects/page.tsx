@@ -11,6 +11,7 @@ import {
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
 import { LayoutDashboard, Zap } from 'lucide-react';
+import { exportExcel, exportPDF, exportWord } from '@/lib/exportProspects';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -134,6 +135,7 @@ export default function ProspectsPage() {
     source_contact:      ''
   })
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
+  const [showExportMenu, setShowExportMenu] = useState(false)
 
   // ── Load ──────────────────────────────────────────────────────────────────
   const loadProspects = useCallback(async (reset = false) => {
@@ -205,53 +207,24 @@ export default function ProspectsPage() {
     }
   }, [selected])
 
-  // ── Export CSV ────────────────────────────────────────────────────────────
-  const exportCSV = () => {
-    const headers = [
-      'NOM',
-      'EMAIL',
-      'TÉLÉPHONE',
-      'PLAN',
-      'TEMPLATE',
-      'BUDGET_FCFA',
-      'STATUT',
-      'RAPPEL',
-      'RÉGION',
-      'SECTEUR',
-      'COMMENTAIRE',
-      'DATE_INSCRIPTION'
-    ]
-    const rows = prospects.map(p => {
+  function buildExportData() {
+    return prospects.map(p => {
       const budget = resolveBudget(p)
-      return [
-        p.name,
-        p.email ?? '',
-        p.phone ?? '',
-        p.package_type ?? '',
-        p.template_title ?? '',
-        budget ? budget.value : '',
-        p.prospect_status ?? '',
-        p.rappel_at
-          ? new Date(p.rappel_at).toLocaleDateString('fr-FR')
-          : '',
-        p.region ?? '',
-        p.sector ?? '',
-        p.internal_notes ?? '',
-        new Date(p.created_at).toLocaleDateString('fr-FR')
-      ]
+      return {
+        name:            p.name,
+        email:           p.email,
+        phone:           p.phone,
+        package_type:    p.package_type,
+        template_title:  p.template_title,
+        budget:          budget ? budget.value : null,
+        prospect_status: p.prospect_status,
+        rappel_at:       p.rappel_at,
+        region:          p.region,
+        sector:          p.sector,
+        internal_notes:  p.internal_notes,
+        created_at:      p.created_at
+      }
     })
-    const csv = [headers, ...rows]
-      .map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
-      .join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-    const url  = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `prospects_${new Date().toISOString().split('T')[0]}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
   }
 
   const handleSavePanel = async (fields: Partial<typeof panelForm>) => {
@@ -339,13 +312,42 @@ export default function ProspectsPage() {
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                 </button>
-                <button
-                  onClick={exportCSV}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/10 text-white/60 text-[11px] font-medium hover:bg-white/5 transition-all"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  EXPORT_CSV
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowExportMenu(v => !v)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/20 text-white text-[11px] font-black uppercase tracking-widest hover:bg-white/5 transition-all"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    EXPORTER
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+
+                  <AnimatePresence>
+                    {showExportMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="absolute right-0 top-full mt-2 z-[60] bg-[#111111] border border-white/10 rounded-2xl overflow-hidden shadow-2xl min-w-[200px]"
+                      >
+                        {[
+                          { label: 'Excel (.xlsx)',  icon: '📊', action: () => { exportExcel(buildExportData(), `prospects_${new Date().toISOString().split('T')[0]}`); setShowExportMenu(false) } },
+                          { label: 'PDF (.pdf)',     icon: '📄', action: () => { exportPDF(buildExportData(),   `prospects_${new Date().toISOString().split('T')[0]}`); setShowExportMenu(false) } },
+                          { label: 'Word (.docx)',   icon: '📝', action: async () => { await exportWord(buildExportData(), `prospects_${new Date().toISOString().split('T')[0]}`); setShowExportMenu(false) } },
+                        ].map(({ label, icon, action }) => (
+                          <button
+                            key={label}
+                            onClick={action}
+                            className="w-full flex items-center gap-3 px-5 py-3.5 text-[11px] font-black uppercase tracking-widest text-white hover:bg-white/5 transition-all border-b border-white/5 last:border-0"
+                          >
+                            <span className="text-base">{icon}</span>
+                            {label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 
