@@ -420,17 +420,18 @@ export default function ProspectsPage() {
                           <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-[#39FF14] focus:ring-0 cursor-pointer" />
                         </th>
                         {[
-                          { label: 'NOM / CONTACT', width: '220px' },
-                          { label: 'PLAN',          width: '140px' },
-                          { label: 'STATUT',        width: '140px' },
-                          { label: 'RÉGION',        width: '140px' },
-                          { label: 'CHALEUR',       width: '80px'  },
-                          { label: 'BUDGET FCFA',   width: '140px' },
-                          { label: 'RAPPEL',        width: '120px' },
-                          { label: 'NEXT_ACTION',   width: '160px' },
-                          { label: 'DATE',          width: '100px' }
+                          { label: 'NOM',          width: '180px' },
+                          { label: 'EMAIL',        width: '200px' },
+                          { label: 'PLAN',         width: '160px' },
+                          { label: 'STATUT',       width: '150px' },
+                          { label: 'RÉGION',       width: '130px' },
+                          { label: 'BUDGET FCFA',  width: '140px' },
+                          { label: 'RAPPEL',       width: '110px' },
+                          { label: 'NEXT_ACTION',  width: '160px' },
+                          { label: 'TEMPLATE',     width: '160px' },
+                          { label: 'DATE',         width: '90px'  }
                         ].map(col => (
-                          <th key={col.label} style={{ width: col.width }} className="px-4 py-3 text-[9px] font-black text-white/30 tracking-[0.2em] uppercase">
+                          <th key={col.label} style={{ width: col.width }} className="px-4 py-3 text-[10px] font-black text-white/30 tracking-[0.2em] uppercase">
                             {col.label}
                           </th>
                         ))}
@@ -451,42 +452,43 @@ export default function ProspectsPage() {
                             onClick={() => setSelected(p)}
                             className={`group hover:bg-white/[0.02] cursor-pointer transition-colors ${rappelDue ? 'bg-orange-500/5' : ''}`}
                           >
-                            <td className="px-4 py-4" onClick={e => e.stopPropagation()}>
+                            <td className="px-4 py-5" onClick={e => e.stopPropagation()}>
                               <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 accent-[#39FF14] focus:ring-0 cursor-pointer" />
                             </td>
 
-                            {/* NOM / CONTACT */}
-                            <td className="px-4 py-4">
+                            {/* NOM — avatar + nom uniquement */}
+                            <td className="px-4 py-5">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                                  <span className="text-[10px] font-black text-white/40">{p.name[0].toUpperCase()}</span>
+                                <div className="w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                                  <span className="text-[11px] font-black text-white/40">{p.name[0].toUpperCase()}</span>
                                 </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[11px] font-black text-white uppercase tracking-wider truncate max-w-[150px]">{p.name}</span>
-                                  {p.contact_name && (
-                                    <span className="text-[9px] font-mono text-white/40 truncate max-w-[150px]">{p.contact_name}</span>
-                                  )}
-                                  <span className="text-[8px] font-mono text-white/20 truncate max-w-[150px]">{p.email ?? p.phone ?? '—'}</span>
-                                </div>
+                                <span className="text-[12px] font-black text-white uppercase tracking-wider truncate max-w-[130px]">{p.name}</span>
                               </div>
                             </td>
 
+                            {/* EMAIL */}
+                            <td className="px-4 py-5">
+                              <span className="text-[10px] font-mono text-white/50 truncate block max-w-[180px]">
+                                {p.email ?? '—'}
+                              </span>
+                            </td>
+
                             {/* PLAN */}
-                            <td className="px-4 py-4">
+                            <td className="px-4 py-5">
                               <div className="flex flex-col gap-1">
-                                <span className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border w-fit ${
+                                <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest border w-fit ${
                                   PACKAGE_COLORS[p.package_type ?? ''] ?? 'bg-white/5 text-white/40 border-white/10'
                                 }`}>
                                   {p.package_type ?? '—'}
                                 </span>
                                 {p.template_title && (
-                                  <span className="text-[7px] font-mono text-white/25 truncate max-w-[120px]">{p.template_title}</span>
+                                  <span className="text-[8px] font-mono text-white/25 truncate max-w-[140px]">{p.template_title}</span>
                                 )}
                               </div>
                             </td>
 
-                            {/* STATUT */}
-                            <td className="px-4 py-4 relative" onClick={e => e.stopPropagation()}>
+                            {/* STATUT — dropdown inline */}
+                            <td className="px-4 py-5 relative" onClick={e => e.stopPropagation()}>
                               <button
                                 onClick={() => setEditingStatusId(editingStatusId === p.enterprise_id ? null : p.enterprise_id)}
                                 className={`flex items-center gap-1.5 px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest border transition-all hover:opacity-80 ${
@@ -539,61 +541,79 @@ export default function ProspectsPage() {
                             </td>
 
                             {/* RÉGION */}
-                            <td className="px-4 py-4">
+                            <td className="px-4 py-5">
                               <div className="flex flex-col">
-                                <span className="text-[9px] font-mono text-white/60">{p.region ?? '—'}</span>
-                                {p.sector && <span className="text-[8px] font-mono text-white/20">{p.sector}</span>}
+                                <span className="text-[10px] font-mono text-white/60">{p.region ?? '—'}</span>
+                                {p.sector && <span className="text-[9px] font-mono text-white/20">{p.sector}</span>}
                               </div>
                             </td>
 
-                            {/* CHALEUR */}
-                            <td className="px-4 py-4">
-                              <span className={`text-[8px] font-black uppercase ${heat.color}`}>{heat.label}</span>
-                            </td>
-
-                            {/* BUDGET — valeur_estimee_fcfa > message regex > template price */}
-                            <td className="px-4 py-4">
+                            {/* BUDGET FCFA — logique resolveBudget inchangée */}
+                            <td className="px-4 py-5">
                               {budget ? (
                                 <div className="flex flex-col">
-                                  <span className="text-[11px] font-black font-mono text-[#39FF14]/90">
+                                  <span className="text-[12px] font-black font-mono text-[#39FF14]/90">
                                     {budget.value.toLocaleString('fr-FR')} F
                                   </span>
                                   {budget.source === 'template' && (
-                                    <span className="text-[7px] font-mono text-white/20">template</span>
+                                    <span className="text-[8px] font-mono text-white/20">template</span>
                                   )}
                                   {budget.source === 'message' && (
-                                    <span className="text-[7px] font-mono text-white/20">extrait msg</span>
+                                    <span className="text-[8px] font-mono text-white/20">extrait msg</span>
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-[8px] font-mono text-white/20">—</span>
+                                <span className="text-[9px] font-mono text-white/20">—</span>
                               )}
                             </td>
 
-                            {/* RAPPEL — rappel_at sinon created_at */}
-                            <td className="px-4 py-4">
+                            {/* RAPPEL */}
+                            <td className="px-4 py-5">
                               {p.rappel_at ? (
-                                <span className={`text-[8px] font-mono ${rappelDue ? 'text-orange-400 font-black' : 'text-white/40'}`}>
+                                <span className={`text-[9px] font-mono ${rappelDue ? 'text-orange-400 font-black' : 'text-white/40'}`}>
                                   {new Date(p.rappel_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                   {rappelDue && ' ⚡'}
                                 </span>
                               ) : (
-                                <span className="text-[8px] font-mono text-white/20">
+                                <span className="text-[9px] font-mono text-white/20">
                                   {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                 </span>
                               )}
                             </td>
 
-                            {/* NEXT_ACTION — next_action sinon phone */}
-                            <td className="px-4 py-4">
-                              <span className="text-[8px] font-mono text-white/40 truncate block max-w-[140px]">
+                            {/* NEXT_ACTION */}
+                            <td className="px-4 py-5">
+                              <span className="text-[9px] font-mono text-white/40 truncate block max-w-[140px]">
                                 {p.next_action ?? p.phone ?? '—'}
                               </span>
                             </td>
 
+                            {/* TEMPLATE — titre + lien preview */}
+                            <td className="px-4 py-5">
+                              {p.template_title ? (
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-[9px] font-mono text-white/50 truncate max-w-[140px]">{p.template_title}</span>
+                                  {p.template_preview_url && (
+                                    <a
+                                      href={p.template_preview_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={e => e.stopPropagation()}
+                                      className="flex items-center gap-1 text-[8px] font-mono text-white/25 hover:text-[#39FF14] transition-colors"
+                                    >
+                                      <ExternalLink className="w-2.5 h-2.5" />
+                                      PREVIEW
+                                    </a>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[9px] font-mono text-white/15">—</span>
+                              )}
+                            </td>
+
                             {/* DATE */}
-                            <td className="px-4 py-4">
-                              <span className="text-[8px] font-mono text-white/30">
+                            <td className="px-4 py-5">
+                              <span className="text-[9px] font-mono text-white/30">
                                 {new Date(p.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
                               </span>
                             </td>
@@ -690,7 +710,7 @@ export default function ProspectsPage() {
                 </div>
 
                 {/* Template demandé */}
-                {selected.template_id && (
+                {(selected.template_id && selected.template_title) && (
                   <div className="space-y-2">
                     <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">TEMPLATE_DEMANDÉ</h3>
                     <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-2">
@@ -734,27 +754,6 @@ export default function ProspectsPage() {
                     </div>
                   </div>
                 )}
-
-                {/* Changer statut */}
-                <div className="space-y-3">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">CHANGER_STATUT</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {['NEW', 'EN_CONTACT', 'NÉGOCIATION', 'EN_ATTENTE', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ'].map(s => (
-                      <button
-                        key={s}
-                        onClick={() => { setPanelForm(f => ({ ...f, prospect_status: s })); handleSavePanel({ prospect_status: s }) }}
-                        disabled={savingAction}
-                        className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
-                          (panelForm.prospect_status || selected.prospect_status) === s
-                            ? STATUS_COLORS[s]
-                            : 'border-white/5 text-white/20 hover:border-white/20 hover:text-white/60'
-                        } disabled:opacity-50`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
                 {/* Date rappel */}
                 <div className="space-y-2">
