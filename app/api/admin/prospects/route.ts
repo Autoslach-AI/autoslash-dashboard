@@ -33,7 +33,7 @@ export async function GET(req: Request) {
       query = query.eq('prospect_status', prospect_status)
     }
     if (search) {
-      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,contact_name.ilike.%${search}%,phone.ilike.%${search}%,enterprise_id::text.ilike.%${search}%`)
+      query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%,contact_name.ilike.%${search}%,phone.ilike.%${search}%`)
     }
     if (period && period !== 'ALL') {
       const now = new Date()
