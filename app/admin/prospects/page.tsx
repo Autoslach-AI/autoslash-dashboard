@@ -72,7 +72,7 @@ function resolveBudget(p: Prospect): { value: number; source: 'estimee' | 'messa
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 const PACKAGE_TYPES    = ['ALL', 'STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE']
-const PROSPECT_STATUTS = ['ALL', 'NEW', 'EN_CONTACT', 'NÉGOCIATION', 'EN_ATTENTE', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ']
+const PROSPECT_STATUTS = ['ALL', 'NEW', 'EN_CONTACT', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ']
 const PERIODS          = [
   { label: 'Tout',    value: 'ALL'   },
   { label: 'Jour',    value: 'DAY'   },
@@ -84,8 +84,6 @@ const PERIODS          = [
 const STATUS_COLORS: Record<string, string> = {
   NEW:          'bg-white/5 text-white/40 border-white/10',
   EN_CONTACT:   'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  NÉGOCIATION:  'bg-violet-500/10 text-violet-400 border-violet-500/20',
-  EN_ATTENTE:   'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
   RAPPELER:     'bg-orange-500/10 text-orange-400 border-orange-500/20',
   CONVERTI:     'bg-[#39FF14]/10 text-[#39FF14] border-[#39FF14]/20',
   PERDU:        'bg-red-500/10 text-red-400 border-red-500/20',
@@ -256,9 +254,21 @@ export default function ProspectsPage() {
       if (saveError) throw new Error(saveError)
 
       setProspects(prev => prev.map(p =>
-        p.enterprise_id === selected.enterprise_id ? { ...p, ...data } : p
+        p.enterprise_id === selected.enterprise_id ? {
+          ...p,
+          ...data,
+          template_title:       p.template_title,
+          template_price_fcfa:  p.template_price_fcfa,
+          template_preview_url: p.template_preview_url,
+        } : p
       ))
-      setSelected(prev => prev ? { ...prev, ...data } : null)
+      setSelected(prev => prev ? {
+        ...prev,
+        ...data,
+        template_title:       prev.template_title,
+        template_price_fcfa:  prev.template_price_fcfa,
+        template_preview_url: prev.template_preview_url,
+      } : null)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -505,7 +515,7 @@ export default function ProspectsPage() {
                                     exit={{ opacity: 0, y: -4 }}
                                     className="absolute top-full left-0 mt-1 z-[50] bg-[#111111] border border-white/10 rounded-xl overflow-hidden shadow-2xl min-w-[160px]"
                                   >
-                                    {['NEW', 'EN_CONTACT', 'NÉGOCIATION', 'EN_ATTENTE', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ'].map(s => (
+                                    {['NEW', 'EN_CONTACT', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ'].map(s => (
                                       <button
                                         key={s}
                                         onClick={async () => {
@@ -676,7 +686,7 @@ export default function ProspectsPage() {
 
                 {/* Infos formulaire */}
                 <div className="space-y-3">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">INFOS_FORMULAIRE</h3>
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">INFOS_FORMULAIRE</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {[
                       { label: 'CONTACT',   value: selected.contact_name },
@@ -687,9 +697,30 @@ export default function ProspectsPage() {
                       { label: 'DATE',      value: new Date(selected.created_at).toLocaleDateString('fr-FR') }
                     ].map(({ label, value }) => (
                       <div key={label} className="space-y-1">
-                        <div className="text-[7px] font-black uppercase tracking-widest text-white/20">{label}</div>
-                        <div className="text-[10px] font-mono text-white/70">{value ?? '—'}</div>
+                        <div className="text-[7px] font-black uppercase tracking-widest text-white/40">{label}</div>
+                        <div className="text-[10px] font-mono text-white">{value ?? '—'}</div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Changer statut */}
+                <div className="space-y-3">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">CHANGER_STATUT</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {['NEW', 'EN_CONTACT', 'RAPPELER', 'CONVERTI', 'PERDU', 'ANNULÉ'].map(s => (
+                      <button
+                        key={s}
+                        onClick={() => { setPanelForm(f => ({ ...f, prospect_status: s })); handleSavePanel({ prospect_status: s }) }}
+                        disabled={savingAction}
+                        className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest border transition-all ${
+                          (panelForm.prospect_status || selected.prospect_status) === s
+                            ? STATUS_COLORS[s]
+                            : 'border-white/5 text-white/40 hover:border-white/20 hover:text-white/70'
+                        } disabled:opacity-50`}
+                      >
+                        {s}
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -697,14 +728,14 @@ export default function ProspectsPage() {
                 {/* Template demandé */}
                 {(selected.template_id && selected.template_title) && (
                   <div className="space-y-2">
-                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">TEMPLATE_DEMANDÉ</h3>
+                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">TEMPLATE_DEMANDÉ</h3>
                     <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black text-white uppercase tracking-wider">
                           {selected.template_title ?? '—'}
                         </span>
                         <span className={`text-[7px] font-black px-2 py-0.5 rounded border uppercase ${
-                          PACKAGE_COLORS[selected.package_type ?? ''] ?? 'bg-white/5 text-white/30 border-white/10'
+                          PACKAGE_COLORS[selected.package_type ?? ''] ?? 'bg-white/5 text-white/50 border-white/10'
                         }`}>
                           {selected.package_type}
                         </span>
@@ -719,7 +750,7 @@ export default function ProspectsPage() {
                           href={selected.template_preview_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-[8px] font-mono text-white/40 hover:text-[#39FF14] transition-colors"
+                          className="flex items-center gap-1.5 text-[8px] font-mono text-white/70 hover:text-[#39FF14] transition-colors"
                           onClick={e => e.stopPropagation()}
                         >
                           <ExternalLink className="w-3 h-3" />
@@ -733,22 +764,22 @@ export default function ProspectsPage() {
                 {/* Message original */}
                 {selected.message && (
                   <div className="space-y-2">
-                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">MESSAGE_ORIGINAL</h3>
+                    <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">MESSAGE_ORIGINAL</h3>
                     <div className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl">
-                      <p className="text-[10px] font-mono text-white/60 leading-relaxed whitespace-pre-wrap">{selected.message}</p>
+                      <p className="text-[10px] font-mono text-white/90 leading-relaxed whitespace-pre-wrap">{selected.message}</p>
                     </div>
                   </div>
                 )}
 
                 {/* Date rappel */}
                 <div className="space-y-2">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">DATE_RAPPEL</h3>
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">DATE_RAPPEL</h3>
                   <div className="flex items-center gap-3">
                     <input
                       type="datetime-local"
                       value={panelForm.rappel_at}
                       onChange={e => setPanelForm(f => ({ ...f, rappel_at: e.target.value }))}
-                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all font-mono"
                     />
                     <button
                       onClick={() => handleSavePanel({ rappel_at: panelForm.rappel_at })}
@@ -760,51 +791,9 @@ export default function ProspectsPage() {
                   </div>
                 </div>
 
-                {/* Valeur estimée */}
-                <div className="space-y-2">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">VALEUR_ESTIMÉE_FCFA</h3>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number"
-                      value={panelForm.valeur_estimee_fcfa}
-                      onChange={e => setPanelForm(f => ({ ...f, valeur_estimee_fcfa: e.target.value }))}
-                      placeholder="0"
-                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all"
-                    />
-                    <button
-                      onClick={() => handleSavePanel({ valeur_estimee_fcfa: panelForm.valeur_estimee_fcfa })}
-                      disabled={savingAction}
-                      className="px-4 py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
-                    >
-                      {savingAction ? '...' : 'OK'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Next action */}
-                <div className="space-y-2">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">NEXT_ACTION</h3>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      value={panelForm.next_action}
-                      onChange={e => setPanelForm(f => ({ ...f, next_action: e.target.value }))}
-                      placeholder="Ex: Envoyer devis, Rappeler lundi..."
-                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all"
-                    />
-                    <button
-                      onClick={() => handleSavePanel({ next_action: panelForm.next_action })}
-                      disabled={savingAction}
-                      className="px-4 py-2.5 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[8px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
-                    >
-                      {savingAction ? '...' : 'OK'}
-                    </button>
-                  </div>
-                </div>
-
                 {/* Source contact */}
                 <div className="space-y-2">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">SOURCE_CONTACT</h3>
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">SOURCE_CONTACT</h3>
                   <div className="flex items-center gap-3">
                     <input
                       type="text"
@@ -825,32 +814,32 @@ export default function ProspectsPage() {
 
                 {/* Verbatim */}
                 <div className="space-y-2">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">VERBATIM_PROSPECT</h3>
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">VERBATIM_PROSPECT</h3>
                   <textarea
                     value={panelForm.verbatim}
                     onChange={e => setPanelForm(f => ({ ...f, verbatim: e.target.value }))}
                     placeholder="Ce que le prospect a dit exactement..."
                     rows={3}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all resize-none"
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white/70 focus:outline-none focus:border-[#39FF14]/30 transition-all resize-none"
                   />
                   <button
                     onClick={() => handleSavePanel({ verbatim: panelForm.verbatim })}
                     disabled={savingAction}
-                    className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/40 text-[8px] font-black uppercase tracking-widest hover:border-white/20 hover:text-white transition-all disabled:opacity-50"
+                    className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[8px] font-black uppercase tracking-widest hover:border-white/20 hover:text-white transition-all disabled:opacity-50"
                   >
                     {savingAction ? 'SAVING...' : 'SAVE_VERBATIM'}
                   </button>
                 </div>
 
                 {/* Note interne */}
-                <div className="space-y-2">
-                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/30">NOTE_INTERNE_AMADOU</h3>
+                <div className="space-y-2 pb-10">
+                  <h3 className="text-[8px] font-black uppercase tracking-[0.3em] text-white/60">NOTE_INTERNE_AMADOU</h3>
                   <textarea
                     value={panelForm.internal_notes}
                     onChange={e => setPanelForm(f => ({ ...f, internal_notes: e.target.value }))}
                     placeholder="Mes observations personnelles sur ce prospect..."
                     rows={4}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-[#39FF14]/30 transition-all resize-none"
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-xs font-mono text-white/70 focus:outline-none focus:border-[#39FF14]/30 transition-all resize-none"
                   />
                   <button
                     onClick={() => handleSavePanel({ internal_notes: panelForm.internal_notes })}
