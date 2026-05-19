@@ -212,15 +212,15 @@ export function exportPDF(
   const doc = new jsPDF({
     orientation: 'landscape',
     unit:        'mm',
-    format:      'a3'   // A3 pour avoir plus de largeur
+    format:      'a3'
   })
 
-  // Titre
-  doc.setFontSize(18)
+  // ─── PAGE 1 : TABLEAU SYNTHÈSE (sans message) ───────────────────────────
+
+  doc.setFontSize(20)
   doc.setTextColor(20, 20, 20)
   doc.text('PIPELINE PROSPECTS — AUTOSLASH AI', 14, 16)
 
-  // Sous-titre
   doc.setFontSize(10)
   doc.setTextColor(130, 130, 130)
   doc.text(
@@ -228,17 +228,16 @@ export function exportPDF(
     14, 24
   )
 
-  const rows = buildRows(prospects)
-
-  // Colonnes PDF — on retire LIEN PREVIEW (trop long pour PDF)
-  // et on tronque MESSAGE à 80 chars
-  const pdfHeaders = [
-    'NOM', 'EMAIL', 'TÉLÉPHONE', 'PLAN', 'TEMPLATE',
-    'BUDGET', 'STATUT', 'RAPPEL', 'RÉGION',
-    'SECTEUR', 'MESSAGE', 'COMMENTAIRE', 'DATE'
+  // Tableau synthèse — sans colonne MESSAGE
+  const synthHeaders = [
+    'ID', 'NOM', 'EMAIL', 'TÉLÉPHONE',
+    'PLAN', 'TEMPLATE', 'BUDGET (FCFA)',
+    'STATUT', 'RÉGION', 'SECTEUR',
+    'COMMENTAIRE', 'DATE'
   ]
 
-  const pdfRows = prospects.map(p => [
+  const synthRows = prospects.map(p => [
+    p.enterprise_id ? p.enterprise_id.substring(0, 8) + '...' : '',
     p.name                 ?? '',
     p.email                ?? '',
     p.phone                ?? '',
@@ -246,17 +245,15 @@ export function exportPDF(
     p.template_title       ?? '',
     formatBudget(p.budget),
     p.prospect_status      ?? '',
-    p.rappel_at ? new Date(p.rappel_at).toLocaleDateString('fr-FR') : '',
     p.region               ?? '',
     p.sector               ?? '',
-    (p.message ?? '').substring(0, 80) + ((p.message ?? '').length > 80 ? '...' : ''),
     p.internal_notes       ?? '',
     new Date(p.created_at).toLocaleDateString('fr-FR')
   ])
 
   autoTable(doc, {
-    head:   [pdfHeaders],
-    body:   pdfRows,
+    head:   [synthHeaders],
+    body:   synthRows,
     startY: 30,
     styles: {
       fontSize:    7.5,
@@ -267,57 +264,204 @@ export function exportPDF(
       lineWidth:   0.2,
     },
     headStyles: {
-      fillColor:  [17, 17, 17],
-      textColor:  [255, 255, 255],
-      fontStyle:  'bold',
-      fontSize:   7.5,
-      halign:     'center',
+      fillColor:   [17, 17, 17],
+      textColor:   [255, 255, 255],
+      fontStyle:   'bold',
+      fontSize:    8,
+      halign:      'center',
       cellPadding: 4,
     },
     alternateRowStyles: {
       fillColor: [245, 245, 245]
     },
     columnStyles: {
-      0:  { cellWidth: 22, fontStyle: 'bold' }, // NOM
-      1:  { cellWidth: 34 },                    // EMAIL
-      2:  { cellWidth: 24 },                    // TÉLÉPHONE
-      3:  { cellWidth: 18 },                    // PLAN
-      4:  { cellWidth: 26 },                    // TEMPLATE
-      5:  { cellWidth: 20, halign: 'right' },   // BUDGET
-      6:  { cellWidth: 16 },                    // STATUT
-      7:  { cellWidth: 18 },                    // RAPPEL
-      8:  { cellWidth: 18 },                    // RÉGION
-      9:  { cellWidth: 18 },                    // SECTEUR
-      10: { cellWidth: 50 },                    // MESSAGE
-      11: { cellWidth: 38 },                    // COMMENTAIRE
-      12: { cellWidth: 18 },                    // DATE
+      0:  { cellWidth: 22 },  // ID
+      1:  { cellWidth: 26, fontStyle: 'bold' }, // NOM
+      2:  { cellWidth: 36 },  // EMAIL
+      3:  { cellWidth: 26 },  // TÉLÉPHONE
+      4:  { cellWidth: 20 },  // PLAN
+      5:  { cellWidth: 28 },  // TEMPLATE
+      6:  { cellWidth: 22, halign: 'right' }, // BUDGET
+      7:  { cellWidth: 18 },  // STATUT
+      8:  { cellWidth: 20 },  // RÉGION
+      9:  { cellWidth: 20 },  // SECTEUR
+      10: { cellWidth: 40 },  // COMMENTAIRE
+      11: { cellWidth: 18 },  // DATE
     },
-    margin:       { left: 10, right: 10, top: 10 },
+    margin: { left: 10, right: 10, top: 10 },
     didParseCell: (data) => {
-      // Coloriser STATUT
-      if (data.section === 'body' && data.column.index === 6) {
+      if (data.section === 'body' && data.column.index === 7) {
         const val = String(data.cell.raw ?? '')
         if (val === 'CONVERTI') {
-          data.cell.styles.textColor = [30, 200, 30]
+          data.cell.styles.textColor = [30, 180, 30]
           data.cell.styles.fontStyle = 'bold'
         } else if (val === 'ANNULÉ') {
           data.cell.styles.textColor = [160, 160, 160]
         } else if (val === 'RAPPELER') {
-          data.cell.styles.textColor = [230, 120, 30]
+          data.cell.styles.textColor = [220, 110, 20]
           data.cell.styles.fontStyle = 'bold'
         }
       }
     }
   })
 
-  // Pagination
+  // ─── PAGES SUIVANTES : FICHES DÉTAIL (avec message complet) ─────────────
+
+  prospects.forEach((p, idx) => {
+    doc.addPage()
+
+    const pageW = doc.internal.pageSize.getWidth()
+    const margin = 14
+    let y = 16
+
+    // ── En-tête fiche ──
+    doc.setFillColor(17, 17, 17)
+    doc.roundedRect(margin, y - 6, pageW - margin * 2, 20, 3, 3, 'F')
+
+    doc.setFontSize(14)
+    doc.setTextColor(255, 255, 255)
+    doc.text(
+      `${String(idx + 1).padStart(2, '0')}. ${p.name.toUpperCase()}`,
+      margin + 6, y + 6
+    )
+
+    // Badge plan
+    const planColors: Record<string, number[]> = {
+      STARTUP:    [80, 80, 80],
+      BUSINESS:   [30, 100, 200],
+      ENTERPRISE: [120, 50, 200],
+      ELITE:      [180, 140, 20]
+    }
+    const planColor = planColors[p.package_type ?? ''] ?? [80, 80, 80]
+    doc.setFillColor(planColor[0], planColor[1], planColor[2])
+    doc.roundedRect(pageW - margin - 38, y - 2, 36, 10, 2, 2, 'F')
+    doc.setFontSize(8)
+    doc.setTextColor(255, 255, 255)
+    doc.text(p.package_type ?? '', pageW - margin - 20, y + 5, { align: 'center' })
+
+    y += 22
+
+    // ── Grille infos ──
+    const col1X = margin
+    const col2X = margin + 95
+    const col3X = margin + 190
+
+    const infoItems = [
+      { label: 'EMAIL',        value: p.email               ?? '—' },
+      { label: 'TÉLÉPHONE',    value: p.phone               ?? '—' },
+      { label: 'RÉGION',       value: p.region              ?? '—' },
+      { label: 'SECTEUR',      value: p.sector              ?? '—' },
+      { label: 'STATUT',       value: p.prospect_status     ?? '—' },
+      { label: 'BUDGET',       value: formatBudget(p.budget) || '—' },
+      { label: 'TEMPLATE',     value: p.template_title      ?? '—' },
+      { label: 'DATE',         value: new Date(p.created_at).toLocaleDateString('fr-FR') },
+      { label: 'ID',           value: p.enterprise_id       ?? '—' },
+    ]
+
+    const colPositions = [col1X, col2X, col3X]
+    infoItems.forEach((item, i) => {
+      const x = colPositions[i % 3]
+      const rowY = y + Math.floor(i / 3) * 14
+
+      doc.setFontSize(7)
+      doc.setTextColor(150, 150, 150)
+      doc.text(item.label, x, rowY)
+
+      doc.setFontSize(9)
+      doc.setTextColor(20, 20, 20)
+      const displayValue = item.value.length > 40
+        ? item.value.substring(0, 40) + '...'
+        : item.value
+      doc.text(displayValue, x, rowY + 5)
+    })
+
+    y += Math.ceil(infoItems.length / 3) * 14 + 6
+
+    // Lien preview si existe
+    if (p.template_preview_url) {
+      doc.setFontSize(8)
+      doc.setTextColor(40, 160, 40)
+      doc.text(`🔗 ${p.template_preview_url}`, margin, y)
+      y += 10
+    }
+
+    // Séparateur
+    doc.setDrawColor(220, 220, 220)
+    doc.line(margin, y, pageW - margin, y)
+    y += 8
+
+    // ── Message client complet ──
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 150)
+    doc.text('MESSAGE CLIENT', margin, y)
+    y += 6
+
+    doc.setFillColor(248, 248, 248)
+    const msgBoxHeight = Math.min(
+      (p.message ?? '').length > 0 ? 60 : 14,
+      80
+    )
+    doc.roundedRect(margin, y, pageW - margin * 2, msgBoxHeight, 2, 2, 'F')
+
+    if (p.message) {
+      doc.setFontSize(9)
+      doc.setTextColor(40, 40, 40)
+      const lines = doc.splitTextToSize(
+        p.message,
+        pageW - margin * 2 - 8
+      )
+      // Afficher toutes les lignes dans la box
+      const maxLines = Math.floor(msgBoxHeight / 5)
+      const displayLines = lines.slice(0, maxLines)
+      doc.text(displayLines, margin + 4, y + 6)
+
+      // Si message tronqué → indiquer suite sur fond coloré
+      if (lines.length > maxLines) {
+        doc.setFontSize(7)
+        doc.setTextColor(150, 150, 150)
+        doc.text(
+          `... message complet dans l'export Word ou Excel`,
+          margin + 4,
+          y + msgBoxHeight - 3
+        )
+      }
+    } else {
+      doc.setFontSize(9)
+      doc.setTextColor(180, 180, 180)
+      doc.text('Aucun message', margin + 4, y + 8)
+    }
+
+    y += msgBoxHeight + 8
+
+    // ── Commentaire interne ──
+    if (p.internal_notes) {
+      doc.setFontSize(8)
+      doc.setTextColor(150, 150, 150)
+      doc.text('COMMENTAIRE AMADOU', margin, y)
+      y += 6
+
+      doc.setFillColor(255, 252, 230)
+      const noteLines  = doc.splitTextToSize(p.internal_notes, pageW - margin * 2 - 8)
+      const noteHeight = Math.min(noteLines.length * 5 + 8, 40)
+      doc.roundedRect(margin, y, pageW - margin * 2, noteHeight, 2, 2, 'F')
+
+      doc.setFontSize(9)
+      doc.setTextColor(40, 40, 40)
+      doc.text(noteLines.slice(0, 6), margin + 4, y + 6)
+    }
+  })
+
+  // ─── PAGINATION GLOBALE ──────────────────────────────────────────────────
   const pageCount = (doc as any).internal.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
     doc.setFontSize(8)
     doc.setTextColor(180, 180, 180)
+    const label = i === 1
+      ? `Synthèse — Page 1 / ${pageCount} — Autoslash AI`
+      : `Fiche prospect ${i - 1} / ${prospects.length} — Page ${i} / ${pageCount} — Autoslash AI`
     doc.text(
-      `Page ${i} / ${pageCount} — Autoslash AI`,
+      label,
       doc.internal.pageSize.getWidth() / 2,
       doc.internal.pageSize.getHeight() - 8,
       { align: 'center' }
