@@ -9,6 +9,7 @@ import {
 import { saveAs } from 'file-saver'
 
 interface ProspectExport {
+  enterprise_id:        string
   name:                 string
   email:                string | null
   phone:                string | null
@@ -75,39 +76,130 @@ function buildRows(prospects: ProspectExport[]): string[][] {
 
 // ── EXCEL ─────────────────────────────────────────────────────────────────
 
+const EXCEL_HEADERS = [
+  'ID ENTREPRISE',
+  'NOM',
+  'EMAIL',
+  'TÉLÉPHONE',
+  'PLAN',
+  'TEMPLATE',
+  'LIEN PREVIEW',
+  'BUDGET (FCFA)',
+  'STATUT',
+  'RÉGION',
+  'SECTEUR',
+  'MESSAGE CLIENT',
+  'COMMENTAIRE',
+  'DATE INSCRIPTION'
+]
+
+function buildExcelRows(prospects: ProspectExport[]): (string | number)[][] {
+  return prospects.map(p => [
+    p.enterprise_id                ?? '',
+    p.name                         ?? '',
+    p.email                        ?? '',
+    p.phone                        ?? '',
+    p.package_type                 ?? '',
+    p.template_title               ?? '',
+    p.template_preview_url         ?? '',
+    p.budget ?? '',
+    p.prospect_status              ?? '',
+    p.region                       ?? '',
+    p.sector                       ?? '',
+    p.message                      ?? '',
+    p.internal_notes               ?? '',
+    new Date(p.created_at).toLocaleDateString('fr-FR')
+  ])
+}
+
 export function exportExcel(
   prospects: ProspectExport[],
   filename: string
 ) {
-  const rows   = buildRows(prospects)
-  const wsData = [HEADERS, ...rows]
+  const rows   = buildExcelRows(prospects)
+  const wsData = [EXCEL_HEADERS, ...rows]
   const ws     = XLSX.utils.aoa_to_sheet(wsData)
 
+  // Largeurs colonnes
   ws['!cols'] = [
+    { wch: 38 },  // ID ENTREPRISE
     { wch: 22 },  // NOM
-    { wch: 28 },  // EMAIL
-    { wch: 20 },  // TÉLÉPHONE
-    { wch: 12 },  // PLAN
-    { wch: 24 },  // TEMPLATE
-    { wch: 42 },  // LIEN PREVIEW
-    { wch: 16 },  // BUDGET
-    { wch: 12 },  // STATUT
-    { wch: 14 },  // RAPPEL
-    { wch: 14 },  // RÉGION
-    { wch: 16 },  // SECTEUR
-    { wch: 50 },  // MESSAGE
-    { wch: 40 },  // COMMENTAIRE
-    { wch: 16 },  // DATE
+    { wch: 30 },  // EMAIL
+    { wch: 22 },  // TÉLÉPHONE
+    { wch: 14 },  // PLAN
+    { wch: 26 },  // TEMPLATE
+    { wch: 45 },  // LIEN PREVIEW
+    { wch: 18 },  // BUDGET
+    { wch: 14 },  // STATUT
+    { wch: 16 },  // RÉGION
+    { wch: 18 },  // SECTEUR
+    { wch: 60 },  // MESSAGE CLIENT
+    { wch: 50 },  // COMMENTAIRE
+    { wch: 18 },  // DATE
   ]
 
-  // Hauteur row header
-  ws['!rows'] = [{ hpt: 20 }]
+  // Hauteur header
+  if (!ws['!rows']) ws['!rows'] = []
+  ws['!rows'][0] = { hpt: 22 }
+
+  // Style header : fond noir, texte blanc, gras, centré
+  EXCEL_HEADERS.forEach((_, i) => {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: i })
+    if (!ws[cellRef]) return
+    ws[cellRef].s = {
+      font:      { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+      fill:      { patternType: 'solid', fgColor: { rgb: '111111' } },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+      border: {
+        bottom: { style: 'medium', color: { rgb: '39FF14' } }
+      }
+    }
+  })
+
+  // Style données : wrap text sur MESSAGE et COMMENTAIRE
+  for (let r = 1; r <= rows.length; r++) {
+    // Alternance couleur de fond
+    const bg = r % 2 === 0 ? 'F5F5F5' : 'FFFFFF'
+    EXCEL_HEADERS.forEach((_, c) => {
+      const cellRef = XLSX.utils.encode_cell({ r, c })
+      if (!ws[cellRef]) return
+      ws[cellRef].s = {
+        fill:      { patternType: 'solid', fgColor: { rgb: bg } },
+        alignment: {
+          vertical:  'top',
+          wrapText:  c === 11 || c === 12  // MESSAGE et COMMENTAIRE
+        },
+        font: {
+          bold:  c === 1, // NOM en gras
+          color: { rgb: c === 7 ? '229922' : '1A1A1A' } // BUDGET en vert
+        }
+      }
+    })
+    // Hauteur lignes données
+    ws['!rows'][r] = { hpt: 40 }
+  }
 
   // Freeze première ligne
   ws['!freeze'] = { xSplit: 0, ySplit: 1 }
 
+  // Auto-filter sur toutes les colonnes
+  ws['!autofilter'] = {
+    ref: XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: rows.length, c: EXCEL_HEADERS.length - 1 }
+    })
+  }
+
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Prospects')
+
+  // Propriétés du classeur
+  wb.Props = {
+    Title:   'Pipeline Prospects',
+    Author:  'Autoslash AI',
+    Company: 'Autoslash AI'
+  }
+
   XLSX.writeFile(wb, `${filename}.xlsx`)
 }
 

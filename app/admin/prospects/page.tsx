@@ -211,6 +211,7 @@ export default function ProspectsPage() {
     return prospects.map(p => {
       const budget = resolveBudget(p)
       return {
+        enterprise_id:        p.enterprise_id,
         name:                 p.name,
         email:                p.email,
         phone:                p.phone,
