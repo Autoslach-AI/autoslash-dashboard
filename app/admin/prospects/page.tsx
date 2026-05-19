@@ -426,7 +426,6 @@ export default function ProspectsPage() {
                           { label: 'STATUT',      width: '130px' },
                           { label: 'RÉGION',      width: '100px' },
                           { label: 'BUDGET FCFA', width: '130px' },
-                          { label: 'RAPPEL',      width: '90px'  },
                           { label: 'TÉLÉPHONE',   width: '140px' },
                           { label: 'TEMPLATE',    width: '150px' },
                           { label: 'DATE',        width: '80px'  }
@@ -561,20 +560,6 @@ export default function ProspectsPage() {
                                 </div>
                               ) : (
                                 <span className="text-[9px] font-mono text-white/20">—</span>
-                              )}
-                            </td>
-
-                            {/* RAPPEL */}
-                            <td className="px-4 py-5">
-                              {p.rappel_at ? (
-                                <span className={`text-[9px] font-mono ${
-                                  new Date(p.rappel_at) <= new Date() ? 'text-orange-400 font-black' : 'text-white/40'
-                                }`}>
-                                  {new Date(p.rappel_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                                  {new Date(p.rappel_at) <= new Date() && ' ⚡'}
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-mono text-white/15">—</span>
                               )}
                             </td>
 
