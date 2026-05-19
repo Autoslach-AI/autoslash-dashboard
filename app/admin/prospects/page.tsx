@@ -207,26 +207,51 @@ export default function ProspectsPage() {
 
   // ── Export CSV ────────────────────────────────────────────────────────────
   const exportCSV = () => {
-    const headers = ['NOM', 'CONTACT', 'EMAIL', 'TÉLÉPHONE', 'RÉGION', 'SECTEUR', 'PLAN', 'STATUT', 'BUDGET_FCFA', 'RAPPEL', 'NEXT_ACTION', 'TEMPLATE', 'DATE']
+    const headers = [
+      'NOM',
+      'EMAIL',
+      'TÉLÉPHONE',
+      'PLAN',
+      'TEMPLATE',
+      'BUDGET_FCFA',
+      'STATUT',
+      'RAPPEL',
+      'RÉGION',
+      'SECTEUR',
+      'COMMENTAIRE',
+      'DATE_INSCRIPTION'
+    ]
     const rows = prospects.map(p => {
       const budget = resolveBudget(p)
       return [
-        p.name, p.contact_name, p.email, p.phone, p.region, p.sector,
-        p.package_type, p.prospect_status,
-        budget ? budget.value : '',
-        p.rappel_at ? new Date(p.rappel_at).toLocaleDateString('fr-FR') : new Date(p.created_at).toLocaleDateString('fr-FR'),
-        p.next_action ?? p.phone ?? '',
+        p.name,
+        p.email ?? '',
+        p.phone ?? '',
+        p.package_type ?? '',
         p.template_title ?? '',
+        budget ? budget.value : '',
+        p.prospect_status ?? '',
+        p.rappel_at
+          ? new Date(p.rappel_at).toLocaleDateString('fr-FR')
+          : '',
+        p.region ?? '',
+        p.sector ?? '',
+        p.internal_notes ?? '',
         new Date(p.created_at).toLocaleDateString('fr-FR')
       ]
     })
-    const csv = [headers, ...rows].map(r => r.map(v => `"${v ?? ''}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const csv = [headers, ...rows]
+      .map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url  = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.setAttribute('download', `prospects_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
     link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   const handleSavePanel = async (fields: Partial<typeof panelForm>) => {
