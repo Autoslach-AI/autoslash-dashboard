@@ -275,6 +275,19 @@ export default function ProspectsPage() {
     }
   }
 
+  const totalPipelineFCFA = prospects.reduce((acc, p) => {
+    const budget = resolveBudget(p)
+    return acc + (budget ? budget.value : 0)
+  }, 0)
+
+  const totalHot = prospects.filter(
+    p => p.prospect_score !== null && p.prospect_score >= 60
+  ).length
+
+  const totalConverti = prospects.filter(
+    p => p.prospect_status === 'CONVERTI'
+  ).length
+
   const primaryItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, onClick: () => router.push('/admin') },
     { id: 'prospects', label: 'Prospects', icon: Users,           path: '/admin/prospects' }
@@ -662,6 +675,97 @@ export default function ProspectsPage() {
                 </div>
               )}
             </>
+          )}
+
+          {!loading && prospects.length > 0 && (
+            <div className="sticky bottom-0 left-0 right-0 z-40 mt-4">
+              <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-6 py-4">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+
+                  {/* Total prospects */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-1 h-8 bg-white/20 rounded-full" />
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
+                        TOTAL_PROSPECTS
+                      </span>
+                      <span className="text-[18px] font-black text-white font-mono leading-none">
+                        {total}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Séparateur */}
+                  <div className="w-px h-10 bg-white/10 hidden sm:block" />
+
+                  {/* Pipeline FCFA */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-1 h-8 bg-[#39FF14]/40 rounded-full" />
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
+                        PIPELINE_FCFA
+                      </span>
+                      <span className="text-[18px] font-black text-[#39FF14] font-mono leading-none">
+                        {totalPipelineFCFA > 0
+                          ? totalPipelineFCFA.toLocaleString('fr-FR') + ' F'
+                          : '—'
+                        }
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Séparateur */}
+                  <div className="w-px h-10 bg-white/10 hidden sm:block" />
+
+                  {/* Convertis */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-1 h-8 bg-[#39FF14]/60 rounded-full" />
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
+                        CONVERTIS
+                      </span>
+                      <span className="text-[18px] font-black text-[#39FF14] font-mono leading-none">
+                        {totalConverti}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Séparateur */}
+                  <div className="w-px h-10 bg-white/10 hidden sm:block" />
+
+                  {/* HOT prospects */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-1 h-8 bg-red-400/60 rounded-full" />
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
+                        HOT_PROSPECTS
+                      </span>
+                      <span className="text-[18px] font-black text-red-400 font-mono leading-none">
+                        {totalHot}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Séparateur */}
+                  <div className="w-px h-10 bg-white/10 hidden sm:block" />
+
+                  {/* Affichés vs total */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-1 h-8 bg-white/10 rounded-full" />
+                    <div className="flex flex-col">
+                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
+                        AFFICHÉS
+                      </span>
+                      <span className="text-[18px] font-black text-white/50 font-mono leading-none">
+                        {prospects.length}
+                        <span className="text-[12px] text-white/20"> / {total}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
