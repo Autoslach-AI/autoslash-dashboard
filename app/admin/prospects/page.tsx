@@ -412,7 +412,7 @@ export default function ProspectsPage() {
           ) : (
             <>
               {view === 'TABLE' && (
-                <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0B]">
+                <div className="overflow-x-auto rounded-xl border border-white/5 bg-[#0B0B0B]">
                   <table className="w-full text-left border-collapse table-auto">
                     <thead>
                       <tr className="border-b border-white/5 bg-white/[0.01]">
