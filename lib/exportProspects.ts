@@ -676,7 +676,7 @@ export async function exportWord(
     return new TableRow({
       children: [
         makeDataCell(
-          p.enterprise_id?.substring(0, 8) + '...',
+          p.enterprise_id ?? '',
           { bg, color: '999999' }
         ),
         makeDataCell(p.name ?? '',            { bg, bold: true }),
