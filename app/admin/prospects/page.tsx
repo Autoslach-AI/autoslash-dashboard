@@ -211,18 +211,21 @@ export default function ProspectsPage() {
     return prospects.map(p => {
       const budget = resolveBudget(p)
       return {
-        name:            p.name,
-        email:           p.email,
-        phone:           p.phone,
-        package_type:    p.package_type,
-        template_title:  p.template_title,
-        budget:          budget ? budget.value : null,
-        prospect_status: p.prospect_status,
-        rappel_at:       p.rappel_at,
-        region:          p.region,
-        sector:          p.sector,
-        internal_notes:  p.internal_notes,
-        created_at:      p.created_at
+        name:                 p.name,
+        email:                p.email,
+        phone:                p.phone,
+        package_type:         p.package_type,
+        template_title:       p.template_title,
+        template_preview_url: p.template_preview_url,
+        budget:               budget ? budget.value : null,
+        budget_source:        budget ? budget.source : null,
+        prospect_status:      p.prospect_status,
+        rappel_at:            p.rappel_at,
+        region:               p.region,
+        sector:               p.sector,
+        internal_notes:       p.internal_notes,
+        message:              p.message,
+        created_at:           p.created_at
       }
     })
   }
