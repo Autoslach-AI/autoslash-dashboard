@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
-import { LayoutDashboard, Zap } from 'lucide-react';
+import { LayoutDashboard, Zap, TrendingUp, DollarSign, UserCheck, Flame, Users2 } from 'lucide-react';
 import { exportExcel, exportPDF, exportWord } from '@/lib/exportProspects';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -435,6 +435,122 @@ export default function ProspectsPage() {
             </div>
           </div>
 
+          {!loading && (
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+
+              {/* Carte 1 — Total Prospects */}
+              <div className="bg-[#0D0D0D] border border-white/8 rounded-2xl p-5 flex flex-col gap-3 hover:border-white/15 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/5 border border-white/10">
+                    <Users2 className="w-4 h-4 text-white/40" />
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/25">
+                    TOTAL
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                    TOTAL_PROSPECTS
+                  </span>
+                  <div className="flex items-end gap-2">
+                    <span className="text-[32px] font-black text-white font-mono leading-none">
+                      {total}
+                    </span>
+                    <span className="text-[10px] font-mono text-white/30 mb-1">
+                      ({prospects.length} affichés)
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-mono text-white/25">
+                    Toutes périodes confondues
+                  </span>
+                </div>
+              </div>
+
+              {/* Carte 2 — Pipeline FCFA */}
+              <div className="bg-[#0D0D0D] border border-[#39FF14]/15 rounded-2xl p-5 flex flex-col gap-3 hover:border-[#39FF14]/30 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#39FF14]/5 border border-[#39FF14]/15">
+                    <DollarSign className="w-4 h-4 text-[#39FF14]/60" />
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-[0.2em] text-[#39FF14]/30">
+                    FCFA
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                    PIPELINE_FCFA
+                  </span>
+                  <div className="flex items-end gap-2 flex-wrap">
+                    <span className="text-[28px] font-black text-[#39FF14] font-mono leading-none">
+                      {totalPipelineFCFA > 0
+                        ? totalPipelineFCFA.toLocaleString('fr-FR')
+                        : '—'
+                      }
+                    </span>
+                    {totalPipelineFCFA > 0 && (
+                      <span className="text-[12px] font-black text-[#39FF14]/60 mb-1">F</span>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-mono text-white/25">
+                    Valeur totale estimée
+                  </span>
+                </div>
+              </div>
+
+              {/* Carte 3 — Convertis */}
+              <div className="bg-[#0D0D0D] border border-white/8 rounded-2xl p-5 flex flex-col gap-3 hover:border-[#39FF14]/20 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#39FF14]/5 border border-[#39FF14]/10">
+                    <UserCheck className="w-4 h-4 text-[#39FF14]/50" />
+                  </div>
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#39FF14]/10 border border-[#39FF14]/20">
+                    <TrendingUp className="w-2.5 h-2.5 text-[#39FF14]" />
+                    <span className="text-[8px] font-black text-[#39FF14]">
+                      {total > 0 ? Math.round((totalConverti / total) * 100) : 0}%
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                    CONVERTIS
+                  </span>
+                  <span className="text-[32px] font-black text-white font-mono leading-none">
+                    {totalConverti}
+                  </span>
+                  <span className="text-[9px] font-mono text-white/25">
+                    Taux de conversion
+                  </span>
+                </div>
+              </div>
+
+              {/* Carte 4 — HOT Prospects */}
+              <div className="bg-[#0D0D0D] border border-red-500/15 rounded-2xl p-5 flex flex-col gap-3 hover:border-red-500/30 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/5 border border-red-500/15">
+                    <Flame className="w-4 h-4 text-red-400/60" />
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-400/30">
+                    SCORE ≥ 60
+                  </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                    HOT_PROSPECTS
+                  </span>
+                  <span className={`text-[32px] font-black font-mono leading-none ${
+                    totalHot > 0 ? 'text-red-400' : 'text-white/30'
+                  }`}>
+                    {totalHot}
+                  </span>
+                  <span className="text-[9px] font-mono text-white/25">
+                    À contacter en priorité
+                  </span>
+                </div>
+              </div>
+
+            </div>
+          )}
+
           {/* ── Erreur ──────────────────────────────────────────────────── */}
           <AnimatePresence>
             {error && (
@@ -677,96 +793,7 @@ export default function ProspectsPage() {
             </>
           )}
 
-          {!loading && prospects.length > 0 && (
-            <div className="sticky bottom-0 left-0 right-0 z-40 mt-4">
-              <div className="bg-[#0D0D0D] border border-white/10 rounded-2xl px-6 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
 
-                  {/* Total prospects */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-1 h-8 bg-white/20 rounded-full" />
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
-                        TOTAL_PROSPECTS
-                      </span>
-                      <span className="text-[18px] font-black text-white font-mono leading-none">
-                        {total}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Séparateur */}
-                  <div className="w-px h-10 bg-white/10 hidden sm:block" />
-
-                  {/* Pipeline FCFA */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-1 h-8 bg-[#39FF14]/40 rounded-full" />
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
-                        PIPELINE_FCFA
-                      </span>
-                      <span className="text-[18px] font-black text-[#39FF14] font-mono leading-none">
-                        {totalPipelineFCFA > 0
-                          ? totalPipelineFCFA.toLocaleString('fr-FR') + ' F'
-                          : '—'
-                        }
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Séparateur */}
-                  <div className="w-px h-10 bg-white/10 hidden sm:block" />
-
-                  {/* Convertis */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-1 h-8 bg-[#39FF14]/60 rounded-full" />
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
-                        CONVERTIS
-                      </span>
-                      <span className="text-[18px] font-black text-[#39FF14] font-mono leading-none">
-                        {totalConverti}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Séparateur */}
-                  <div className="w-px h-10 bg-white/10 hidden sm:block" />
-
-                  {/* HOT prospects */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-1 h-8 bg-red-400/60 rounded-full" />
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
-                        HOT_PROSPECTS
-                      </span>
-                      <span className="text-[18px] font-black text-red-400 font-mono leading-none">
-                        {totalHot}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Séparateur */}
-                  <div className="w-px h-10 bg-white/10 hidden sm:block" />
-
-                  {/* Affichés vs total */}
-                  <div className="flex items-center gap-3">
-                    <div className="w-1 h-8 bg-white/10 rounded-full" />
-                    <div className="flex flex-col">
-                      <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white/30">
-                        AFFICHÉS
-                      </span>
-                      <span className="text-[18px] font-black text-white/50 font-mono leading-none">
-                        {prospects.length}
-                        <span className="text-[12px] text-white/20"> / {total}</span>
-                      </span>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
