@@ -41,6 +41,8 @@ interface Prospect {
   valeur_estimee_fcfa:  number | null;
   created_at:           string;
   activated_at:         string | null;
+  logo_url?:            string | null;
+  assets_urls?:         any;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -236,13 +238,18 @@ export default function ProspectsPage() {
     setSavingAction(true)
     try {
       const payload: any = { enterprise_id: selected.enterprise_id }
-      if (fields.prospect_status !== undefined)     payload.prospect_status     = fields.prospect_status
-      if (fields.rappel_at !== undefined)           payload.rappel_at           = fields.rappel_at || null
-      if (fields.internal_notes !== undefined)      payload.internal_notes      = fields.internal_notes
-      if (fields.verbatim !== undefined)            payload.verbatim            = fields.verbatim
-      if (fields.next_action !== undefined)         payload.next_action         = fields.next_action
-      if (fields.source_contact !== undefined)      payload.source_contact      = fields.source_contact
-      if (fields.valeur_estimee_fcfa !== undefined) payload.valeur_estimee_fcfa = parseInt(fields.valeur_estimee_fcfa) || 0
+      if (fields.prospect_status !== undefined)
+        payload.prospect_status     = fields.prospect_status
+      if (fields.rappel_at !== undefined)
+        payload.rappel_at           = fields.rappel_at || null
+      if (fields.internal_notes !== undefined)
+        payload.internal_notes      = fields.internal_notes
+      if (fields.verbatim !== undefined)
+        payload.verbatim            = fields.verbatim
+      if (fields.next_action !== undefined)
+        payload.next_action         = fields.next_action
+      if (fields.source_contact !== undefined)
+        payload.source_contact      = fields.source_contact
 
       const res = await fetch('/api/admin/prospects', {
         method:  'POST',
@@ -252,22 +259,35 @@ export default function ProspectsPage() {
       const { data, error: saveError } = await res.json()
       if (saveError) throw new Error(saveError)
 
+      // Préserver TOUS les champs enrichis + fusionner les nouvelles données
+      const merged = {
+        ...selected,           // base complète du prospect actuel
+        ...data,               // nouvelles données Supabase
+        // Préserver les champs enrichis (non retournés par le PATCH)
+        template_title:       selected.template_title,
+        template_price_fcfa:  selected.template_price_fcfa,
+        template_preview_url: selected.template_preview_url,
+        logo_url:             selected.logo_url,
+        assets_urls:          selected.assets_urls,
+      }
+
+      // Mettre à jour le tableau
       setProspects(prev => prev.map(p =>
-        p.enterprise_id === selected.enterprise_id ? {
-          ...p,
-          ...data,
-          template_title:       p.template_title,
-          template_price_fcfa:  p.template_price_fcfa,
-          template_preview_url: p.template_preview_url,
-        } : p
+        p.enterprise_id === selected.enterprise_id ? merged : p
       ))
-      setSelected(prev => prev ? {
-        ...prev,
-        ...data,
-        template_title:       prev.template_title,
-        template_price_fcfa:  prev.template_price_fcfa,
-        template_preview_url: prev.template_preview_url,
-      } : null)
+
+      // Mettre à jour le panel ouvert
+      setSelected(merged)
+
+      // Mettre à jour le formulaire du panel
+      setPanelForm(f => ({
+        ...f,
+        ...fields,
+        rappel_at: data.rappel_at
+          ? new Date(data.rappel_at).toISOString().slice(0, 16)
+          : f.rappel_at
+      }))
+
     } catch (err: any) {
       setError(err.message)
     } finally {
