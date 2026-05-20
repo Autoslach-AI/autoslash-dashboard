@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
-import { LayoutDashboard, Zap, TrendingUp, DollarSign, UserCheck, Flame, Users2 } from 'lucide-react';
+import { LayoutDashboard, Zap, TrendingUp, DollarSign, UserCheck, Bell, Users2 } from 'lucide-react';
 import { exportExcel, exportPDF, exportWord } from '@/lib/exportProspects';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -280,8 +280,8 @@ export default function ProspectsPage() {
     return acc + (budget ? budget.value : 0)
   }, 0)
 
-  const totalHot = prospects.filter(
-    p => p.prospect_score !== null && p.prospect_score >= 60
+  const totalRappelsDus = prospects.filter(
+    p => p.rappel_at && new Date(p.rappel_at) <= new Date()
   ).length
 
   const totalConverti = prospects.filter(
@@ -523,27 +523,30 @@ export default function ProspectsPage() {
                 </div>
               </div>
 
-              {/* Carte 4 — HOT Prospects */}
-              <div className="bg-[#0D0D0D] border border-red-500/15 rounded-2xl p-5 flex flex-col gap-3 hover:border-red-500/30 transition-all">
+              {/* Carte 4 — RAPPELS_DUS */}
+              <div className="bg-[#0D0D0D] border border-orange-500/15 rounded-2xl p-5 flex flex-col gap-3 hover:border-orange-500/30 transition-all">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-red-500/5 border border-red-500/15">
-                    <Flame className="w-4 h-4 text-red-400/60" />
+                  <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/5 border border-orange-500/15">
+                    <Bell className="w-4 h-4 text-orange-400/60" />
                   </div>
-                  <span className="text-[8px] font-black uppercase tracking-[0.2em] text-red-400/30">
-                    SCORE ≥ 60
+                  <span className="text-[8px] font-black uppercase tracking-[0.2em] text-orange-400/30">
+                    EN RETARD
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-[9px] font-black uppercase tracking-widest text-white/40">
-                    HOT_PROSPECTS
+                    RAPPELS_DUS
                   </span>
                   <span className={`text-[32px] font-black font-mono leading-none ${
-                    totalHot > 0 ? 'text-red-400' : 'text-white/30'
+                    totalRappelsDus > 0 ? 'text-orange-400' : 'text-white/30'
                   }`}>
-                    {totalHot}
+                    {totalRappelsDus}
                   </span>
                   <span className="text-[9px] font-mono text-white/25">
-                    À contacter en priorité
+                    {totalRappelsDus > 0
+                      ? 'À rappeler immédiatement ⚡'
+                      : 'Aucun rappel en retard'
+                    }
                   </span>
                 </div>
               </div>
