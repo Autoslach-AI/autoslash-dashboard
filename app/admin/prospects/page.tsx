@@ -124,6 +124,7 @@ export default function ProspectsPage() {
   const [error, setError]             = useState<string | null>(null)
   const [hasMore, setHasMore]         = useState(true)
   const offsetRef = useRef(0)
+  const skipPanelSyncRef = useRef(false)
 
   const [selected, setSelected]           = useState<Prospect | null>(null)
   const [savingAction, setSavingAction]   = useState(false)
@@ -194,19 +195,22 @@ export default function ProspectsPage() {
   }, [hasMore, loadingMore, loading, loadProspects])
 
   useEffect(() => {
-    if (selected) {
-      setPanelForm({
-        prospect_status:     selected.prospect_status     ?? 'NEW',
-        rappel_at:           selected.rappel_at
-                               ? new Date(selected.rappel_at).toISOString().slice(0, 16)
-                               : '',
-        internal_notes:      selected.internal_notes      ?? '',
-        verbatim:            selected.verbatim             ?? '',
-        next_action:         selected.next_action          ?? '',
-        valeur_estimee_fcfa: selected.valeur_estimee_fcfa?.toString() ?? '',
-        source_contact:      selected.source_contact       ?? ''
-      })
+    if (!selected) return
+    if (skipPanelSyncRef.current) {
+      skipPanelSyncRef.current = false
+      return
     }
+    setPanelForm({
+      prospect_status:     selected.prospect_status     ?? 'NEW',
+      rappel_at:           selected.rappel_at
+                             ? new Date(selected.rappel_at).toISOString().slice(0, 16)
+                             : '',
+      internal_notes:      selected.internal_notes      ?? '',
+      verbatim:            selected.verbatim             ?? '',
+      next_action:         selected.next_action          ?? '',
+      valeur_estimee_fcfa: selected.valeur_estimee_fcfa?.toString() ?? '',
+      source_contact:      selected.source_contact       ?? ''
+    })
   }, [selected])
 
   function buildExportData() {
@@ -283,16 +287,21 @@ export default function ProspectsPage() {
       ))
 
       // Mettre à jour le panel ouvert
+      skipPanelSyncRef.current = true
       setSelected(merged)
 
       // Mettre à jour le formulaire du panel
-      setPanelForm(f => ({
-        ...f,
-        ...fields,
-        rappel_at: data.rappel_at
-          ? new Date(data.rappel_at).toISOString().slice(0, 16)
-          : f.rappel_at
-      }))
+      setPanelForm({
+        prospect_status:     merged.prospect_status     ?? 'NEW',
+        rappel_at:           merged.rappel_at
+                               ? new Date(merged.rappel_at).toISOString().slice(0, 16)
+                               : '',
+        internal_notes:      merged.internal_notes      ?? '',
+        verbatim:            merged.verbatim             ?? '',
+        next_action:         merged.next_action          ?? '',
+        valeur_estimee_fcfa: merged.valeur_estimee_fcfa?.toString() ?? '',
+        source_contact:      merged.source_contact       ?? ''
+      })
 
     } catch (err: any) {
       setError(err.message)
