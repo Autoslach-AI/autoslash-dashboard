@@ -281,7 +281,9 @@ export default function ProspectsPage() {
   }, 0)
 
   const totalRappelsDus = prospects.filter(
-    p => p.rappel_at && new Date(p.rappel_at) <= new Date()
+    p =>
+      p.prospect_status === 'RAPPELER' ||
+      (p.rappel_at && new Date(p.rappel_at) <= new Date())
   ).length
 
   const totalConverti = prospects.filter(
