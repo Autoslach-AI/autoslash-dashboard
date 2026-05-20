@@ -526,7 +526,14 @@ export default function ProspectsPage() {
               </div>
 
               {/* Carte 4 — RAPPELS_DUS */}
-              <div className="bg-[#0D0D0D] border border-orange-500/15 rounded-2xl p-5 flex flex-col gap-3 hover:border-orange-500/30 transition-all">
+              <div
+                className="bg-[#0D0D0D] border border-orange-500/15 rounded-2xl p-5 flex flex-col gap-3 hover:border-orange-500/30 transition-all cursor-pointer active:scale-[0.98]"
+                onClick={() => {
+                  setFilterStatus('RAPPELER')
+                  window.scrollTo({ top: 400, behavior: 'smooth' })
+                }}
+                title="Voir les prospects à rappeler"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/5 border border-orange-500/15">
                     <Bell className="w-4 h-4 text-orange-400/60" />
