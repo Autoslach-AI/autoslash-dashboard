@@ -19,7 +19,7 @@ export async function GET(req: Request) {
     let query = supabase
       .from('enterprises')
       .select(
-        'enterprise_id, name, contact_name, email, phone, region, sector, package_type, template_id, monthly_cost, message, status, prospect_status, prospect_score, rappel_at, internal_notes, verbatim, source_contact, next_action, valeur_estimee_fcfa, created_at, activated_at',
+        'enterprise_id, name, contact_name, email, phone, region, sector, package_type, template_id, monthly_cost, message, status, prospect_status, prospect_score, rappel_at, internal_notes, verbatim, source_contact, next_action, valeur_estimee_fcfa, created_at, activated_at, logo_url, assets_urls',
         { count: 'exact' }
       )
       .eq('status', 'PROSPECT')

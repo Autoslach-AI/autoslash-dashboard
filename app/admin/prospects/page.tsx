@@ -240,8 +240,14 @@ export default function ProspectsPage() {
       const payload: any = { enterprise_id: selected.enterprise_id }
       if (fields.prospect_status !== undefined)
         payload.prospect_status     = fields.prospect_status
-      if (fields.rappel_at !== undefined)
-        payload.rappel_at           = fields.rappel_at || null
+      if (fields.rappel_at !== undefined) {
+        if (fields.rappel_at && fields.rappel_at.trim() !== '') {
+          // Convertir datetime-local en ISO avec timezone
+          payload.rappel_at = new Date(fields.rappel_at).toISOString()
+        } else {
+          payload.rappel_at = null
+        }
+      }
       if (fields.internal_notes !== undefined)
         payload.internal_notes      = fields.internal_notes
       if (fields.verbatim !== undefined)
