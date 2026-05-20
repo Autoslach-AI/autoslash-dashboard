@@ -243,65 +243,59 @@ export default function ProspectsPage() {
     try {
       const payload: any = { enterprise_id: selected.enterprise_id }
       if (fields.prospect_status !== undefined)
-        payload.prospect_status     = fields.prospect_status
+        payload.prospect_status = fields.prospect_status
       if (fields.rappel_at !== undefined) {
-        if (fields.rappel_at && fields.rappel_at.trim() !== '') {
-          // Convertir datetime-local en ISO avec timezone
-          payload.rappel_at = new Date(fields.rappel_at).toISOString()
-        } else {
-          payload.rappel_at = null
-        }
+        payload.rappel_at = fields.rappel_at && fields.rappel_at.trim() !== ''
+          ? new Date(fields.rappel_at).toISOString()
+          : null
       }
       if (fields.internal_notes !== undefined)
-        payload.internal_notes      = fields.internal_notes
+        payload.internal_notes = fields.internal_notes
       if (fields.verbatim !== undefined)
-        payload.verbatim            = fields.verbatim
+        payload.verbatim = fields.verbatim
       if (fields.next_action !== undefined)
-        payload.next_action         = fields.next_action
+        payload.next_action = fields.next_action
       if (fields.source_contact !== undefined)
-        payload.source_contact      = fields.source_contact
+        payload.source_contact = fields.source_contact
 
+      // 1 — Sauvegarder en DB
       const res = await fetch('/api/admin/prospects', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload)
       })
-      const { data, error: saveError } = await res.json()
+      const { error: saveError } = await res.json()
       if (saveError) throw new Error(saveError)
 
-      // Préserver TOUS les champs enrichis + fusionner les nouvelles données
-      const merged = {
-        ...selected,           // base complète du prospect actuel
-        ...data,               // nouvelles données Supabase
-        // Préserver les champs enrichis (non retournés par le PATCH)
-        template_title:       selected.template_title,
-        template_price_fcfa:  selected.template_price_fcfa,
-        template_preview_url: selected.template_preview_url,
-        logo_url:             selected.logo_url,
-        assets_urls:          selected.assets_urls,
+      // 2 — Refetch ce prospect depuis l'API pour avoir
+      //     toutes les données fraîches + enrichies
+      const freshRes = await fetch(
+        `/api/admin/prospects?offset=0&limit=1&enterprise_id=${selected.enterprise_id}`
+      )
+      const { data: freshData } = await freshRes.json()
+      const freshProspect = freshData?.[0] ?? null
+
+      if (freshProspect) {
+        // 3 — Mettre à jour le tableau
+        setProspects(prev => prev.map(p =>
+          p.enterprise_id === selected.enterprise_id ? freshProspect : p
+        ))
+
+        // 4 — Mettre à jour le panel + formulaire
+        skipPanelSyncRef.current = true
+        setSelected(freshProspect)
+        setPanelForm({
+          prospect_status:     freshProspect.prospect_status     ?? 'RAPPELER',
+          rappel_at:           freshProspect.rappel_at
+                                 ? new Date(freshProspect.rappel_at).toISOString().slice(0, 16)
+                                 : '',
+          internal_notes:      freshProspect.internal_notes      ?? '',
+          verbatim:            freshProspect.verbatim             ?? '',
+          next_action:         freshProspect.next_action          ?? '',
+          valeur_estimee_fcfa: freshProspect.valeur_estimee_fcfa?.toString() ?? '',
+          source_contact:      freshProspect.source_contact       ?? ''
+        })
       }
-
-      // Mettre à jour le tableau
-      setProspects(prev => prev.map(p =>
-        p.enterprise_id === selected.enterprise_id ? merged : p
-      ))
-
-      // Mettre à jour le panel ouvert
-      skipPanelSyncRef.current = true
-      setSelected(merged)
-
-      // Mettre à jour le formulaire du panel
-      setPanelForm({
-        prospect_status:     merged.prospect_status     ?? 'NEW',
-        rappel_at:           merged.rappel_at
-                               ? new Date(merged.rappel_at).toISOString().slice(0, 16)
-                               : '',
-        internal_notes:      merged.internal_notes      ?? '',
-        verbatim:            merged.verbatim             ?? '',
-        next_action:         merged.next_action          ?? '',
-        valeur_estimee_fcfa: merged.valeur_estimee_fcfa?.toString() ?? '',
-        source_contact:      merged.source_contact       ?? ''
-      })
 
     } catch (err: any) {
       setError(err.message)

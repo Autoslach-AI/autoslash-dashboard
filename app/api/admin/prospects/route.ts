@@ -15,6 +15,7 @@ export async function GET(req: Request) {
     const period          = searchParams.get('period')
     const offset          = parseInt(searchParams.get('offset') ?? '0')
     const limit           = parseInt(searchParams.get('limit')  ?? '50')
+    const enterprise_id_filter = searchParams.get('enterprise_id')
 
     let query = supabase
       .from('enterprises')
@@ -44,6 +45,10 @@ export async function GET(req: Request) {
       else if (period === 'YEAR')  { from = new Date(now); from.setFullYear(from.getFullYear() - 1) }
       else from = new Date(0)
       query = query.gte('created_at', from.toISOString())
+    }
+
+    if (enterprise_id_filter) {
+      query = query.eq('enterprise_id', enterprise_id_filter)
     }
 
     const { data, error, count } = await query
