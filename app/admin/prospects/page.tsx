@@ -240,65 +240,80 @@ export default function ProspectsPage() {
   const handleSavePanel = async (fields: Partial<typeof panelForm>) => {
     if (!selected) return
     setSavingAction(true)
+    setError(null)
     try {
       const payload: any = { enterprise_id: selected.enterprise_id }
+
       if (fields.prospect_status !== undefined)
         payload.prospect_status = fields.prospect_status
+
       if (fields.rappel_at !== undefined) {
         payload.rappel_at = fields.rappel_at && fields.rappel_at.trim() !== ''
           ? new Date(fields.rappel_at).toISOString()
           : null
       }
+
       if (fields.internal_notes !== undefined)
         payload.internal_notes = fields.internal_notes
+
       if (fields.verbatim !== undefined)
         payload.verbatim = fields.verbatim
+
       if (fields.next_action !== undefined)
         payload.next_action = fields.next_action
+
       if (fields.source_contact !== undefined)
         payload.source_contact = fields.source_contact
 
-      // 1 — Sauvegarder en DB
       const res = await fetch('/api/admin/prospects', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload)
       })
-      const { error: saveError } = await res.json()
-      if (saveError) throw new Error(saveError)
 
-      // 2 — Refetch ce prospect depuis l'API pour avoir
-      //     toutes les données fraîches + enrichies
-      const freshRes = await fetch(
-        `/api/admin/prospects?offset=0&limit=1&enterprise_id=${selected.enterprise_id}`
-      )
-      const { data: freshData } = await freshRes.json()
-      const freshProspect = freshData?.[0] ?? null
+      const json = await res.json()
+      if (json.error) throw new Error(json.error)
 
-      if (freshProspect) {
-        // 3 — Mettre à jour le tableau
-        setProspects(prev => prev.map(p =>
-          p.enterprise_id === selected.enterprise_id ? freshProspect : p
-        ))
-
-        // 4 — Mettre à jour le panel + formulaire
-        skipPanelSyncRef.current = true
-        setSelected(freshProspect)
-        setPanelForm({
-          prospect_status:     freshProspect.prospect_status     ?? 'RAPPELER',
-          rappel_at:           freshProspect.rappel_at
-                                 ? new Date(freshProspect.rappel_at).toISOString().slice(0, 16)
-                                 : '',
-          internal_notes:      freshProspect.internal_notes      ?? '',
-          verbatim:            freshProspect.verbatim             ?? '',
-          next_action:         freshProspect.next_action          ?? '',
-          valeur_estimee_fcfa: freshProspect.valeur_estimee_fcfa?.toString() ?? '',
-          source_contact:      freshProspect.source_contact       ?? ''
-        })
+      // Construire le prospect mis à jour sans refetch
+      const updated: Prospect = {
+        ...selected,
+        ...payload,
+        // Remettre enterprise_id proprement
+        enterprise_id: selected.enterprise_id,
+        // Préserver les champs enrichis
+        template_title:       selected.template_title,
+        template_price_fcfa:  selected.template_price_fcfa,
+        template_preview_url: selected.template_preview_url,
+        logo_url:             selected.logo_url,
+        assets_urls:          selected.assets_urls,
       }
 
+      // Mettre à jour le tableau
+      setProspects(prev => prev.map(p =>
+        p.enterprise_id === selected.enterprise_id ? updated : p
+      ))
+
+      // Bloquer le useEffect pour ne pas écraser panelForm
+      skipPanelSyncRef.current = true
+
+      // Mettre à jour le prospect sélectionné
+      setSelected(updated)
+
+      // Mettre à jour le formulaire avec les nouvelles valeurs
+      setPanelForm(prev => ({
+        ...prev,
+        ...fields,
+        // Reformater rappel_at pour datetime-local si présent
+        ...(fields.rappel_at !== undefined && payload.rappel_at
+          ? { rappel_at: new Date(payload.rappel_at).toISOString().slice(0, 16) }
+          : fields.rappel_at !== undefined && !payload.rappel_at
+          ? { rappel_at: '' }
+          : {}
+        )
+      }))
+
     } catch (err: any) {
-      setError(err.message)
+      setError(`Erreur sauvegarde : ${err.message}`)
     } finally {
       setSavingAction(false)
     }
