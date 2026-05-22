@@ -11,7 +11,7 @@ import {
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
 import { LayoutDashboard, Zap, TrendingUp, DollarSign, UserCheck, Bell, Users2 } from 'lucide-react';
-import { exportExcel, exportTXT } from '@/lib/exportProspects';
+import { exportExcel, exportTXT, exportWord } from '@/lib/exportProspects';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -395,6 +395,17 @@ export default function ProspectsPage() {
                       >
                         {[
                           { label: 'Excel (.xlsx)',  icon: '📊', action: () => { exportExcel(buildExportData(), `prospects_${new Date().toISOString().split('T')[0]}`); setShowExportMenu(false) } },
+                          {
+                            label: 'Document (.docx)',
+                            icon: '📝',
+                            action: async () => {
+                              await exportWord(
+                                buildExportData(),
+                                `prospects_${new Date().toISOString().split('T')[0]}`
+                              )
+                              setShowExportMenu(false)
+                            }
+                          },
                           {
                             label: 'Document (.txt)',
                             icon: '📄',
