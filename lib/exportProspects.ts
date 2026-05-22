@@ -209,377 +209,364 @@ export async function exportWord(
   prospects: ProspectExport[],
   filename: string
 ) {
-  const borderStyle = {
+  const border = {
     style: 'single' as const,
-    size:  4,
-    color: 'DDDDDD'
+    size: 4,
+    color: 'CCCCCC'
   }
-
   const allBorders = {
-    top:    borderStyle,
-    bottom: borderStyle,
-    left:   borderStyle,
-    right:  borderStyle,
+    top: border, bottom: border,
+    left: border, right: border
   }
 
-  // ── Cellule header tableau ──
-  const makeHeaderCell = (text: string, widthDXA: number) =>
+  // ── Cellule header ──
+  const hCell = (text: string, w: number) =>
     new TableCell({
-      children: [
-        new Paragraph({
-          children: [
-            new TextRun({
-              text,
-              bold:  true,
-              size:  18,
-              color: '1A1A1A'
-            })
-          ],
-          alignment: AlignmentType.CENTER,
-          spacing:   { before: 80, after: 80 }
-        })
-      ],
-      shading:  { type: ShadingType.CLEAR, fill: 'EEEEEE' },
-      borders:  allBorders,
-      width:    { size: widthDXA, type: WidthType.DXA },
-      margins:  { top: 120, bottom: 120, left: 160, right: 160 }
+      width:   { size: w, type: WidthType.DXA },
+      borders: allBorders,
+      shading: { type: ShadingType.CLEAR, fill: 'E8E8E8' },
+      margins: { top: 100, bottom: 100, left: 150, right: 150 },
+      children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing:   { before: 40, after: 40 },
+        children:  [new TextRun({
+          text, bold: true, size: 18, color: '111111'
+        })]
+      })]
     })
 
-  // ── Cellule données tableau ──
-  const makeDataCell = (
+  // ── Cellule donnée ──
+  const dCell = (
     text: string,
-    opts: {
-      bg?:    string
-      bold?:  boolean
-      color?: string
-      width?: number
-    } = {}
+    w: number,
+    opts: { bold?: boolean; color?: string; bg?: string; center?: boolean } = {}
   ) =>
     new TableCell({
-      children: [
-        new Paragraph({
-          children: [
-            new TextRun({
-              text:  text ?? '',
-              bold:  opts.bold  ?? false,
-              size:  16,
-              color: opts.color ?? '222222'
-            })
-          ],
-          spacing: { before: 80, after: 80 }
-        })
-      ],
-      shading:  opts.bg
-        ? { type: ShadingType.CLEAR, fill: opts.bg }
-        : { type: ShadingType.CLEAR, fill: 'FFFFFF' },
-      borders:  allBorders,
-      width:    opts.width
-        ? { size: opts.width, type: WidthType.DXA }
-        : undefined,
-      margins:  { top: 100, bottom: 100, left: 160, right: 160 }
+      width:   { size: w, type: WidthType.DXA },
+      borders: allBorders,
+      shading: { type: ShadingType.CLEAR, fill: opts.bg ?? 'FFFFFF' },
+      margins: { top: 80, bottom: 80, left: 150, right: 150 },
+      children: [new Paragraph({
+        alignment: opts.center ? AlignmentType.CENTER : AlignmentType.LEFT,
+        spacing:   { before: 40, after: 40 },
+        children:  [new TextRun({
+          text:  text ?? '—',
+          bold:  opts.bold  ?? false,
+          size:  17,
+          color: opts.color ?? '222222'
+        })]
+      })]
     })
 
-  // ── Paragraphe titre section ──
-  const makeSection = (title: string) =>
+  // ── Ligne séparatrice verte ──
+  const greenLine = new Paragraph({
+    border: {
+      bottom: { style: 'single' as const, size: 12, color: '22CC44' }
+    },
+    spacing: { before: 0, after: 0 },
+    children: [new TextRun({ text: '' })]
+  })
+
+  // ── Titre de section ──
+  const sectionTitle = (text: string) =>
     new Paragraph({
-      children: [
-        new TextRun({
-          text:  title,
-          bold:  true,
-          size:  22,
-          color: '333333'
-        })
-      ],
-      spacing: { before: 400, after: 120 },
-      border: {
-        bottom: {
-          style: 'single' as const,
-          size:  6,
-          color: '39FF14'
-        }
-      }
+      spacing: { before: 300, after: 120 },
+      children: [new TextRun({
+        text,
+        bold:  true,
+        size:  22,
+        color: '111111',
+        allCaps: true
+      })]
     })
 
-  // ── Label + valeur en ligne ──
-  const makeInfoLine = (label: string, value: string) =>
+  // ════════════════════════
+  // PAGE DE GARDE
+  // ════════════════════════
+  const cover = [
     new Paragraph({
-      children: [
-        new TextRun({ text: `${label} : `, bold: true, size: 18, color: '555555' }),
-        new TextRun({ text: value || '—',  bold: false, size: 18, color: '111111' })
-      ],
-      spacing: { before: 60, after: 60 }
-    })
-
-  // ════════════════════════════════════════════════
-  // SECTION 1 — PAGE DE GARDE
-  // ════════════════════════════════════════════════
-
-  const coverPage = [
-    new Paragraph({
-      children: [
-        new TextRun({
-          text:  'PIPELINE PROSPECTS',
-          bold:  true,
-          size:  56,
-          color: '111111'
-        })
-      ],
       alignment: AlignmentType.CENTER,
-      spacing:   { before: 2000, after: 200 }
+      spacing:   { before: 1800, after: 200 },
+      children:  [new TextRun({
+        text: 'PIPELINE PROSPECTS',
+        bold: true, size: 64, color: '111111'
+      })]
     }),
     new Paragraph({
-      children: [
-        new TextRun({
-          text:  'AUTOSLASH AI',
-          bold:  true,
-          size:  36,
-          color: '39FF14'
-        })
-      ],
       alignment: AlignmentType.CENTER,
-      spacing:   { after: 600 }
+      spacing:   { after: 500 },
+      children:  [new TextRun({
+        text: 'AUTOSLASH AI',
+        bold: true, size: 40, color: '22CC44'
+      })]
     }),
     new Paragraph({
-      children: [
-        new TextRun({
-          text:  `Exporté le ${new Date().toLocaleDateString('fr-FR')}`,
-          size:  24,
-          color: '888888'
-        })
-      ],
       alignment: AlignmentType.CENTER,
-      spacing:   { after: 100 }
+      spacing:   { after: 200 },
+      children:  [new TextRun({
+        text: `Date d'export : ${new Date().toLocaleDateString('fr-FR')}`,
+        size: 24, color: '666666'
+      })]
     }),
     new Paragraph({
-      children: [
-        new TextRun({
-          text:  `${prospects.length} prospects`,
-          bold:  true,
-          size:  28,
-          color: '333333'
-        })
-      ],
       alignment: AlignmentType.CENTER,
-      spacing:   { after: 2000 }
+      spacing:   { after: 1200 },
+      children:  [new TextRun({
+        text: `Nombre de prospects : ${prospects.length}`,
+        bold: true, size: 28, color: '333333'
+      })]
     }),
-    // Ligne séparatrice
-    new Paragraph({
-      children: [new TextRun({ text: '' })],
-      border: {
-        bottom: { style: 'single' as const, size: 12, color: '39FF14' }
-      },
-      spacing: { after: 400 }
-    }),
+    greenLine,
     new Paragraph({
       pageBreakBefore: true,
       children: [new TextRun({ text: '' })]
     })
   ]
 
-  // ════════════════════════════════════════════════
-  // SECTION 2 — TABLEAU SYNTHÈSE
-  // ════════════════════════════════════════════════
-
-  const synthHeaderRow = new TableRow({
+  // ════════════════════════
+  // TABLEAU SYNTHÈSE
+  // ════════════════════════
+  const synthHeader = new TableRow({
     tableHeader: true,
     children: [
-      makeHeaderCell('ID',            1200),
-      makeHeaderCell('NOM',           1600),
-      makeHeaderCell('EMAIL',         2200),
-      makeHeaderCell('TÉLÉPHONE',     1600),
-      makeHeaderCell('PLAN',          1000),
-      makeHeaderCell('TEMPLATE',      1800),
-      makeHeaderCell('LIEN PREVIEW',  3000),
-      makeHeaderCell('BUDGET (FCFA)', 1400),
-      makeHeaderCell('STATUT',        1100),
-      makeHeaderCell('RÉGION',        1200),
-      makeHeaderCell('SECTEUR',       1200),
-      makeHeaderCell('DATE',          1200),
+      hCell('NOM',           1600),
+      hCell('EMAIL',         2400),
+      hCell('TÉLÉPHONE',     1700),
+      hCell('PLAN',          1000),
+      hCell('TEMPLATE',      1900),
+      hCell('BUDGET (FCFA)', 1500),
+      hCell('STATUT',        1200),
+      hCell('RAPPEL',        1200),
+      hCell('RÉGION',        1200),
+      hCell('DATE',          1100),
     ]
   })
 
-  const synthDataRows = prospects.map((p, idx) => {
-    const bg = idx % 2 === 0 ? 'FFFFFF' : 'F8F8F8'
+  const synthRows = prospects.map((p, i) => {
+    const bg = i % 2 === 0 ? 'FFFFFF' : 'F5F5F5'
     const statusColor =
       p.prospect_status === 'CONVERTI' ? '229922' :
       p.prospect_status === 'RAPPELER' ? 'CC6600' :
-      p.prospect_status === 'ANNULÉ'   ? 'AAAAAA' : '333333'
+      p.prospect_status === 'ANNULÉ'   ? '999999' : '333333'
 
-    return new TableRow({
-      children: [
-        makeDataCell(
-          p.enterprise_id ?? '',
-          { bg, color: '999999' }
-        ),
-        makeDataCell(p.name ?? '',            { bg, bold: true }),
-        makeDataCell(p.email ?? '',           { bg, color: '3355AA' }),
-        makeDataCell(p.phone ?? '',           { bg }),
-        makeDataCell(p.package_type ?? '',    { bg }),
-        makeDataCell(p.template_title ?? '',  { bg }),
-        makeDataCell(p.template_preview_url ?? '', { bg, color: '2255CC' }),
-        makeDataCell(
-          p.budget ? p.budget.toLocaleString('fr-FR') + ' F' : '—',
-          { bg, bold: true, color: '116611' }
-        ),
-        makeDataCell(p.prospect_status ?? '', { bg, bold: true, color: statusColor }),
-        makeDataCell(p.region ?? '',          { bg }),
-        makeDataCell(p.sector ?? '',          { bg }),
-        makeDataCell(
-          new Date(p.created_at).toLocaleDateString('fr-FR'),
-          { bg }
-        ),
-      ]
-    })
+    return new TableRow({ children: [
+      dCell(p.name ?? '',
+        1600, { bold: true, bg }),
+      dCell(p.email ?? '',
+        2400, { color: '2255BB', bg }),
+      dCell(p.phone ?? '',
+        1700, { bg }),
+      dCell(p.package_type ?? '',
+        1000, { center: true, bg }),
+      dCell(p.template_title ?? '',
+        1900, { bg }),
+      dCell(
+        p.budget ? p.budget.toLocaleString('fr-FR') + ' F' : '—',
+        1500, { bold: !!p.budget, color: p.budget ? '116611' : '999999', bg }
+      ),
+      dCell(p.prospect_status ?? '',
+        1200, { bold: true, color: statusColor, center: true, bg }),
+      dCell(
+        p.rappel_at
+          ? new Date(p.rappel_at).toLocaleDateString('fr-FR')
+          : '—',
+        1200, { bg }),
+      dCell(p.region ?? '',
+        1200, { bg }),
+      dCell(
+        new Date(p.created_at).toLocaleDateString('fr-FR'),
+        1100, { bg }),
+    ]})
   })
 
   const syntheseTable = new Table({
-    rows:  [synthHeaderRow, ...synthDataRows],
-    width: { size: 100, type: WidthType.PERCENTAGE }
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows:  [synthHeader, ...synthRows]
   })
 
-  // ════════════════════════════════════════════════
-  // SECTION 3 — FICHES DÉTAIL (1 par prospect)
-  // ════════════════════════════════════════════════
-
-  const fichesSections: Paragraph[] = []
+  // ════════════════════════
+  // FICHES DÉTAIL
+  // ════════════════════════
+  const fiches: (Paragraph | Table)[] = []
 
   prospects.forEach((p, idx) => {
-    // Saut de page avant chaque fiche
-    fichesSections.push(
-      new Paragraph({
-        pageBreakBefore: true,
-        children: [new TextRun({ text: '' })]
-      })
-    )
+    // Saut de page
+    fiches.push(new Paragraph({
+      pageBreakBefore: true,
+      children: [new TextRun({ text: '' })]
+    }))
 
-    // Titre fiche
-    fichesSections.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text:  `${String(idx + 1).padStart(2, '0')}. ${p.name.toUpperCase()}`,
-            bold:  true,
-            size:  36,
-            color: '111111'
+    // Titre prospect
+    fiches.push(new Paragraph({
+      spacing: { before: 200, after: 100 },
+      children: [
+        new TextRun({
+          text: `${String(idx + 1).padStart(2, '0')}. ${p.name.toUpperCase()}`,
+          bold: true, size: 40, color: '111111'
+        }),
+        new TextRun({
+          text: `   [${p.package_type ?? ''}]`,
+          bold: true, size: 26, color: '888888'
+        })
+      ]
+    }))
+
+    fiches.push(greenLine)
+
+    // ── Tableau CONTACT + COMMANDE ──
+    fiches.push(new Paragraph({
+      spacing: { before: 240, after: 120 },
+      children: [new TextRun({
+        text: 'INFORMATIONS', bold: true,
+        size: 20, color: '444444', allCaps: true
+      })]
+    }))
+
+    const infoTable = new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        new TableRow({ children: [
+          hCell('CHAMP',   2000),
+          hCell('VALEUR',  6000),
+          hCell('CHAMP',   2000),
+          hCell('VALEUR',  6000),
+        ]}),
+        new TableRow({ children: [
+          dCell('ID',        2000, { bold: true, bg: 'F5F5F5' }),
+          dCell(p.enterprise_id ?? '', 6000, { color: '888888', bg: 'F5F5F5' }),
+          dCell('EMAIL',     2000, { bold: true }),
+          dCell(p.email ?? '', 6000, { color: '2255BB' }),
+        ]}),
+        new TableRow({ children: [
+          dCell('TÉLÉPHONE', 2000, { bold: true, bg: 'F5F5F5' }),
+          dCell(p.phone ?? '', 6000, { bg: 'F5F5F5' }),
+          dCell('RÉGION',    2000, { bold: true }),
+          dCell(p.region ?? '', 6000),
+        ]}),
+        new TableRow({ children: [
+          dCell('PLAN',      2000, { bold: true, bg: 'F5F5F5' }),
+          dCell(p.package_type ?? '', 6000, { bg: 'F5F5F5' }),
+          dCell('SECTEUR',   2000, { bold: true }),
+          dCell(p.sector ?? '', 6000),
+        ]}),
+        new TableRow({ children: [
+          dCell('TEMPLATE',  2000, { bold: true, bg: 'F5F5F5' }),
+          dCell(p.template_title ?? '', 6000, { bg: 'F5F5F5' }),
+          dCell('BUDGET',    2000, { bold: true }),
+          dCell(
+            p.budget ? p.budget.toLocaleString('fr-FR') + ' FCFA' : '—',
+            6000, { bold: !!p.budget, color: p.budget ? '116611' : '999999' }
+          ),
+        ]}),
+        new TableRow({ children: [
+          dCell('LIEN',      2000, { bold: true, bg: 'F5F5F5' }),
+          dCell(p.template_preview_url ?? '', 6000, { color: '2255BB', bg: 'F5F5F5' }),
+          dCell('STATUT',    2000, { bold: true }),
+          dCell(p.prospect_status ?? '', 6000, {
+            bold: true,
+            color: p.prospect_status === 'CONVERTI' ? '229922' :
+                   p.prospect_status === 'RAPPELER' ? 'CC6600' :
+                   p.prospect_status === 'ANNULÉ'   ? '999999' : '333333'
           }),
-          new TextRun({
-            text:  `  [${p.package_type ?? ''}]`,
-            bold:  true,
-            size:  24,
-            color: '888888'
-          })
-        ],
-        spacing: { before: 200, after: 300 },
-        border: {
-          bottom: { style: 'single' as const, size: 8, color: 'DDDDDD' }
-        }
-      })
-    )
+        ]}),
+        new TableRow({ children: [
+          dCell('RAPPEL',    2000, { bold: true, bg: 'F5F5F5' }),
+          dCell(
+            p.rappel_at
+              ? new Date(p.rappel_at).toLocaleDateString('fr-FR')
+              : '—',
+            6000, { bg: 'F5F5F5' }
+          ),
+          dCell('INSCRIPTION', 2000, { bold: true }),
+          dCell(new Date(p.created_at).toLocaleDateString('fr-FR'), 6000),
+        ]}),
+      ]
+    })
 
-    // Infos de contact
-    fichesSections.push(makeSection('INFORMATIONS DE CONTACT'))
-    fichesSections.push(makeInfoLine('ID Entreprise',   p.enterprise_id ?? ''))
-    fichesSections.push(makeInfoLine('Email',           p.email         ?? ''))
-    fichesSections.push(makeInfoLine('Téléphone',       p.phone         ?? ''))
-    fichesSections.push(makeInfoLine('Région',          p.region        ?? ''))
-    fichesSections.push(makeInfoLine('Secteur',         p.sector        ?? ''))
+    fiches.push(infoTable)
 
-    // Commande
-    fichesSections.push(makeSection('COMMANDE'))
-    fichesSections.push(makeInfoLine('Plan',            p.package_type      ?? ''))
-    fichesSections.push(makeInfoLine('Template',        p.template_title    ?? ''))
-    fichesSections.push(makeInfoLine('Lien Preview',    p.template_preview_url ?? ''))
-    fichesSections.push(makeInfoLine('Budget estimé',
-      p.budget ? p.budget.toLocaleString('fr-FR') + ' FCFA' : '—'
-    ))
+    // ── Tableau MESSAGE ──
+    fiches.push(new Paragraph({
+      spacing: { before: 300, after: 120 },
+      children: [new TextRun({
+        text: 'MESSAGE CLIENT',
+        bold: true, size: 20, color: '444444', allCaps: true
+      })]
+    }))
 
-    // Statut
-    fichesSections.push(makeSection('SUIVI'))
-    fichesSections.push(makeInfoLine('Statut',          p.prospect_status ?? ''))
-    fichesSections.push(makeInfoLine('Date rappel',
-      p.rappel_at
-        ? new Date(p.rappel_at).toLocaleDateString('fr-FR')
-        : '—'
-    ))
-    fichesSections.push(makeInfoLine('Date inscription',
-      new Date(p.created_at).toLocaleDateString('fr-FR')
-    ))
+    fiches.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [new TableRow({ children: [
+        new TableCell({
+          borders: allBorders,
+          shading: { type: ShadingType.CLEAR, fill: 'F9F9F9' },
+          margins: { top: 160, bottom: 160, left: 200, right: 200 },
+          children: [new Paragraph({
+            spacing: { before: 60, after: 60 },
+            children: [new TextRun({
+              text:    p.message || 'Aucun message',
+              size:    18,
+              color:   p.message ? '222222' : 'AAAAAA',
+              italics: !p.message
+            })]
+          })]
+        })
+      ]})]
+    }))
 
-    // Message client complet
-    fichesSections.push(makeSection('MESSAGE CLIENT'))
-    fichesSections.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text:  p.message || 'Aucun message',
-            size:  18,
-            color: p.message ? '222222' : 'AAAAAA',
-            italics: !p.message
-          })
-        ],
-        shading:  { type: ShadingType.CLEAR, fill: 'F8F8F8' },
-        spacing:  { before: 80, after: 80 },
-        indent:   { left: 200, right: 200 },
-        border: {
-          top:    { style: 'single' as const, size: 4, color: 'DDDDDD' },
-          bottom: { style: 'single' as const, size: 4, color: 'DDDDDD' },
-          left:   { style: 'thick'  as const, size: 8, color: 'CCCCCC' },
-          right:  { style: 'single' as const, size: 4, color: 'DDDDDD' },
-        }
-      })
-    )
+    // ── Tableau COMMENTAIRE ──
+    fiches.push(new Paragraph({
+      spacing: { before: 300, after: 120 },
+      children: [new TextRun({
+        text: 'COMMENTAIRE',
+        bold: true, size: 20, color: '444444', allCaps: true
+      })]
+    }))
 
-    // Commentaire interne
-    fichesSections.push(makeSection('COMMENTAIRE AMADOU'))
-    fichesSections.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text:    p.internal_notes || 'Aucun commentaire',
-            size:    18,
-            color:   p.internal_notes ? '222222' : 'AAAAAA',
-            italics: !p.internal_notes
-          })
-        ],
-        shading:  { type: ShadingType.CLEAR, fill: 'FFFBEA' },
-        spacing:  { before: 80, after: 80 },
-        indent:   { left: 200, right: 200 },
-        border: {
-          top:    { style: 'single' as const, size: 4, color: 'DDDDDD' },
-          bottom: { style: 'single' as const, size: 4, color: 'DDDDDD' },
-          left:   { style: 'thick'  as const, size: 8, color: 'DDCC00' },
-          right:  { style: 'single' as const, size: 4, color: 'DDDDDD' },
-        }
-      })
-    )
+    fiches.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [new TableRow({ children: [
+        new TableCell({
+          borders: allBorders,
+          shading: { type: ShadingType.CLEAR, fill: 'FFFDF0' },
+          margins: { top: 160, bottom: 160, left: 200, right: 200 },
+          children: [new Paragraph({
+            spacing: { before: 60, after: 60 },
+            children: [new TextRun({
+              text:    p.internal_notes || 'Aucun commentaire',
+              size:    18,
+              color:   p.internal_notes ? '222222' : 'AAAAAA',
+              italics: !p.internal_notes
+            })]
+          })]
+        })
+      ]})]
+    }))
   })
 
-  // ════════════════════════════════════════════════
-  // ASSEMBLAGE FINAL
-  // ════════════════════════════════════════════════
-
+  // ════════════════════════
+  // ASSEMBLAGE
+  // ════════════════════════
   const doc = new Document({
     styles: {
       paragraphStyles: [{
-        id:   'Normal',
-        name: 'Normal',
-        run:  { font: 'Calibri', size: 18 }
+        id: 'Normal', name: 'Normal',
+        run: { font: 'Calibri', size: 18 }
       }]
     },
     sections: [
-      // Section 1 : Page de garde
+      // Page de garde
       {
         properties: {},
-        children:   coverPage
+        children: cover
       },
-      // Section 2 : Tableau synthèse (paysage)
+      // Tableau synthèse paysage
       {
         properties: {
           page: {
             size: {
               orientation: 'landscape' as const,
-              width:  16838,
-              height: 11906
+              width: 16838, height: 11906
             },
             margin: {
               top: 720, bottom: 720,
@@ -588,26 +575,25 @@ export async function exportWord(
           }
         },
         children: [
-          makeSection('TABLEAU DE SYNTHÈSE'),
+          sectionTitle('Tableau de synthèse'),
           syntheseTable
         ]
       },
-      // Section 3 : Fiches détail (portrait)
+      // Fiches détail portrait
       {
         properties: {
           page: {
             size: {
               orientation: 'portrait' as const,
-              width:  11906,
-              height: 16838
+              width: 11906, height: 16838
             },
             margin: {
-              top: 1000, bottom: 1000,
-              left: 1200, right: 1200
+              top: 900, bottom: 900,
+              left: 1000, right: 1000
             }
           }
         },
-        children: fichesSections
+        children: fiches
       }
     ]
   })
