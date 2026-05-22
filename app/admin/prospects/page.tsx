@@ -11,7 +11,7 @@ import {
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
 import { LayoutDashboard, Zap, TrendingUp, DollarSign, UserCheck, Bell, Users2 } from 'lucide-react';
-import { exportExcel, exportPDF, exportWord } from '@/lib/exportProspects';
+import { exportExcel, exportWord } from '@/lib/exportProspects';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -395,7 +395,17 @@ export default function ProspectsPage() {
                       >
                         {[
                           { label: 'Excel (.xlsx)',  icon: '📊', action: () => { exportExcel(buildExportData(), `prospects_${new Date().toISOString().split('T')[0]}`); setShowExportMenu(false) } },
-                          { label: 'PDF (.pdf)',     icon: '📄', action: () => { exportPDF(buildExportData(),   `prospects_${new Date().toISOString().split('T')[0]}`); setShowExportMenu(false) } },
+                          {
+                            label: 'Document (.docx)',
+                            icon: '📝',
+                            action: async () => {
+                              await exportWord(
+                                buildExportData(),
+                                `prospects_${new Date().toISOString().split('T')[0]}_doc`
+                              )
+                              setShowExportMenu(false)
+                            }
+                          },
                           { label: 'Word (.docx)',   icon: '📝', action: async () => { await exportWord(buildExportData(), `prospects_${new Date().toISOString().split('T')[0]}`); setShowExportMenu(false) } },
                         ].map(({ label, icon, action }) => (
                           <button
