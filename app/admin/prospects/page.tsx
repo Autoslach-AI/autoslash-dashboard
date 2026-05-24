@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Search, Download, RefreshCw,
   LayoutGrid, List, X, AlertTriangle, Loader2,
-  ChevronDown, ExternalLink
+  ChevronDown, ExternalLink, UserPlus
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
@@ -139,6 +139,7 @@ export default function ProspectsPage() {
   })
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showNewProspect, setShowNewProspect] = useState(false)
 
   // ── Load ──────────────────────────────────────────────────────────────────
   const loadProspects = useCallback(async (reset = false) => {
@@ -374,6 +375,13 @@ export default function ProspectsPage() {
                   className="p-2 rounded-xl border border-white/10 text-white/30 hover:text-[#39FF14] hover:border-[#39FF14]/20 transition-all"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+                <button
+                  onClick={() => setShowNewProspect(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] text-[11px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  NOUVEAU_PROSPECT
                 </button>
                 <div className="relative">
                   <button
