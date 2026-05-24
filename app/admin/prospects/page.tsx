@@ -141,6 +141,25 @@ export default function ProspectsPage() {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [showNewProspect, setShowNewProspect] = useState(false)
 
+  const [creating, setCreating] = useState(false)
+  const [newForm, setNewForm] = useState({
+    name:           '',
+    email:          '',
+    phone:          '',
+    package_type:   'STARTUP',
+    template_id:    '',
+    region:         '',
+    sector:         '',
+    message:        '',
+    source_contact: 'Saisie manuelle Amadou'
+  })
+  const [templates, setTemplates] = useState<{
+    id: string
+    title: string
+    package_type: string
+    price_fcfa: number
+  }[]>([])
+
   // ── Load ──────────────────────────────────────────────────────────────────
   const loadProspects = useCallback(async (reset = false) => {
     if (reset) {
@@ -213,6 +232,55 @@ export default function ProspectsPage() {
       source_contact:      selected.source_contact       ?? ''
     })
   }, [selected])
+
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      const res  = await fetch('/api/admin/prospects/templates')
+      const json = await res.json()
+      if (json.data) setTemplates(json.data)
+    }
+    fetchTemplates()
+  }, [])
+
+  const handleCreateProspect = async () => {
+    if (!newForm.name.trim() || !newForm.email.trim()) {
+      setError('Nom et email obligatoires')
+      return
+    }
+    setCreating(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/prospects/create', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          ...newForm,
+          status:          'PROSPECT',
+          prospect_status: 'NEW',
+        })
+      })
+      const json = await res.json()
+      if (json.error) throw new Error(json.error)
+      setProspects(prev => [json.data, ...prev])
+      setTotal(prev => prev + 1)
+      setNewForm({
+        name:           '',
+        email:          '',
+        phone:          '',
+        package_type:   'STARTUP',
+        template_id:    '',
+        region:         '',
+        sector:         '',
+        message:        '',
+        source_contact: 'Saisie manuelle Amadou'
+      })
+      setShowNewProspect(false)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setCreating(false)
+    }
+  }
 
   function buildExportData() {
     return prospects.map(p => {
@@ -1094,6 +1162,229 @@ export default function ProspectsPage() {
                 <p className="text-[7px] font-mono text-white/20 text-center uppercase tracking-widest">
                   CONVERTI ≠ ACTIF — Activation depuis Dashboard 2 → Profile
                 </p>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showNewProspect && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowNewProspect(false)}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1,    y: 0  }}
+              exit={{    opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed inset-0 z-[101] flex items-center justify-center p-6"
+            >
+              <div className="w-full max-w-[600px] bg-[#0A0A0A] border border-white/10 rounded-3xl overflow-hidden font-mono">
+
+                {/* Header modal */}
+                <div className="flex items-center justify-between px-8 py-6 border-b border-white/5">
+                  <div className="space-y-1">
+                    <h2 className="text-sm font-black uppercase tracking-widest text-white">
+                      NOUVEAU_PROSPECT
+                    </h2>
+                    <p className="text-[9px] font-mono text-white/30 uppercase tracking-widest">
+                      Saisie manuelle — ID généré automatiquement
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowNewProspect(false)}
+                    className="p-2 rounded-xl border border-white/10 text-white/30 hover:text-white transition-all"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Formulaire */}
+                <div className="px-8 py-6 space-y-5 max-h-[70vh] overflow-y-auto no-scrollbar">
+
+                  {/* Nom + Email */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                        NOM ENTREPRISE *
+                      </label>
+                      <input
+                        type="text"
+                        value={newForm.name}
+                        onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="Ex: Autoslash AI"
+                        className="w-full bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/50 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                        EMAIL *
+                      </label>
+                      <input
+                        type="email"
+                        value={newForm.email}
+                        onChange={e => setNewForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="contact@entreprise.com"
+                        className="w-full bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/50 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Téléphone + Région */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                        TÉLÉPHONE
+                      </label>
+                      <input
+                        type="text"
+                        value={newForm.phone}
+                        onChange={e => setNewForm(f => ({ ...f, phone: e.target.value }))}
+                        placeholder="+221 77 000 00 00"
+                        className="w-full bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/50 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                        RÉGION
+                      </label>
+                      <input
+                        type="text"
+                        value={newForm.region}
+                        onChange={e => setNewForm(f => ({ ...f, region: e.target.value }))}
+                        placeholder="Ex: Dakar"
+                        className="w-full bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/50 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Secteur + Source */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                        SECTEUR
+                      </label>
+                      <input
+                        type="text"
+                        value={newForm.sector}
+                        onChange={e => setNewForm(f => ({ ...f, sector: e.target.value }))}
+                        placeholder="Ex: Commerce, Santé..."
+                        className="w-full bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/50 transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                        SOURCE
+                      </label>
+                      <input
+                        type="text"
+                        value={newForm.source_contact}
+                        onChange={e => setNewForm(f => ({ ...f, source_contact: e.target.value }))}
+                        className="w-full bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/50 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Plan */}
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                      PLAN
+                    </label>
+                    <div className="flex gap-2">
+                      {(['STARTUP', 'BUSINESS', 'ENTERPRISE', 'ELITE'] as const).map(plan => (
+                        <button
+                          key={plan}
+                          onClick={() => setNewForm(f => ({
+                            ...f,
+                            package_type: plan,
+                            template_id: ''
+                          }))}
+                          className={`flex-1 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${
+                            newForm.package_type === plan
+                              ? PACKAGE_COLORS[plan] ?? 'bg-white/10 text-white border-white/20'
+                              : 'border-white/10 text-white/30 hover:border-white/20 hover:text-white/60'
+                          }`}
+                        >
+                          {plan}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Templates filtrés par plan */}
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                      TEMPLATE
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {templates
+                        .filter(t => t.package_type === newForm.package_type)
+                        .map(t => (
+                          <button
+                            key={t.id}
+                            onClick={() => setNewForm(f => ({ ...f, template_id: t.id }))}
+                            className={`flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-all ${
+                              newForm.template_id === t.id
+                                ? 'bg-[#39FF14]/10 border-[#39FF14]/30 text-[#39FF14]'
+                                : 'bg-white/[0.03] border-white/10 text-white/60 hover:border-white/20'
+                            }`}
+                          >
+                            <span className="text-[10px] font-black uppercase truncate">
+                              {t.title}
+                            </span>
+                            <span className="text-[9px] font-mono text-white/30 shrink-0 ml-2">
+                              {t.price_fcfa?.toLocaleString('fr-FR')} F
+                            </span>
+                          </button>
+                        ))
+                      }
+                      {templates.filter(t => t.package_type === newForm.package_type).length === 0 && (
+                        <p className="text-[9px] font-mono text-white/20 col-span-2">
+                          Aucun template pour ce plan
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Message */}
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
+                      MESSAGE / BESOIN
+                    </label>
+                    <textarea
+                      value={newForm.message}
+                      onChange={e => setNewForm(f => ({ ...f, message: e.target.value }))}
+                      placeholder="Décris le besoin du prospect..."
+                      rows={4}
+                      className="w-full bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white placeholder:text-white/20 focus:outline-none focus:border-[#39FF14]/50 transition-all resize-none"
+                    />
+                  </div>
+
+                </div>
+
+                {/* Footer modal */}
+                <div className="px-8 py-5 border-t border-white/5 flex items-center justify-between gap-4">
+                  <button
+                    onClick={() => setShowNewProspect(false)}
+                    className="px-6 py-3 rounded-xl border border-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest hover:border-white/20 hover:text-white/60 transition-all"
+                  >
+                    ANNULER
+                  </button>
+                  <button
+                    onClick={handleCreateProspect}
+                    disabled={creating || !newForm.name.trim() || !newForm.email.trim()}
+                    className="flex-1 py-3 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] text-[10px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {creating ? 'CRÉATION...' : 'CRÉER_PROSPECT'}
+                  </button>
+                </div>
+
               </div>
             </motion.div>
           </>
