@@ -563,10 +563,10 @@ export default function ProspectsPage() {
                   <select
                     value={filterSector}
                     onChange={e => setFilterSector(e.target.value)}
-                    className="appearance-none bg-white/[0.03] border border-white/10 rounded-xl pl-4 pr-10 py-2 text-[9px] font-black uppercase text-white/60 focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                    className="appearance-none bg-white/[0.03] border border-white/10 rounded-xl pl-4 pr-10 py-2 text-[9px] font-black uppercase text-white/60 focus:outline-none focus:border-[#39FF14]/30 transition-all cursor-pointer"
                   >
                     {availableSectors.map(s => (
-                      <option key={s} value={s}>
+                      <option key={s} value={s} style={{ color: 'black', backgroundColor: 'white' }}>
                         {s === 'ALL' ? 'TOUS LES SECTEURS' : s.toUpperCase()}
                       </option>
                     ))}
@@ -1349,34 +1349,29 @@ export default function ProspectsPage() {
                     <label className="text-[9px] font-black uppercase tracking-widest text-white/40">
                       TEMPLATE
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {templates
-                        .filter(t => t.package_type === newForm.package_type)
-                        .map(t => (
-                          <button
-                            key={t.id}
-                            onClick={() => setNewForm(f => ({ ...f, template_id: t.id }))}
-                            className={`flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-all ${
-                              newForm.template_id === t.id
-                                ? 'bg-[#39FF14]/10 border-[#39FF14]/30 text-[#39FF14]'
-                                : 'bg-white/[0.03] border-white/10 text-white/60 hover:border-white/20'
-                            }`}
-                          >
-                            <span className="text-[10px] font-black uppercase truncate">
-                              {t.title}
-                            </span>
-                            <span className="text-[9px] font-mono text-white/30 shrink-0 ml-2">
-                              {t.price_fcfa?.toLocaleString('fr-FR')} F
-                            </span>
-                          </button>
-                        ))
-                      }
-                      {templates.filter(t => t.package_type === newForm.package_type).length === 0 && (
-                        <p className="text-[9px] font-mono text-white/20 col-span-2">
-                          Aucun template pour ce plan
-                        </p>
-                      )}
+                    <div className="relative">
+                      <select
+                        value={newForm.template_id}
+                        onChange={e => setNewForm(f => ({ ...f, template_id: e.target.value }))}
+                        className="w-full appearance-none bg-white/[0.05] border border-white/20 rounded-xl px-4 py-3 text-[12px] font-mono text-white focus:outline-none focus:border-[#39FF14]/50 transition-all cursor-pointer"
+                      >
+                        <option value="" style={{ color: 'black', backgroundColor: 'white' }}>— Sélectionner un template —</option>
+                        {templates
+                          .filter(t => t.package_type === newForm.package_type)
+                          .map(t => (
+                            <option key={t.id} value={t.id} style={{ color: 'black', backgroundColor: 'white' }}>
+                              {t.title} — {t.price_fcfa?.toLocaleString('fr-FR')} FCFA
+                            </option>
+                          ))
+                        }
+                      </select>
+                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30 pointer-events-none" />
                     </div>
+                    {newForm.template_id && (
+                      <p className="text-[9px] font-mono text-[#39FF14]/60">
+                        ✓ Template sélectionné
+                      </p>
+                    )}
                   </div>
 
                   {/* Message */}
