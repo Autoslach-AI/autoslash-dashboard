@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -116,6 +116,7 @@ export default function ProspectsPage() {
   const [filterPackage, setFilterPackage] = useState('ALL')
   const [filterStatus, setFilterStatus]   = useState('ALL')
   const [filterPeriod, setFilterPeriod]   = useState('ALL')
+  const [filterSector, setFilterSector]   = useState('ALL')
 
   const [prospects, setProspects]     = useState<Prospect[]>([])
   const [total, setTotal]             = useState(0)
@@ -403,6 +404,13 @@ export default function ProspectsPage() {
     p => p.prospect_status === 'CONVERTI'
   ).length
 
+  const availableSectors = useMemo(() => {
+    const sectors = prospects
+      .map(p => p.sector)
+      .filter((s): s is string => !!s && s.trim() !== '')
+    return ['ALL', ...Array.from(new Set(sectors)).sort()]
+  }, [prospects])
+
   const primaryItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, onClick: () => router.push('/admin') },
     { id: 'prospects', label: 'Prospects', icon: Users,           path: '/admin/prospects' }
@@ -546,6 +554,20 @@ export default function ProspectsPage() {
                     {PROSPECT_STATUTS.map(s => (
                       <option key={s} value={s} style={{ color: 'black', backgroundColor: 'white' }}>
                         {s === 'ALL' ? 'TOUS LES STATUTS' : s}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
+                </div>
+                <div className="relative">
+                  <select
+                    value={filterSector}
+                    onChange={e => setFilterSector(e.target.value)}
+                    className="appearance-none bg-white/[0.03] border border-white/10 rounded-xl pl-4 pr-10 py-2 text-[9px] font-black uppercase text-white/60 focus:outline-none focus:border-[#39FF14]/30 transition-all"
+                  >
+                    {availableSectors.map(s => (
+                      <option key={s} value={s}>
+                        {s === 'ALL' ? 'TOUS LES SECTEURS' : s.toUpperCase()}
                       </option>
                     ))}
                   </select>
@@ -759,7 +781,12 @@ export default function ProspectsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.02]">
-                      {prospects.map((p, idx) => {
+                      {prospects
+                        .filter(p =>
+                          filterSector === 'ALL' ||
+                          (p.sector ?? '').toLowerCase() === filterSector.toLowerCase()
+                        )
+                        .map((p, idx) => {
                         const heat      = getHeatBadge(p.prospect_score)
                         const rappelDue = p.rappel_at && new Date(p.rappel_at) <= new Date()
                         const budget    = resolveBudget(p)
