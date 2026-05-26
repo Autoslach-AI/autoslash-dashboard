@@ -443,6 +443,17 @@ export default function ProspectsPage() {
                           }
                         },
                         {
+                          label: 'Word (.docx)',
+                          icon: '📝',
+                          action: async () => {
+                            await exportWord(
+                              buildExportData(),
+                              `prospects_${new Date().toISOString().split('T')[0]}`
+                            )
+                            setShowExportMenu(false)
+                          }
+                        },
+                        {
                           label: 'Document (.txt)',
                           icon: '📄',
                           action: () => {
