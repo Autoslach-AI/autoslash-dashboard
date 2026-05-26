@@ -362,90 +362,12 @@ export default function ProspectsPage() {
                   <Users className="w-5 h-5 text-[#39FF14]" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-white tracking-tight">PIPELINE_PROSPECTS</h1>
+                  <h1 className="text-xl font-bold text-white tracking-tight">
+                    PIPELINE_PROSPECTS
+                  </h1>
                   <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest mt-1">
                     {total} ENTITÉS DÉTECTÉES — SYNC_OFF_CHAIN
                   </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
-                  <button
-                    onClick={() => setView('TABLE')}
-                    className={`p-2 rounded-lg transition-all ${
-                      view === 'TABLE'
-                        ? 'bg-[#39FF14]/10 text-[#39FF14]'
-                        : 'text-white/30 hover:text-white'
-                    }`}
-                  >
-                    <List className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setView('KANBAN')}
-                    className={`p-2 rounded-lg transition-all ${
-                      view === 'KANBAN'
-                        ? 'bg-[#39FF14]/10 text-[#39FF14]'
-                        : 'text-white/30 hover:text-white'
-                    }`}
-                  >
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="relative">
-                  <button
-                    onClick={() => setShowExportMenu(v => !v)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/20 text-white text-[11px] font-black uppercase tracking-widest hover:bg-white/5 transition-all"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    EXPORTER
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-
-                  <AnimatePresence>
-                    {showExportMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -6 }}
-                        className="absolute right-0 top-full mt-2 z-[60] bg-[#111111] border border-white/10 rounded-2xl overflow-hidden shadow-2xl min-w-[200px]"
-                      >
-                        {[
-                          { label: 'Excel (.xlsx)',  icon: '📊', action: () => { exportExcel(buildExportData(), `prospects_${new Date().toISOString().split('T')[0]}`); setShowExportMenu(false) } },
-                          {
-                            label: 'Document (.docx)',
-                            icon: '📝',
-                            action: async () => {
-                              await exportWord(
-                                buildExportData(),
-                                `prospects_${new Date().toISOString().split('T')[0]}`
-                              )
-                              setShowExportMenu(false)
-                            }
-                          },
-                          {
-                            label: 'Document (.txt)',
-                            icon: '📄',
-                            action: () => {
-                              exportTXT(
-                                buildExportData(),
-                                `prospects_${new Date().toISOString().split('T')[0]}`
-                              )
-                              setShowExportMenu(false)
-                            }
-                          },
-                        ].map(({ label, icon, action }) => (
-                          <button
-                            key={label}
-                            onClick={action}
-                            className="w-full flex items-center gap-3 px-5 py-3.5 text-[11px] font-black uppercase tracking-widest text-white hover:bg-white/5 transition-all border-b border-white/5 last:border-0"
-                          >
-                            <span className="text-base">{icon}</span>
-                            {label}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
               </div>
             </div>
@@ -505,6 +427,86 @@ export default function ProspectsPage() {
                     ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
+                  <button
+                    onClick={() => setView('TABLE')}
+                    className={`p-2 rounded-lg transition-all ${
+                      view === 'TABLE'
+                        ? 'bg-[#39FF14]/10 text-[#39FF14]'
+                        : 'text-white/30 hover:text-white'
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setView('KANBAN')}
+                    className={`p-2 rounded-lg transition-all ${
+                      view === 'KANBAN'
+                        ? 'bg-[#39FF14]/10 text-[#39FF14]'
+                        : 'text-white/30 hover:text-white'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setShowExportMenu(v => !v)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/20 text-white text-[11px] font-black uppercase tracking-widest hover:bg-white/5 transition-all"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    EXPORTER
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  <AnimatePresence>
+                    {showExportMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        className="absolute right-0 top-full mt-2 z-[60] bg-[#111111] border border-white/10 rounded-2xl overflow-hidden shadow-2xl min-w-[200px]"
+                      >
+                        {[
+                          {
+                            label: 'Excel (.xlsx)',
+                            icon: '📊',
+                            action: () => {
+                              exportExcel(
+                                buildExportData(),
+                                `prospects_${new Date().toISOString().split('T')[0]}`
+                              )
+                              setShowExportMenu(false)
+                            }
+                          },
+                          {
+                            label: 'Document (.txt)',
+                            icon: '📄',
+                            action: () => {
+                              exportTXT(
+                                buildExportData(),
+                                `prospects_${new Date().toISOString().split('T')[0]}`
+                              )
+                              setShowExportMenu(false)
+                            }
+                          },
+                        ].map(({ label, icon, action }) => (
+                          <button
+                            key={label}
+                            onClick={action}
+                            className="w-full flex items-center gap-3 px-5 py-3.5 text-[11px] font-black uppercase tracking-widest text-white hover:bg-white/5 transition-all border-b border-white/5 last:border-0"
+                          >
+                            <span className="text-base">{icon}</span>
+                            {label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
             </div>
