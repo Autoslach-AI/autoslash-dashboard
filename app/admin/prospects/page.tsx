@@ -369,12 +369,28 @@ export default function ProspectsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => loadProspects(true)}
-                  className="p-2 rounded-xl border border-white/10 text-white/30 hover:text-[#39FF14] hover:border-[#39FF14]/20 transition-all"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-                </button>
+                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
+                  <button
+                    onClick={() => setView('TABLE')}
+                    className={`p-2 rounded-lg transition-all ${
+                      view === 'TABLE'
+                        ? 'bg-[#39FF14]/10 text-[#39FF14]'
+                        : 'text-white/30 hover:text-white'
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setView('KANBAN')}
+                    className={`p-2 rounded-lg transition-all ${
+                      view === 'KANBAN'
+                        ? 'bg-[#39FF14]/10 text-[#39FF14]'
+                        : 'text-white/30 hover:text-white'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                  </button>
+                </div>
                 <div className="relative">
                   <button
                     onClick={() => setShowExportMenu(v => !v)}
@@ -490,14 +506,6 @@ export default function ProspectsPage() {
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/30 pointer-events-none" />
                 </div>
-              </div>
-              <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
-                <button onClick={() => setView('TABLE')} className={`p-2 rounded-lg transition-all ${view === 'TABLE' ? 'bg-[#39FF14]/10 text-[#39FF14]' : 'text-white/30 hover:text-white'}`}>
-                  <List className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => setView('KANBAN')} className={`p-2 rounded-lg transition-all ${view === 'KANBAN' ? 'bg-[#39FF14]/10 text-[#39FF14]' : 'text-white/30 hover:text-white'}`}>
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                </button>
               </div>
             </div>
           </div>
