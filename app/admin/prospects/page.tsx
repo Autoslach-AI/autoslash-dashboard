@@ -356,21 +356,6 @@ export default function ProspectsPage() {
 
           {/* ── Header ──────────────────────────────────────────────────── */}
           <div className="flex flex-col space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-white/5 border border-white/10 rounded-xl">
-                  <Users className="w-5 h-5 text-[#39FF14]" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-white tracking-tight">
-                    PIPELINE_PROSPECTS
-                  </h1>
-                  <p className="text-[10px] font-mono text-white/30 uppercase tracking-widest mt-1">
-                    {total} ENTITÉS DÉTECTÉES — SYNC_OFF_CHAIN
-                  </p>
-                </div>
-              </div>
-            </div>
 
             {/* Filters */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-white/[0.02] border border-white/5 p-4 rounded-2xl">
