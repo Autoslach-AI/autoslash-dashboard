@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Search, Download, RefreshCw,
   LayoutGrid, List, X, AlertTriangle, Loader2,
-  ChevronDown, ExternalLink
+  ChevronDown, ExternalLink, Camera
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
@@ -139,6 +139,9 @@ export default function ProspectsPage() {
   })
   const [editingStatusId, setEditingStatusId] = useState<string | null>(null)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [snapshots, setSnapshots]         = useState<any[]>([])
+  const [loadingSnapshot, setLoadingSnapshot] = useState(false)
+  const [snapshotSuccess, setSnapshotSuccess] = useState(false)
 
   // ── Load ──────────────────────────────────────────────────────────────────
   const loadProspects = useCallback(async (reset = false) => {
@@ -212,6 +215,43 @@ export default function ProspectsPage() {
       source_contact:      selected.source_contact       ?? ''
     })
   }, [selected])
+
+  useEffect(() => {
+    const fetchSnapshots = async () => {
+      const res  = await fetch('/api/admin/prospects/snapshot')
+      const json = await res.json()
+      if (json.data) setSnapshots(json.data)
+    }
+    fetchSnapshots()
+  }, [])
+
+  const handleSnapshot = async () => {
+    setLoadingSnapshot(true)
+    setSnapshotSuccess(false)
+    try {
+      const res = await fetch('/api/admin/prospects/snapshot', {
+        method:  'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-internal':   'true'
+        }
+      })
+      const json = await res.json()
+      if (json.error) throw new Error(json.error)
+
+      // Recharger les snapshots
+      const res2  = await fetch('/api/admin/prospects/snapshot')
+      const json2 = await res2.json()
+      if (json2.data) setSnapshots(json2.data)
+
+      setSnapshotSuccess(true)
+      setTimeout(() => setSnapshotSuccess(false), 3000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoadingSnapshot(false)
+    }
+  }
 
   function buildExportData() {
     return prospects.map(p => {
@@ -480,6 +520,125 @@ export default function ProspectsPage() {
               </div>
             </div>
           </div>
+
+          {/* Snapshot journalier */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/30">
+                HISTORIQUE_PIPELINE
+              </h2>
+              {snapshots.length > 0 && (
+                <span className="text-[8px] font-mono text-white/20">
+                  {snapshots.length} jours enregistrés
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleSnapshot}
+              disabled={loadingSnapshot}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all disabled:opacity-50 cursor-pointer ${
+                snapshotSuccess
+                  ? 'bg-[#39FF14]/10 border-[#39FF14]/30 text-[#39FF14]'
+                  : 'border-white/10 text-white/40 hover:border-white/20 hover:text-white/60'
+              }`}
+            >
+              {loadingSnapshot ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : snapshotSuccess ? (
+                <>✓ SNAPSHOT_SAUVEGARDÉ</>
+              ) : (
+                <>
+                  <Camera className="w-3.5 h-3.5" />
+                  SNAPSHOT_MAINTENANT
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Tableau historique */}
+          {snapshots.length > 0 && (
+            <div className="overflow-hidden rounded-xl border border-white/5 bg-[#0B0B0B]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-white/5 bg-white/[0.01]">
+                    {[
+                      'DATE', 'TOTAL', 'NOUVEAUX',
+                      'CONVERTIS', 'ANNULÉS', 'RAPPELS_DUS',
+                      'PIPELINE_FCFA', 'TYPE'
+                    ].map(col => (
+                      <th key={col} className="px-4 py-3 text-[9px] font-black text-white/30 tracking-[0.2em] uppercase">
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.02]">
+                  {snapshots.map((s, idx) => (
+                    <tr
+                      key={s.id}
+                      className={`hover:bg-white/[0.02] transition-colors ${
+                        idx === 0 ? 'bg-[#39FF14]/[0.02]' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {idx === 0 && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#39FF14] shrink-0" />
+                          )}
+                          <span className="text-[10px] font-black text-white font-mono">
+                            {new Date(s.snapshot_date).toLocaleDateString('fr-FR', {
+                              day: '2-digit', month: 'short', year: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-[11px] font-black text-white font-mono">
+                          {s.total_prospects}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-[11px] font-black text-[#39FF14] font-mono">
+                          +{s.new_count}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-[11px] font-black text-[#39FF14]/70 font-mono">
+                          {s.converted_count}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-[11px] font-mono text-white/40">
+                          {s.annulled_count}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-[11px] font-mono ${
+                          s.rappels_dus > 0 ? 'text-orange-400 font-black' : 'text-white/40'
+                        }`}>
+                          {s.rappels_dus}
+                          {s.rappels_dus > 0 && ' ⚡'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-[11px] font-black text-[#39FF14] font-mono">
+                          {s.valeur_pipeline_fcfa > 0
+                            ? s.valeur_pipeline_fcfa.toLocaleString('fr-FR') + ' F'
+                            : '—'
+                          }
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-[8px] font-mono text-white/20 uppercase">
+                          {s.period_type ?? 'DAY'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {!loading && (
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
