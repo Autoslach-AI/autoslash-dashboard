@@ -611,7 +611,8 @@ export default function NeuralCommandCenterV31() {
     { id: 'DATA_LIB', label: 'Data Library', icon: Database },
     { id: 'REPORTS', label: 'Reports', icon: FileText },
     { id: 'PROSPECT', label: 'Prospect', icon: Users, path: '/admin/prospects' },
-    { id: 'WORD_ASSISTANT', label: 'Word Assistant', icon: Zap, type: 'trigger' }
+    { id: 'WORD_ASSISTANT', label: 'Word Assistant', icon: Zap, type: 'trigger' },
+    { id: 'HQ_AGENTS', label: 'Agents Autoslash', icon: Brain, path: '/admin/hq/agents' }
   ];
 
   const secondaryItems: NavItem[] = [
