@@ -1,0 +1,143 @@
+import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json()
+    const { agent_id, messages } = body
+
+    if (!agent_id || !messages) {
+      return NextResponse.json(
+        { error: 'agent_id et messages requis' },
+        { status: 400 }
+      )
+    }
+
+    // 1 — Lire la config de l'agent
+    const { data: agentConfig, error: configError } = await supabase
+      .from('agent_configs')
+      .select('*')
+      .eq('agent_id', agent_id)
+      .single()
+
+    if (configError || !agentConfig) {
+      return NextResponse.json(
+        { error: 'Agent introuvable' },
+        { status: 404 }
+      )
+    }
+
+    // 2 — Construire le contexte Supabase pour AXON Oracle
+    let contextBlock = ''
+
+    if (agent_id === 'axon') {
+      // Récupérer les patterns mémoire (top 10 par importance)
+      const { data: memories } = await supabase
+        .from('axon_memory')
+        .select('memory_type, sujet, detail, count, importance_score, last_seen_at')
+        .eq('is_resolved', false)
+        .order('importance_score', { ascending: false })
+        .limit(10)
+
+      // Récupérer les logs intelligence récents
+      const { data: logs } = await supabase
+        .from('admin_intelligence_logs')
+        .select('issue_type, severity_level, raw_context, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      // Récupérer le dernier snapshot pipeline
+      const { data: snapshot } = await supabase
+        .from('prospect_daily_snapshots')
+        .select('*')
+        .order('snapshot_date', { ascending: false })
+        .limit(1)
+        .single()
+
+      // Récupérer stats prospects actuelles
+      const { count: totalProspects } = await supabase
+        .from('enterprises')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'PROSPECT')
+
+      const { count: totalClients } = await supabase
+        .from('enterprises')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'ACTIVE')
+
+      contextBlock = `
+=== CONTEXTE AUTOSLASH AI — DONNÉES RÉELLES ===
+
+PIPELINE COMMERCIAL :
+- Total prospects : ${totalProspects ?? 0}
+- Clients actifs : ${totalClients ?? 0}
+${snapshot ? `- Snapshot du ${snapshot.snapshot_date} : ${snapshot.new_count} nouveaux, ${snapshot.converted_count} convertis, pipeline ${snapshot.valeur_pipeline_fcfa?.toLocaleString('fr-FR')} FCFA` : '- Aucun snapshot disponible'}
+
+PATTERNS MÉMORISÉS (axon_memory) :
+${memories && memories.length > 0
+  ? memories.map(m => `- [${m.memory_type}] ${m.sujet} — vu ${m.count}x (score: ${m.importance_score})`).join('\n')
+  : '- Aucun pattern détecté encore'
+}
+
+ALERTES RÉCENTES (admin_intelligence_logs) :
+${logs && logs.length > 0
+  ? logs.map(l => `- [${l.severity_level}] ${l.issue_type} : ${l.raw_context}`).join('\n')
+  : '- Aucune alerte active'
+}
+
+=== FIN DU CONTEXTE ===
+`
+    }
+
+    // 3 — Construire le system prompt avec contexte injecté
+    const systemPrompt = agentConfig.system_prompt
+      ? `${agentConfig.system_prompt}\n\n${contextBlock}`
+      : `Tu es AXON, l'assistant stratégique d'Amadou, fondateur d'Autoslash AI. Tu analyses les données de la plateforme et fournis des insights actionnables. Tu ne prends jamais d'actions directes — tu suggères uniquement.\n\n${contextBlock}`
+
+    // 4 — Appeler Gemini API
+    const geminiResponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${agentConfig.model ?? 'gemini-2.0-flash'}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          contents: messages.map((m: any) => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }]
+          })),
+          generationConfig: {
+            temperature:     0.7,
+            maxOutputTokens: agentConfig.max_tokens_per_session ?? 1000
+          }
+        })
+      }
+    )
+
+    if (!geminiResponse.ok) {
+      const err = await geminiResponse.json()
+      return NextResponse.json(
+        { error: `Gemini error: ${err.error?.message ?? 'Unknown'}` },
+        { status: 500 }
+      )
+    }
+
+    const geminiData = await geminiResponse.json()
+    const reply = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+
+    return NextResponse.json({ reply })
+
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err.message },
+      { status: 500 }
+    )
+  }
+}
