@@ -74,6 +74,22 @@ export default function AgentChatPage() {
   const { user, profile } = useUser()
   const agentId           = params?.agent_id as string
 
+  // Rediriger BUSINESS et COMMERCIAL vers settings
+  useEffect(() => {
+    if (agentId && agentId !== 'axon') {
+      router.replace(`/admin/hq/agents/${agentId}/settings`)
+    }
+  }, [agentId, router])
+
+  // Bloquer le rendu si pas AXON
+  if (agentId !== 'axon') {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-[#39FF14] animate-spin" />
+      </div>
+    )
+  }
+
   const meta = AGENT_META[agentId] ?? {
     label:       agentId?.toUpperCase(),
     description: 'Agent Autoslash',
