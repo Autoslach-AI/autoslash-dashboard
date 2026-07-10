@@ -7,7 +7,7 @@ import {
   Brain, Zap, LayoutDashboard, Users, ArrowRight,
   Sparkles, Loader2, AlertCircle, Settings,
   Pencil, Copy, RotateCw, Mic, PhoneOff, Paperclip,
-  Plus, Phone, Camera
+  Plus, Phone, Camera, Check, X
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
@@ -22,6 +22,9 @@ interface Message {
   loading?:  boolean;
 }
 
+// Longueur au-delà de laquelle un message user est tronqué visuellement
+const TRUNCATE_THRESHOLD = 300;
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function HQAgentsPage() {
@@ -32,8 +35,6 @@ export default function HQAgentsPage() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
 
   // Agent dynamic state
   const [agent, setAgent] = useState<any>(null);
@@ -53,6 +54,11 @@ export default function HQAgentsPage() {
 
   // Plus menu popup state
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+
+  // ── Édition en place ──────────────────────────────────────────────────────
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -80,6 +86,16 @@ export default function HQAgentsPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-resize textarea de la zone d'édition inline
+  useEffect(() => {
+    if (editingId && editTextareaRef.current) {
+      const ta = editTextareaRef.current;
+      ta.style.height = 'auto';
+      ta.style.height = Math.min(ta.scrollHeight, 400) + 'px';
+      ta.focus();
+    }
+  }, [editingId, editValue]);
 
   // Auto-resize input textarea
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -195,17 +211,15 @@ export default function HQAgentsPage() {
     }
   };
 
-  // Send message
-  const sendMessage = useCallback(async (overrideInput?: string, overrideHistory?: Message[]) => {
-    const textToSend = overrideInput !== undefined ? overrideInput : input;
-    const trimmed = textToSend.trim();
+  // Envoi générique — accepte un contenu et un historique explicites,
+  // pour être réutilisable à la fois par l'input du bas et par l'édition en place.
+  const dispatchMessage = useCallback(async (content: string, historyBase: Message[], attachments: Array<{ name: string; url: string }>) => {
+    const trimmed = content.trim();
     if (!trimmed || sending) return;
 
-    const currentAttachments = overrideInput !== undefined ? [] : attachedFiles;
-
     let userMsgContent = trimmed;
-    if (currentAttachments.length > 0) {
-      userMsgContent += '\n' + currentAttachments.map(f => `📎 ${f.name}`).join('\n');
+    if (attachments.length > 0) {
+      userMsgContent += '\n' + attachments.map(f => `📎 ${f.name}`).join('\n');
     }
 
     const userMsg: Message = {
@@ -223,28 +237,18 @@ export default function HQAgentsPage() {
       loading: true
     };
 
-    const baseMessages = overrideHistory !== undefined ? overrideHistory : messages;
-
-    setMessages([...baseMessages, userMsg, loadingMsg]);
-    if (overrideInput === undefined) {
-      setInput('');
-      setAttachedFiles([]);
-    }
+    setMessages([...historyBase, userMsg, loadingMsg]);
     setSending(true);
     setError(null);
 
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
-
     try {
-      const history = baseMessages
+      const historyPayload = historyBase
         .filter(m => !m.loading)
         .map(m => ({ role: m.role, content: m.content }));
 
       let apiPrompt = trimmed;
-      if (currentAttachments.length > 0) {
-        apiPrompt += `\n\n[Fichiers attachés : \n` + currentAttachments.map(f => `- ${f.name} (URL : ${f.url})`).join('\n') + `]`;
+      if (attachments.length > 0) {
+        apiPrompt += `\n\n[Fichiers attachés : \n` + attachments.map(f => `- ${f.name} (URL : ${f.url})`).join('\n') + `]`;
       }
 
       const res = await fetch('/api/admin/hq/chat', {
@@ -252,7 +256,7 @@ export default function HQAgentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agent_id: 'axon',
-          messages: [...history, { role: 'user', content: apiPrompt }]
+          messages: [...historyPayload, { role: 'user', content: apiPrompt }]
         })
       });
 
@@ -267,72 +271,71 @@ export default function HQAgentsPage() {
       setError(err.message || 'Une erreur est survenue lors de la communication.');
     } finally {
       setSending(false);
-      setTimeout(() => textareaRef.current?.focus(), 10);
     }
-  }, [input, sending, messages, attachedFiles]);
+  }, [sending]);
+
+  // Send message (depuis l'input du bas)
+  const sendMessage = useCallback(async () => {
+    const trimmed = input.trim();
+    if (!trimmed || sending) return;
+
+    const currentAttachments = attachedFiles;
+    setInput('');
+    setAttachedFiles([]);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+
+    await dispatchMessage(trimmed, messages, currentAttachments);
+    setTimeout(() => textareaRef.current?.focus(), 10);
+  }, [input, sending, messages, attachedFiles, dispatchMessage]);
 
   // Regenerate last response
   const regenerateResponse = useCallback(async () => {
     if (sending) return;
-    
-    // Find last user message
+
     const userMsgs = messages.filter(m => m.role === 'user');
     if (userMsgs.length === 0) return;
 
     const lastUserMsg = userMsgs[userMsgs.length - 1];
-
-    // Get index of that user message
     const index = messages.findLastIndex(m => m.id === lastUserMsg.id);
     if (index === -1) return;
 
-    // Slice up to (and including) that user message
-    const historyUntilLastUser = messages.slice(0, index + 1);
+    const historyUntilLastUser = messages.slice(0, index);
 
-    const loadingMsg: Message = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-      loading: true
-    };
-
-    setMessages([...historyUntilLastUser, loadingMsg]);
-    setSending(true);
-    setError(null);
-
-    try {
-      const historyPayload = historyUntilLastUser
-        .filter(m => m.id !== lastUserMsg.id)
-        .map(m => ({ role: m.role, content: m.content }));
-
-      const res = await fetch('/api/admin/hq/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agent_id: 'axon',
-          messages: [...historyPayload, { role: 'user', content: lastUserMsg.content }]
-        })
-      });
-
-      const json = await res.json();
-      if (json.error) throw new Error(json.error);
-
-      setMessages(prev => prev.map(m =>
-        m.loading ? { ...m, content: json.reply, loading: false } : m
-      ));
-    } catch (err: any) {
-      setMessages(prev => prev.filter(m => !m.loading));
-      setError(err.message || 'Une erreur est survenue lors de la communication.');
-    } finally {
-      setSending(false);
-    }
-  }, [messages, sending]);
+    await dispatchMessage(lastUserMsg.content, historyUntilLastUser, []);
+  }, [messages, sending, dispatchMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
+  };
+
+  // ── Édition en place ──────────────────────────────────────────────────────
+  const startEditing = (msg: Message) => {
+    if (editingId !== null) return; // un seul message éditable à la fois
+    setEditingId(msg.id);
+    setEditValue(msg.content);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditValue('');
+  };
+
+  const saveEditing = async (msgId: string) => {
+    const idx = messages.findIndex(m => m.id === msgId);
+    if (idx === -1) return;
+
+    const truncatedHistory = messages.slice(0, idx);
+    const contentToSend = editValue;
+
+    setEditingId(null);
+    setEditValue('');
+
+    await dispatchMessage(contentToSend, truncatedHistory, []);
   };
 
   // ── Nav ─────────────────────────────────────────────────────────────────
@@ -370,7 +373,7 @@ export default function HQAgentsPage() {
       }}
     >
       <div className="h-screen bg-[#0A0A0A] flex flex-col justify-between font-mono overflow-hidden">
-        
+
         {/* Header Top Bar */}
         <div className="w-full border-b border-white/10 bg-[#0F0F0F]/80 backdrop-blur-md px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -380,7 +383,7 @@ export default function HQAgentsPage() {
                 AXON <span className="text-[#39FF14]">ORACLE</span>
               </span>
             </div>
-            
+
             {/* Model badge (read-only) */}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
               <span className={`w-1.5 h-1.5 rounded-full ${
@@ -393,10 +396,10 @@ export default function HQAgentsPage() {
               <span className={`text-[9px] font-medium uppercase ${
                 !loadingAgent && (!agent || !agent.model) ? 'text-orange-400' : 'text-white/50'
               }`}>
-                {loadingAgent 
-                  ? "..." 
-                  : (!agent || !agent.model) 
-                    ? "Non configuré" 
+                {loadingAgent
+                  ? "..."
+                  : (!agent || !agent.model)
+                    ? "Non configuré"
                     : agent.model}
               </span>
             </div>
@@ -404,7 +407,7 @@ export default function HQAgentsPage() {
 
           <div className="flex items-center gap-2">
             {/* Paramètres Button (Discrete Ghost Style) */}
-            <button 
+            <button
               onClick={() => router.push('/admin/hq/agents/axon/settings')}
               title="Paramètres"
               className="flex items-center justify-center p-2 text-white/30 hover:text-white transition-all cursor-pointer rounded-lg"
@@ -417,7 +420,7 @@ export default function HQAgentsPage() {
         {/* Messages Container */}
         <div className="flex-1 overflow-y-auto px-4 py-8 space-y-6 flex flex-col items-center">
           <div className="w-full max-w-[580px] space-y-6 mt-auto">
-            
+
             {/* If no messages, render welcome message */}
             {messages.length === 0 ? (
               <div className="py-12 flex flex-col items-center justify-center space-y-4">
@@ -430,150 +433,147 @@ export default function HQAgentsPage() {
               </div>
             ) : (
               /* Conversation list */
-              messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex w-full group relative ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[85%] flex flex-col relative ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    
-                    {/* Sender Name */}
-                    <span className="text-[10px] text-white/30 mb-1 px-1">
-                      {msg.role === 'user' ? (profile?.full_name || 'Amadou') : 'AXON'}
-                    </span>
+              messages.map((msg) => {
+                const isUser = msg.role === 'user';
+                const isEditing = editingId === msg.id;
+                const isTruncated = isUser && !isEditing && msg.content.length > TRUNCATE_THRESHOLD;
 
-                    {/* Hover Actions Bar (Claude Style) */}
-                    {!msg.loading && editingId !== msg.id && (
-                      <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 z-10 ${
-                        msg.role === 'user' ? 'right-full mr-3' : 'left-full ml-3'
-                      }`}>
-                        {msg.role === 'user' ? (
-                          <button
-                            onClick={() => {
-                              setEditingId(msg.id);
-                              setEditValue(msg.content);
-                            }}
-                            disabled={editingId !== null}
-                            title="Modifier"
-                            className={`p-1.5 rounded-lg bg-[#141414] border border-white/10 text-white/60 hover:text-white transition-all cursor-pointer ${
-                              editingId !== null
-                                ? 'opacity-30 pointer-events-none'
-                                : 'hover:bg-white/10'
-                            }`}
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(msg.content);
-                              }}
-                              title="Copier"
-                              className="p-1.5 rounded-lg bg-[#141414] border border-white/10 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
-                            >
-                              <Copy className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={regenerateResponse}
-                              title="Régénérer"
-                              className="p-1.5 rounded-lg bg-[#141414] border border-white/10 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
-                            >
-                              <RotateCw className="w-3.5 h-3.5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex w-full group relative ${isUser ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`${isEditing ? 'w-full max-w-[520px]' : 'max-w-[85%]'} flex flex-col relative ${isUser ? 'items-end' : 'items-start'}`}>
 
-                    {/* Message Bubble / Editing Box */}
-                    {editingId === msg.id ? (
-                      <div className="w-full flex flex-col gap-2 min-w-[280px] sm:min-w-[340px]">
-                        <textarea
-                          ref={(node) => {
-                            if (node && !node.dataset.initialized) {
-                              node.dataset.initialized = 'true';
-                              node.style.height = 'auto';
-                              node.style.height = node.scrollHeight + 'px';
-                              node.focus();
-                              node.setSelectionRange(node.value.length, node.value.length);
-                            }
-                          }}
-                          value={editValue}
-                          onChange={(e) => {
-                            setEditValue(e.target.value);
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                          }}
-                          className="w-full bg-[#161616] border border-white/10 rounded-xl p-3 text-[13px] text-white placeholder:text-white/30 focus:outline-none focus:border-[#39FF14]/30 leading-relaxed font-sans resize-none"
-                        />
-                        <div className="flex items-center gap-2 justify-end">
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            className="px-3 py-1.5 rounded-lg border border-white/10 bg-transparent text-white/60 hover:text-white hover:bg-white/5 text-[11px] font-sans uppercase tracking-wider transition-all cursor-pointer"
-                          >
-                            Annuler
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const idx = messages.findIndex(m => m.id === msg.id);
-                              if (idx !== -1) {
-                                const sliced = messages.slice(0, idx);
-                                sendMessage(editValue, sliced);
-                              }
-                              setEditingId(null);
-                            }}
-                            disabled={!editValue.trim() || sending}
-                            className="px-3 py-1.5 rounded-lg bg-[#39FF14] text-black hover:bg-[#39FF14]/80 text-[11px] font-sans font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Enregistrer
-                          </button>
+                      {/* Sender Name */}
+                      <span className="text-[10px] text-white/30 mb-1 px-1">
+                        {isUser ? (profile?.full_name || 'Amadou') : 'AXON'}
+                      </span>
+
+                      {/* Hover Actions Bar (Claude Style) */}
+                      {!msg.loading && !isEditing && (
+                        <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 z-10 ${
+                          isUser ? 'right-full mr-3' : 'left-full ml-3'
+                        }`}>
+                          {isUser ? (
+                            <button
+                              onClick={() => startEditing(msg)}
+                              disabled={editingId !== null}
+                              title="Modifier"
+                              className={`p-1.5 rounded-lg bg-[#141414] border border-white/10 text-white/60 transition-all ${
+                                editingId !== null
+                                  ? 'opacity-30 pointer-events-none'
+                                  : 'hover:bg-white/10 hover:text-white cursor-pointer'
+                              }`}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => navigator.clipboard.writeText(msg.content)}
+                                title="Copier"
+                                className="p-1.5 rounded-lg bg-[#141414] border border-white/10 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={regenerateResponse}
+                                title="Régénérer"
+                                className="p-1.5 rounded-lg bg-[#141414] border border-white/10 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
+                              >
+                                <RotateCw className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
                         </div>
-                      </div>
-                    ) : (
-                      <div className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed border relative ${
-                        msg.role === 'user'
-                          ? 'bg-white/[0.06] border-white/10 text-white/90 rounded-tr-sm'
-                          : 'bg-[#141414] border-white/[0.06] text-white/80 rounded-tl-sm'
-                      }`}>
-                        {msg.loading ? (
-                          <div className="flex items-center gap-1.5 py-1">
-                            {[0, 1, 2].map(i => (
-                              <motion.span
-                                key={i}
-                                className="w-1.5 h-1.5 rounded-full bg-white/40"
-                                animate={{ opacity: [0.3, 1, 0.3] }}
-                                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                              />
-                            ))}
+                      )}
+
+                      {/* ── Mode édition en place ─────────────────────────── */}
+                      {isEditing ? (
+                        <div className="w-full flex flex-col gap-2">
+                          <textarea
+                            ref={editTextareaRef}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className="w-full bg-[#141414] border border-[#39FF14]/30 rounded-2xl px-4 py-3 text-[13px] text-white/90 leading-relaxed font-sans resize-none focus:outline-none focus:border-[#39FF14]/50 max-h-[400px] overflow-y-auto"
+                            rows={3}
+                          />
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={cancelEditing}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-white/50 hover:text-white hover:bg-white/5 transition-all text-[11px] cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              Annuler
+                            </button>
+                            <button
+                              onClick={() => saveEditing(msg.id)}
+                              disabled={!editValue.trim() || sending}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] hover:bg-[#39FF14]/20 transition-all text-[11px] font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Enregistrer
+                            </button>
                           </div>
-                        ) : (
-                          <>
-                            <span className={`whitespace-pre-wrap block ${
-                              msg.role === 'user' && msg.content.length > 200 ? 'line-clamp-4' : ''
-                            }`}>
-                              {msg.content}
-                            </span>
-                            {msg.role === 'user' && msg.content.length > 200 && (
-                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#191919] to-transparent pointer-events-none rounded-b-2xl" />
+                        </div>
+                      ) : (
+                        <>
+                          {/* Message Bubble (avec troncature visuelle si trop longue) */}
+                          <div className={`relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed border ${
+                            isUser
+                              ? 'bg-white/[0.06] border-white/10 text-white/90 rounded-tr-sm'
+                              : 'bg-[#141414] border-white/[0.06] text-white/80 rounded-tl-sm'
+                          }`}>
+                            {msg.loading ? (
+                              <div className="flex items-center gap-1.5 py-1">
+                                {[0, 1, 2].map(i => (
+                                  <motion.span
+                                    key={i}
+                                    className="w-1.5 h-1.5 rounded-full bg-white/40"
+                                    animate={{ opacity: [0.3, 1, 0.3] }}
+                                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                                  />
+                                ))}
+                              </div>
+                            ) : (
+                              <span className={`whitespace-pre-wrap ${isTruncated ? 'line-clamp-4 block' : ''}`}>
+                                {msg.content}
+                              </span>
                             )}
-                          </>
-                        )}
-                      </div>
-                    )}
 
-                    {/* Timestamp */}
-                    <span className="text-[9px] text-white/20 mt-1 px-1">
-                      {msg.timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                            {isTruncated && (
+                              <div className={`absolute bottom-0 left-0 right-0 h-8 rounded-b-2xl bg-gradient-to-t ${
+                                isUser ? 'from-white/[0.10] to-transparent' : 'from-[#141414] to-transparent'
+                              } pointer-events-none`} />
+                            )}
+                          </div>
 
-                  </div>
-                </motion.div>
-              ))
+                          {isTruncated && (
+                            <button
+                              onClick={() => startEditing(msg)}
+                              disabled={editingId !== null}
+                              className="text-[10px] text-[#39FF14]/70 hover:text-[#39FF14] mt-1 px-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              Voir le message complet
+                            </button>
+                          )}
+                        </>
+                      )}
+
+                      {/* Timestamp */}
+                      {!isEditing && (
+                        <span className="text-[9px] text-white/20 mt-1 px-1">
+                          {msg.timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+
+                    </div>
+                  </motion.div>
+                );
+              })
             )}
 
             <div ref={messagesEndRef} />
@@ -600,9 +600,9 @@ export default function HQAgentsPage() {
 
         {/* Bottom Input Area: Centered, compact */}
         <div className="pb-16 pt-2 flex flex-col items-center justify-end px-4 shrink-0 relative">
-          
+
           {/* Hidden File Input */}
-          <input 
+          <input
             type="file"
             ref={fileInputRef}
             className="hidden"
@@ -612,20 +612,20 @@ export default function HQAgentsPage() {
 
           {/* Chat Input Card */}
           <div className="w-full max-w-[480px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
-            
+
             {/* Attachment Badges */}
             {attachedFiles.length > 0 && (
               <div className="flex flex-col gap-1.5 self-start w-full">
                 {attachedFiles.map((file, fileIdx) => (
-                  <div 
-                    key={fileIdx} 
+                  <div
+                    key={fileIdx}
                     className="flex items-center justify-between px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[11px] text-white/80 w-full"
                   >
                     <div className="flex items-center gap-2 truncate">
                       <Paperclip className="w-3.5 h-3.5 text-[#39FF14] shrink-0" />
                       <span className="truncate max-w-[300px]">{file.name}</span>
                     </div>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== fileIdx))}
                       className="text-white/40 hover:text-white font-bold ml-1 cursor-pointer shrink-0"
@@ -652,13 +652,13 @@ export default function HQAgentsPage() {
 
             {/* Bottom: Action bar */}
             <div className="flex items-center justify-between mt-1 relative">
-              
+
               {/* Left Actions */}
               <div className="flex items-center gap-2">
-                
+
                 {/* Plus Button with Dropdown */}
                 <div className="relative">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setPlusMenuOpen(!plusMenuOpen)}
                     title="Actions supplémentaires"
@@ -675,8 +675,8 @@ export default function HQAgentsPage() {
                     {plusMenuOpen && (
                       <>
                         {/* Transparent Backdrop to close menu */}
-                        <div 
-                          className="fixed inset-0 z-10" 
+                        <div
+                          className="fixed inset-0 z-10"
                           onClick={() => setPlusMenuOpen(false)}
                         />
                         <motion.div
@@ -697,7 +697,7 @@ export default function HQAgentsPage() {
                             <Paperclip className="w-3.5 h-3.5 text-[#39FF14]" />
                             <span>Joindre des fichiers</span>
                           </button>
-                          
+
                           <button
                             type="button"
                             disabled
@@ -717,7 +717,7 @@ export default function HQAgentsPage() {
                 </div>
 
                 {/* Mic Button (Dictation) */}
-                <button 
+                <button
                   type="button"
                   onClick={toggleDictation}
                   disabled={!SpeechRecognitionSupported}
@@ -734,7 +734,7 @@ export default function HQAgentsPage() {
                 </button>
 
                 {/* Phone Button (Voice Call Overlay) */}
-                <button 
+                <button
                   type="button"
                   onClick={() => setVoiceCallActive(true)}
                   title="Appel vocal AXON Live"
@@ -746,9 +746,9 @@ export default function HQAgentsPage() {
               </div>
 
               {/* Right Action: Send Button */}
-              <button 
+              <button
                 type="button"
-                onClick={() => sendMessage()}
+                onClick={sendMessage}
                 disabled={!input.trim() || sending}
                 className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all cursor-pointer ${
                   input.trim() && !sending
@@ -774,7 +774,7 @@ export default function HQAgentsPage() {
       {/* Voice Session Overlay (Gemini Live Style) */}
       <AnimatePresence>
         {voiceCallActive && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
