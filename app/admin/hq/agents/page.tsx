@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, Zap, LayoutDashboard, Users, ArrowRight,
   Sparkles, Loader2, AlertCircle, Settings,
-  Pencil, Copy, RotateCw, Mic, PhoneOff, Paperclip
+  Pencil, Copy, RotateCw, Mic, PhoneOff, Paperclip,
+  Plus, Phone, Camera
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
@@ -39,10 +40,17 @@ export default function HQAgentsPage() {
   // Voice session mock overlay
   const [voiceCallActive, setVoiceCallActive] = useState(false);
 
+  // Voice dictation states
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
   // File attachment states
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [attachedFile, setAttachedFile] = useState<{ name: string; url: string } | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; url: string }>>([]);
+
+  // Plus menu popup state
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -81,35 +89,99 @@ export default function HQAgentsPage() {
     }
   };
 
-  // Handle File Upload
+  // Web Speech API - Voice Dictation Handler
+  const toggleDictation = () => {
+    const SpeechRecognition = typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+    if (!SpeechRecognition) return;
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    } else {
+      try {
+        const rec = new SpeechRecognition();
+        rec.lang = 'fr-FR';
+        rec.continuous = false;
+        rec.interimResults = true;
+
+        let baseText = input;
+
+        rec.onstart = () => {
+          setIsListening(true);
+        };
+
+        rec.onresult = (event: any) => {
+          let interimTranscript = '';
+          let finalTranscript = '';
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
+          }
+
+          const textToAdd = finalTranscript || interimTranscript;
+          if (textToAdd) {
+            setInput(baseText + (baseText ? ' ' : '') + textToAdd);
+          }
+        };
+
+        rec.onerror = (err: any) => {
+          console.error("Speech Recognition error:", err);
+          setIsListening(false);
+        };
+
+        rec.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = rec;
+        rec.start();
+      } catch (err) {
+        console.error(err);
+        setIsListening(false);
+      }
+    }
+  };
+
+  const SpeechRecognitionSupported = typeof window !== 'undefined' && (!!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition);
+
+  // Handle Multiple Files Upload sequentially
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setUploadingFile(true);
     setError(null);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('path', `axon/files/${Date.now()}-${file.name}`);
+      const uploadedList = [...attachedFiles];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('path', `axon/files/${Date.now()}-${file.name}`);
 
-      const res = await fetch('/api/admin/upload', {
-        method: 'POST',
-        body: formData
-      });
+        const res = await fetch('/api/admin/upload', {
+          method: 'POST',
+          body: formData
+        });
 
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        throw new Error(json.error || "Une erreur est survenue lors de l'envoi du fichier.");
+        const json = await res.json();
+        if (!res.ok || json.error) {
+          throw new Error(json.error || `Erreur lors de l'envoi de ${file.name}`);
+        }
+
+        uploadedList.push({
+          name: file.name,
+          url: json.url
+        });
       }
-
-      setAttachedFile({
-        name: file.name,
-        url: json.url
-      });
+      setAttachedFiles(uploadedList);
     } catch (err: any) {
-      setError(err.message || "Erreur lors de l'upload du fichier.");
+      setError(err.message || "Erreur lors de l'upload des fichiers.");
     } finally {
       setUploadingFile(false);
       if (fileInputRef.current) {
@@ -123,11 +195,12 @@ export default function HQAgentsPage() {
     const trimmed = input.trim();
     if (!trimmed || sending) return;
 
-    const currentAttachment = attachedFile;
+    const currentAttachments = attachedFiles;
 
-    const userMsgContent = currentAttachment 
-      ? `${trimmed}\n📎 ${currentAttachment.name}` 
-      : trimmed;
+    let userMsgContent = trimmed;
+    if (currentAttachments.length > 0) {
+      userMsgContent += '\n' + currentAttachments.map(f => `📎 ${f.name}`).join('\n');
+    }
 
     const userMsg: Message = {
       id: crypto.randomUUID(),
@@ -148,7 +221,7 @@ export default function HQAgentsPage() {
     setInput('');
     setSending(true);
     setError(null);
-    setAttachedFile(null);
+    setAttachedFiles([]);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -159,9 +232,10 @@ export default function HQAgentsPage() {
         .filter(m => !m.loading)
         .map(m => ({ role: m.role, content: m.content }));
 
-      const apiPrompt = currentAttachment
-        ? `${trimmed}\n\n[Fichier attaché : ${currentAttachment.name} - URL : ${currentAttachment.url}]`
-        : trimmed;
+      let apiPrompt = trimmed;
+      if (currentAttachments.length > 0) {
+        apiPrompt += `\n\n[Fichiers attachés : \n` + currentAttachments.map(f => `- ${f.name} (URL : ${f.url})`).join('\n') + `]`;
+      }
 
       const res = await fetch('/api/admin/hq/chat', {
         method: 'POST',
@@ -185,7 +259,7 @@ export default function HQAgentsPage() {
       setSending(false);
       setTimeout(() => textareaRef.current?.focus(), 10);
     }
-  }, [input, sending, messages, attachedFile]);
+  }, [input, sending, messages, attachedFiles]);
 
   // Regenerate last response
   const regenerateResponse = useCallback(async () => {
@@ -471,24 +545,34 @@ export default function HQAgentsPage() {
             type="file"
             ref={fileInputRef}
             className="hidden"
+            multiple
             onChange={handleFileChange}
           />
 
           {/* Chat Input Card */}
           <div className="w-full max-w-[480px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
             
-            {/* Attachment Badge */}
-            {attachedFile && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg self-start text-[11px] text-white/80">
-                <Paperclip className="w-3.5 h-3.5 text-[#39FF14]" />
-                <span className="truncate max-w-[200px]">{attachedFile.name}</span>
-                <button 
-                  type="button"
-                  onClick={() => setAttachedFile(null)}
-                  className="text-white/40 hover:text-white font-bold ml-1 cursor-pointer"
-                >
-                  ✕
-                </button>
+            {/* Attachment Badges */}
+            {attachedFiles.length > 0 && (
+              <div className="flex flex-col gap-1.5 self-start w-full">
+                {attachedFiles.map((file, fileIdx) => (
+                  <div 
+                    key={fileIdx} 
+                    className="flex items-center justify-between px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[11px] text-white/80 w-full"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <Paperclip className="w-3.5 h-3.5 text-[#39FF14] shrink-0" />
+                      <span className="truncate max-w-[300px]">{file.name}</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== fileIdx))}
+                      className="text-white/40 hover:text-white font-bold ml-1 cursor-pointer shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -511,29 +595,91 @@ export default function HQAgentsPage() {
               {/* Left Actions */}
               <div className="flex items-center gap-2">
                 
-                {/* Micro Button (Voice Call Overlay) */}
+                {/* Plus Button with Dropdown */}
+                <div className="relative">
+                  <button 
+                    type="button"
+                    onClick={() => setPlusMenuOpen(!plusMenuOpen)}
+                    title="Actions supplémentaires"
+                    className={`flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer ${plusMenuOpen ? 'text-white bg-white/[0.08]' : ''}`}
+                  >
+                    {uploadingFile ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#39FF14]" />
+                    ) : (
+                      <Plus className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+
+                  <AnimatePresence>
+                    {plusMenuOpen && (
+                      <>
+                        {/* Transparent Backdrop to close menu */}
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setPlusMenuOpen(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute bottom-10 left-0 z-20 w-52 bg-[#121212] border border-white/10 rounded-xl p-1.5 shadow-2xl flex flex-col gap-1 font-sans"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPlusMenuOpen(false);
+                              fileInputRef.current?.click();
+                            }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs text-white/70 hover:text-white hover:bg-white/5 transition-all w-full cursor-pointer"
+                          >
+                            <Paperclip className="w-3.5 h-3.5 text-[#39FF14]" />
+                            <span>Joindre des fichiers</span>
+                          </button>
+                          
+                          <button
+                            type="button"
+                            disabled
+                            title="Fonctionnalité à venir"
+                            className="flex items-center justify-between px-3 py-2 rounded-lg text-left text-xs text-white/30 cursor-not-allowed w-full"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Camera className="w-3.5 h-3.5" />
+                              <span>Capture d'écran</span>
+                            </div>
+                            <span className="text-[9px] bg-white/5 px-1.5 py-0.5 rounded text-white/40 font-mono">Bientôt</span>
+                          </button>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Mic Button (Dictation) */}
+                <button 
+                  type="button"
+                  onClick={toggleDictation}
+                  disabled={!SpeechRecognitionSupported}
+                  title={SpeechRecognitionSupported ? "Dictée vocale" : "Dictée vocale non supportée par ce navigateur"}
+                  className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all cursor-pointer ${
+                    !SpeechRecognitionSupported
+                      ? 'opacity-30 cursor-not-allowed'
+                      : isListening
+                        ? 'bg-red-500/20 border-red-500/40 text-red-500 animate-pulse'
+                        : 'bg-white/[0.04] border-white/[0.06] text-white/50 hover:text-[#39FF14] hover:bg-white/[0.08]'
+                  }`}
+                >
+                  <Mic className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Phone Button (Voice Call Overlay) */}
                 <button 
                   type="button"
                   onClick={() => setVoiceCallActive(true)}
                   title="Appel vocal AXON Live"
                   className="flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-[#39FF14] hover:bg-white/[0.08] hover:border-[#39FF14]/30 transition-all cursor-pointer"
                 >
-                  <Mic className="w-3.5 h-3.5" />
-                </button>
-
-                {/* File Attachment Button */}
-                <button 
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingFile}
-                  title="Joindre un fichier"
-                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {uploadingFile ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#39FF14]" />
-                  ) : (
-                    <Paperclip className="w-3.5 h-3.5" />
-                  )}
+                  <Phone className="w-3.5 h-3.5" />
                 </button>
 
               </div>
