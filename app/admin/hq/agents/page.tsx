@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, Zap, LayoutDashboard, Users, ArrowRight,
-  Sparkles, Loader2, Trash2, AlertCircle, Settings, ArrowLeft,
-  Pencil, Copy, RotateCw, Mic, PhoneOff
+  Sparkles, Loader2, AlertCircle, Settings,
+  Pencil, Copy, RotateCw, Mic, PhoneOff, Paperclip
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
@@ -38,6 +38,11 @@ export default function HQAgentsPage() {
 
   // Voice session mock overlay
   const [voiceCallActive, setVoiceCallActive] = useState(false);
+
+  // File attachment states
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; url: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -76,15 +81,58 @@ export default function HQAgentsPage() {
     }
   };
 
+  // Handle File Upload
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('path', `axon/files/${Date.now()}-${file.name}`);
+
+      const res = await fetch('/api/admin/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        throw new Error(json.error || "Une erreur est survenue lors de l'envoi du fichier.");
+      }
+
+      setAttachedFile({
+        name: file.name,
+        url: json.url
+      });
+    } catch (err: any) {
+      setError(err.message || "Erreur lors de l'upload du fichier.");
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   // Send message
   const sendMessage = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed || sending) return;
 
+    const currentAttachment = attachedFile;
+
+    const userMsgContent = currentAttachment 
+      ? `${trimmed}\n📎 ${currentAttachment.name}` 
+      : trimmed;
+
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: trimmed,
+      content: userMsgContent,
       timestamp: new Date()
     };
 
@@ -100,6 +148,7 @@ export default function HQAgentsPage() {
     setInput('');
     setSending(true);
     setError(null);
+    setAttachedFile(null);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -110,12 +159,16 @@ export default function HQAgentsPage() {
         .filter(m => !m.loading)
         .map(m => ({ role: m.role, content: m.content }));
 
+      const apiPrompt = currentAttachment
+        ? `${trimmed}\n\n[Fichier attaché : ${currentAttachment.name} - URL : ${currentAttachment.url}]`
+        : trimmed;
+
       const res = await fetch('/api/admin/hq/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agent_id: 'axon',
-          messages: [...history, { role: 'user', content: trimmed }]
+          messages: [...history, { role: 'user', content: apiPrompt }]
         })
       });
 
@@ -132,7 +185,7 @@ export default function HQAgentsPage() {
       setSending(false);
       setTimeout(() => textareaRef.current?.focus(), 10);
     }
-  }, [input, sending, messages]);
+  }, [input, sending, messages, attachedFile]);
 
   // Regenerate last response
   const regenerateResponse = useCallback(async () => {
@@ -196,12 +249,6 @@ export default function HQAgentsPage() {
       e.preventDefault();
       sendMessage();
     }
-  };
-
-  // Clear conversation
-  const clearConversation = () => {
-    setMessages([]);
-    setError(null);
   };
 
   // ── Nav ─────────────────────────────────────────────────────────────────
@@ -272,31 +319,13 @@ export default function HQAgentsPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Paramètres Button */}
+            {/* Paramètres Button (Discrete Ghost Style) */}
             <button 
               onClick={() => router.push('/admin/hq/agents/axon/settings')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition-all text-xs cursor-pointer"
+              title="Paramètres"
+              className="flex items-center justify-center p-2 text-white/30 hover:text-white transition-all cursor-pointer rounded-lg"
             >
-              <Settings className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Paramètres</span>
-            </button>
-
-            {/* Réinitialiser conversation Button */}
-            <button 
-              onClick={clearConversation}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/5 text-red-400/80 hover:text-red-400 hover:bg-red-500/10 transition-all text-xs cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Réinitialiser</span>
-            </button>
-
-            {/* Retour Button */}
-            <button 
-              onClick={() => router.push('/admin')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 transition-all text-xs cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Tableau de bord</span>
+              <Settings className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -437,9 +466,32 @@ export default function HQAgentsPage() {
         {/* Bottom Input Area: Centered, compact */}
         <div className="pb-16 pt-2 flex flex-col items-center justify-end px-4 shrink-0 relative">
           
+          {/* Hidden File Input */}
+          <input 
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            onChange={handleFileChange}
+          />
+
           {/* Chat Input Card */}
           <div className="w-full max-w-[480px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
             
+            {/* Attachment Badge */}
+            {attachedFile && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg self-start text-[11px] text-white/80">
+                <Paperclip className="w-3.5 h-3.5 text-[#39FF14]" />
+                <span className="truncate max-w-[200px]">{attachedFile.name}</span>
+                <button 
+                  type="button"
+                  onClick={() => setAttachedFile(null)}
+                  className="text-white/40 hover:text-white font-bold ml-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Top: Actual interactive Textarea */}
             <textarea
               ref={textareaRef}
@@ -461,6 +513,7 @@ export default function HQAgentsPage() {
                 
                 {/* Micro Button (Voice Call Overlay) */}
                 <button 
+                  type="button"
                   onClick={() => setVoiceCallActive(true)}
                   title="Appel vocal AXON Live"
                   className="flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-[#39FF14] hover:bg-white/[0.08] hover:border-[#39FF14]/30 transition-all cursor-pointer"
@@ -468,19 +521,26 @@ export default function HQAgentsPage() {
                   <Mic className="w-3.5 h-3.5" />
                 </button>
 
-                {/* Paramètres de l'agent Button */}
+                {/* File Attachment Button */}
                 <button 
-                  onClick={() => router.push('/admin/hq/agents/axon/settings')}
-                  title="Paramètres de l'agent"
-                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer"
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                  title="Joindre un fichier"
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer disabled:opacity-50"
                 >
-                  <Settings className="w-3.5 h-3.5" />
+                  {uploadingFile ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#39FF14]" />
+                  ) : (
+                    <Paperclip className="w-3.5 h-3.5" />
+                  )}
                 </button>
 
               </div>
 
               {/* Right Action: Send Button */}
               <button 
+                type="button"
                 onClick={sendMessage}
                 disabled={!input.trim() || sending}
                 className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all cursor-pointer ${
@@ -547,6 +607,7 @@ export default function HQAgentsPage() {
             {/* Footer Hang up */}
             <div className="flex flex-col items-center gap-6 mb-4">
               <button
+                type="button"
                 onClick={() => setVoiceCallActive(false)}
                 className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center text-white transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(220,38,38,0.4)] cursor-pointer"
               >
