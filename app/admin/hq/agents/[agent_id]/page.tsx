@@ -11,7 +11,7 @@ export default function AgentRedirectPage() {
 
   useEffect(() => {
     if (agentId === 'axon') {
-      router.replace('/admin/hq/agents/axon');
+      router.replace('/admin/hq/agents');
     } else {
       router.replace(`/admin/hq/agents/${agentId}/settings`);
     }
