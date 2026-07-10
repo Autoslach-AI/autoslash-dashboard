@@ -162,7 +162,10 @@ export default function HQAgentsPage() {
         const file = files[i];
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('path', `axon/files/${Date.now()}-${file.name}`);
+        const sanitizedName = file.name
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // retire accents
+          .replace(/[^a-zA-Z0-9.\-_]/g, '_'); // remplace tout caractère non autorisé par _
+        formData.append('path', `axon/files/${Date.now()}-${sanitizedName}`);
 
         const res = await fetch('/api/admin/upload', {
           method: 'POST',
