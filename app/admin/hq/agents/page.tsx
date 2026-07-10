@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Brain, Zap, LayoutDashboard, Users, Paperclip, ArrowRight,
+  Brain, Zap, LayoutDashboard, Users, ArrowRight,
   Sparkles, Loader2, Trash2, AlertCircle, Settings, ArrowLeft,
   Pencil, Copy, RotateCw, Mic, PhoneOff
 } from 'lucide-react';
@@ -20,13 +20,6 @@ interface Message {
   timestamp: Date;
   loading?:  boolean;
 }
-
-const SUGGESTIONS = [
-  "Analyser notre pipeline de conversion",
-  "Générer un rapport d'attribution",
-  "Optimiser nos dépenses publicitaires",
-  "Rédiger un e-mail de relance à froid"
-];
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -312,34 +305,14 @@ export default function HQAgentsPage() {
         <div className="flex-1 overflow-y-auto px-4 py-8 space-y-6 flex flex-col items-center">
           <div className="w-full max-w-[580px] space-y-6 mt-auto">
             
-            {/* If no messages, render suggestions or clear space */}
+            {/* If no messages, render welcome message */}
             {messages.length === 0 ? (
-              <div className="py-12 flex flex-col items-center justify-center space-y-8">
-                <div className="text-center space-y-2">
+              <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                <div className="text-center space-y-3 max-w-[480px]">
                   <h3 className="text-lg font-sans font-medium text-white">Comment puis-je vous aider aujourd'hui ?</h3>
-                  <p className="text-xs text-white/40">Sélectionnez une suggestion ou rédigez votre requête personnalisée.</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-[540px]">
-                  {SUGGESTIONS.map((suggestion, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setInput(suggestion);
-                        setTimeout(() => {
-                          textareaRef.current?.focus();
-                          // trigger height recalculation
-                          if (textareaRef.current) {
-                            textareaRef.current.style.height = 'auto';
-                            textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-                          }
-                        }, 50);
-                      }}
-                      className="text-left p-4 rounded-xl border border-white/[0.04] bg-[#121212] hover:bg-[#181818] hover:border-white/10 transition-all text-xs text-white/70 hover:text-white active:scale-[0.98] cursor-pointer"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+                  <p className="text-xs text-white/50 leading-relaxed font-sans">
+                    Posez-moi une question sur votre pipeline, vos prospects, ou vos performances. Je suis là pour analyser et vous conseiller.
+                  </p>
                 </div>
               </div>
             ) : (
@@ -495,9 +468,13 @@ export default function HQAgentsPage() {
                   <Mic className="w-3.5 h-3.5" />
                 </button>
 
-                {/* Attachment Button */}
-                <button className="flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer">
-                  <Paperclip className="w-3.5 h-3.5" />
+                {/* Paramètres de l'agent Button */}
+                <button 
+                  onClick={() => router.push('/admin/hq/agents/axon/settings')}
+                  title="Paramètres de l'agent"
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer"
+                >
+                  <Settings className="w-3.5 h-3.5" />
                 </button>
 
               </div>
