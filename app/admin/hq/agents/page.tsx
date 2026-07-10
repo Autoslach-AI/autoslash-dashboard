@@ -32,6 +32,8 @@ export default function HQAgentsPage() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   // Agent dynamic state
   const [agent, setAgent] = useState<any>(null);
@@ -194,11 +196,12 @@ export default function HQAgentsPage() {
   };
 
   // Send message
-  const sendMessage = useCallback(async () => {
-    const trimmed = input.trim();
+  const sendMessage = useCallback(async (overrideInput?: string, overrideHistory?: Message[]) => {
+    const textToSend = overrideInput !== undefined ? overrideInput : input;
+    const trimmed = textToSend.trim();
     if (!trimmed || sending) return;
 
-    const currentAttachments = attachedFiles;
+    const currentAttachments = overrideInput !== undefined ? [] : attachedFiles;
 
     let userMsgContent = trimmed;
     if (currentAttachments.length > 0) {
@@ -220,18 +223,22 @@ export default function HQAgentsPage() {
       loading: true
     };
 
-    setMessages(prev => [...prev, userMsg, loadingMsg]);
-    setInput('');
+    const baseMessages = overrideHistory !== undefined ? overrideHistory : messages;
+
+    setMessages([...baseMessages, userMsg, loadingMsg]);
+    if (overrideInput === undefined) {
+      setInput('');
+      setAttachedFiles([]);
+    }
     setSending(true);
     setError(null);
-    setAttachedFiles([]);
 
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
 
     try {
-      const history = messages
+      const history = baseMessages
         .filter(m => !m.loading)
         .map(m => ({ role: m.role, content: m.content }));
 
@@ -438,28 +445,23 @@ export default function HQAgentsPage() {
                     </span>
 
                     {/* Hover Actions Bar (Claude Style) */}
-                    {!msg.loading && (
+                    {!msg.loading && editingId !== msg.id && (
                       <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 z-10 ${
                         msg.role === 'user' ? 'right-full mr-3' : 'left-full ml-3'
                       }`}>
                         {msg.role === 'user' ? (
                           <button
                             onClick={() => {
-                              const idx = messages.findIndex(m => m.id === msg.id);
-                              if (idx !== -1) {
-                                setMessages(messages.slice(0, idx));
-                              }
-                              setInput(msg.content);
-                              setTimeout(() => {
-                                textareaRef.current?.focus();
-                                if (textareaRef.current) {
-                                  textareaRef.current.style.height = 'auto';
-                                  textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-                                }
-                              }, 10);
+                              setEditingId(msg.id);
+                              setEditValue(msg.content);
                             }}
+                            disabled={editingId !== null}
                             title="Modifier"
-                            className="p-1.5 rounded-lg bg-[#141414] border border-white/10 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
+                            className={`p-1.5 rounded-lg bg-[#141414] border border-white/10 text-white/60 hover:text-white transition-all cursor-pointer ${
+                              editingId !== null
+                                ? 'opacity-30 pointer-events-none'
+                                : 'hover:bg-white/10'
+                            }`}
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -486,27 +488,83 @@ export default function HQAgentsPage() {
                       </div>
                     )}
 
-                    {/* Message Bubble */}
-                    <div className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed border ${
-                      msg.role === 'user'
-                        ? 'bg-white/[0.06] border-white/10 text-white/90 rounded-tr-sm'
-                        : 'bg-[#141414] border-white/[0.06] text-white/80 rounded-tl-sm'
-                    }`}>
-                      {msg.loading ? (
-                        <div className="flex items-center gap-1.5 py-1">
-                          {[0, 1, 2].map(i => (
-                            <motion.span
-                              key={i}
-                              className="w-1.5 h-1.5 rounded-full bg-white/40"
-                              animate={{ opacity: [0.3, 1, 0.3] }}
-                              transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
-                            />
-                          ))}
+                    {/* Message Bubble / Editing Box */}
+                    {editingId === msg.id ? (
+                      <div className="w-full flex flex-col gap-2 min-w-[280px] sm:min-w-[340px]">
+                        <textarea
+                          ref={(node) => {
+                            if (node && !node.dataset.initialized) {
+                              node.dataset.initialized = 'true';
+                              node.style.height = 'auto';
+                              node.style.height = node.scrollHeight + 'px';
+                              node.focus();
+                              node.setSelectionRange(node.value.length, node.value.length);
+                            }
+                          }}
+                          value={editValue}
+                          onChange={(e) => {
+                            setEditValue(e.target.value);
+                            e.target.style.height = 'auto';
+                            e.target.style.height = e.target.scrollHeight + 'px';
+                          }}
+                          className="w-full bg-[#161616] border border-white/10 rounded-xl p-3 text-[13px] text-white placeholder:text-white/30 focus:outline-none focus:border-[#39FF14]/30 leading-relaxed font-sans resize-none"
+                        />
+                        <div className="flex items-center gap-2 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            className="px-3 py-1.5 rounded-lg border border-white/10 bg-transparent text-white/60 hover:text-white hover:bg-white/5 text-[11px] font-sans uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Annuler
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const idx = messages.findIndex(m => m.id === msg.id);
+                              if (idx !== -1) {
+                                const sliced = messages.slice(0, idx);
+                                sendMessage(editValue, sliced);
+                              }
+                              setEditingId(null);
+                            }}
+                            disabled={!editValue.trim() || sending}
+                            className="px-3 py-1.5 rounded-lg bg-[#39FF14] text-black hover:bg-[#39FF14]/80 text-[11px] font-sans font-bold uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Enregistrer
+                          </button>
                         </div>
-                      ) : (
-                        <span className="whitespace-pre-wrap">{msg.content}</span>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed border relative ${
+                        msg.role === 'user'
+                          ? 'bg-white/[0.06] border-white/10 text-white/90 rounded-tr-sm'
+                          : 'bg-[#141414] border-white/[0.06] text-white/80 rounded-tl-sm'
+                      }`}>
+                        {msg.loading ? (
+                          <div className="flex items-center gap-1.5 py-1">
+                            {[0, 1, 2].map(i => (
+                              <motion.span
+                                key={i}
+                                className="w-1.5 h-1.5 rounded-full bg-white/40"
+                                animate={{ opacity: [0.3, 1, 0.3] }}
+                                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <>
+                            <span className={`whitespace-pre-wrap block ${
+                              msg.role === 'user' && msg.content.length > 200 ? 'line-clamp-4' : ''
+                            }`}>
+                              {msg.content}
+                            </span>
+                            {msg.role === 'user' && msg.content.length > 200 && (
+                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#191919] to-transparent pointer-events-none rounded-b-2xl" />
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     {/* Timestamp */}
                     <span className="text-[9px] text-white/20 mt-1 px-1">
@@ -690,7 +748,7 @@ export default function HQAgentsPage() {
               {/* Right Action: Send Button */}
               <button 
                 type="button"
-                onClick={sendMessage}
+                onClick={() => sendMessage()}
                 disabled={!input.trim() || sending}
                 className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all cursor-pointer ${
                   input.trim() && !sending
