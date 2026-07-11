@@ -690,42 +690,52 @@ export default function HQAgentsPage() {
           {/* Chat Input Card */}
           <div className="w-full max-w-[480px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
 
-            {/* Attachment Thumbnails (vertical, cliquables pour prévisualiser) */}
+            {/* Attachment Thumbnails (horizontal wraps, Claude.ai style matching screenshot) */}
             {attachedFiles.length > 0 && (
-              <div className="flex flex-col gap-2 self-start">
-                {attachedFiles.map((file, fileIdx) => (
-                  <div
-                    key={fileIdx}
-                    onClick={() => openAttachedPreview(file)}
-                    className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-white/5 group/thumb shrink-0 cursor-pointer hover:border-[#39FF14]/40 transition-colors"
-                    title={file.name}
-                  >
-                    {file.isImage ? (
-                      <img
-                        src={file.url}
-                        alt={file.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-1">
-                        <Paperclip className="w-4 h-4 text-[#39FF14]" />
-                        <span className="text-[8px] text-white/50 text-center truncate w-full leading-tight">
-                          {file.name}
-                        </span>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAttachedFiles(prev => prev.filter((_, idx) => idx !== fileIdx));
-                      }}
-                      className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 hover:bg-black/90 text-white/80 hover:text-white flex items-center justify-center text-[10px] leading-none cursor-pointer opacity-0 group-hover/thumb:opacity-100 transition-opacity"
+              <div className="flex flex-row flex-wrap gap-2.5 w-full mb-1">
+                {attachedFiles.map((file, fileIdx) => {
+                  const extension = file.name.split('.').pop()?.toUpperCase() || 'FILE';
+                  return (
+                    <div
+                      key={fileIdx}
+                      onClick={() => openAttachedPreview(file)}
+                      className="relative w-28 h-28 rounded-xl border border-white/10 bg-[#1A1A1A] group/thumb shrink-0 cursor-pointer hover:border-[#39FF14]/40 transition-colors flex flex-col justify-between p-2.5 text-left"
+                      title={file.name}
                     >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                      {file.isImage ? (
+                        <div className="w-full h-full rounded-lg overflow-hidden relative">
+                          <img
+                            src={file.url}
+                            alt={file.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-1 left-1 text-[8px] font-sans font-bold tracking-wider text-white/50 bg-black/60 border border-white/10 px-1.5 py-0.5 rounded uppercase">
+                            IMG
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-[10px] text-white/80 font-sans leading-snug font-medium line-clamp-3 break-all text-left block">
+                            {file.name}
+                          </span>
+                          <div className="text-[8px] font-sans font-bold tracking-wider text-white/50 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded uppercase self-start">
+                            {extension}
+                          </div>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAttachedFiles(prev => prev.filter((_, idx) => idx !== fileIdx));
+                        }}
+                        className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/75 hover:bg-black/95 text-white/80 hover:text-white flex items-center justify-center text-[10px] leading-none cursor-pointer opacity-0 group-hover/thumb:opacity-100 transition-opacity z-10"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
