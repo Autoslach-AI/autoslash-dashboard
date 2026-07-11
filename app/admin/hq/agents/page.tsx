@@ -739,28 +739,34 @@ export default function HQAgentsPage() {
               </div>
             )}
 
-            {/* Pasted Text Attachment Badges (façon Claude.ai) */}
+            {/* Pasted Text Attachment Badges (vignette carrée, même style que les fichiers uploadés) */}
             {pastedAttachments.length > 0 && (
-              <div className="flex flex-col gap-1.5 self-start w-full">
+              <div className="flex flex-row flex-wrap gap-2.5 w-full mb-1">
                 {pastedAttachments.map((paste) => (
                   <div
                     key={paste.id}
-                    className="flex items-center justify-between px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[11px] text-white/80 w-full"
+                    onClick={() => setPreviewingPaste(paste)}
+                    className="relative w-28 h-28 rounded-xl border border-white/10 bg-[#1A1A1A] group/thumb shrink-0 cursor-pointer hover:border-[#39FF14]/40 transition-colors flex flex-col justify-between p-2.5 text-left"
+                    title={paste.name}
                   >
+                    <span className="text-[10px] text-white/80 font-sans leading-snug font-medium line-clamp-3 break-all text-left block">
+                      {paste.name}
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <div className="text-[8px] font-sans font-bold tracking-wider text-white/50 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded uppercase">
+                        TXT
+                      </div>
+                      <span className="text-[8px] text-white/30 font-sans">
+                        {paste.content.length}c
+                      </span>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setPreviewingPaste(paste)}
-                      className="flex items-center gap-2 truncate cursor-pointer hover:text-white transition-colors"
-                      title="Cliquer pour prévisualiser"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-[#39FF14] shrink-0" />
-                      <span className="truncate max-w-[280px]">{paste.name}</span>
-                      <span className="text-white/30 shrink-0">({paste.content.length} caractères)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPastedAttachments(prev => prev.filter(p => p.id !== paste.id))}
-                      className="text-white/40 hover:text-white font-bold ml-1 cursor-pointer shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPastedAttachments(prev => prev.filter(p => p.id !== paste.id));
+                      }}
+                      className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/75 hover:bg-black/95 text-white/80 hover:text-white flex items-center justify-center text-[10px] leading-none cursor-pointer opacity-0 group-hover/thumb:opacity-100 transition-opacity z-10"
                     >
                       ✕
                     </button>
