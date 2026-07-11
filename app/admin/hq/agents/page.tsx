@@ -14,12 +14,26 @@ import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntel
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface AttachedFileRef {
+  name:    string;
+  url:     string;
+  isImage: boolean;
+}
+
+interface PastedAttachment {
+  id:      string;
+  name:    string;
+  content: string;
+}
+
 interface Message {
-  id:        string;
-  role:      'user' | 'assistant';
-  content:   string;
-  timestamp: Date;
-  loading?:  boolean;
+  id:          string;
+  role:        'user' | 'assistant';
+  content:     string;
+  timestamp:   Date;
+  loading?:    boolean;
+  attachments?: AttachedFileRef[];
+  pastedTexts?: PastedAttachment[];
 }
 
 // Longueur au-delà de laquelle un message user est tronqué visuellement
@@ -28,12 +42,6 @@ const TRUNCATE_THRESHOLD = 300;
 // Longueur au-delà de laquelle un COLLAGE dans l'input se transforme
 // automatiquement en pièce jointe texte (comme Claude.ai)
 const PASTE_TO_FILE_THRESHOLD = 800;
-
-interface PastedAttachment {
-  id:      string;
-  name:    string;
-  content: string;
-}
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -60,7 +68,7 @@ export default function HQAgentsPage() {
   // File attachment states
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; url: string; isImage: boolean }>>([]);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFileRef[]>([]);
 
   // Plus menu popup state
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
@@ -70,11 +78,11 @@ export default function HQAgentsPage() {
   const [previewingPaste, setPreviewingPaste] = useState<PastedAttachment | null>(null);
 
   // Prévisualisation des fichiers attachés (image en zoom, texte en cadre défilant)
-  const [previewingAttachedFile, setPreviewingAttachedFile] = useState<{ name: string; url: string; isImage: boolean } | null>(null);
+  const [previewingAttachedFile, setPreviewingAttachedFile] = useState<AttachedFileRef | null>(null);
   const [attachedPreviewContent, setAttachedPreviewContent] = useState<string | null>(null);
   const [attachedPreviewLoading, setAttachedPreviewLoading] = useState(false);
 
-  const openAttachedPreview = async (file: { name: string; url: string; isImage: boolean }) => {
+  const openAttachedPreview = async (file: AttachedFileRef) => {
     setPreviewingAttachedFile(file);
     setAttachedPreviewContent(null);
     if (!file.isImage) {
@@ -278,25 +286,19 @@ export default function HQAgentsPage() {
   const dispatchMessage = useCallback(async (
     content: string,
     historyBase: Message[],
-    attachments: Array<{ name: string; url: string }>,
+    attachments: AttachedFileRef[],
     pastedTexts: PastedAttachment[] = []
   ) => {
     const trimmed = content.trim();
     if (!trimmed || sending) return;
 
-    let userMsgContent = trimmed;
-    if (attachments.length > 0) {
-      userMsgContent += '\n' + attachments.map(f => `📎 ${f.name}`).join('\n');
-    }
-    if (pastedTexts.length > 0) {
-      userMsgContent += '\n' + pastedTexts.map(p => `📄 ${p.name}`).join('\n');
-    }
-
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: userMsgContent,
-      timestamp: new Date()
+      content: trimmed,
+      timestamp: new Date(),
+      attachments: attachments.length > 0 ? attachments : undefined,
+      pastedTexts: pastedTexts.length > 0 ? pastedTexts : undefined
     };
 
     const loadingMsg: Message = {
@@ -314,7 +316,16 @@ export default function HQAgentsPage() {
     try {
       const historyPayload = historyBase
         .filter(m => !m.loading)
-        .map(m => ({ role: m.role, content: m.content }));
+        .map(m => {
+          let historyContent = m.content;
+          if (m.attachments && m.attachments.length > 0) {
+            historyContent += `\n\n[Fichiers attachés : \n` + m.attachments.map(f => `- ${f.name} (URL : ${f.url})`).join('\n') + `]`;
+          }
+          if (m.pastedTexts && m.pastedTexts.length > 0) {
+            historyContent += m.pastedTexts.map(p => `\n\n[Texte collé — ${p.name}] :\n${p.content}`).join('');
+          }
+          return { role: m.role, content: historyContent };
+        });
 
       let apiPrompt = trimmed;
       if (attachments.length > 0) {
@@ -380,7 +391,12 @@ export default function HQAgentsPage() {
 
     const historyUntilLastUser = messages.slice(0, index);
 
-    await dispatchMessage(lastUserMsg.content, historyUntilLastUser, []);
+    await dispatchMessage(
+      lastUserMsg.content,
+      historyUntilLastUser,
+      lastUserMsg.attachments ?? [],
+      lastUserMsg.pastedTexts ?? []
+    );
   }, [messages, sending, dispatchMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -406,13 +422,19 @@ export default function HQAgentsPage() {
     const idx = messages.findIndex(m => m.id === msgId);
     if (idx === -1) return;
 
+    const originalMsg = messages[idx];
     const truncatedHistory = messages.slice(0, idx);
     const contentToSend = editValue;
 
     setEditingId(null);
     setEditValue('');
 
-    await dispatchMessage(contentToSend, truncatedHistory, []);
+    await dispatchMessage(
+      contentToSend,
+      truncatedHistory,
+      originalMsg.attachments ?? [],
+      originalMsg.pastedTexts ?? []
+    );
   };
 
   // ── Nav ─────────────────────────────────────────────────────────────────
@@ -598,6 +620,53 @@ export default function HQAgentsPage() {
                         </div>
                       ) : (
                         <>
+                          {/* Pièces jointes du message (fichiers + textes collés), cliquables, restent intactes après envoi */}
+                          {isUser && ((msg.attachments && msg.attachments.length > 0) || (msg.pastedTexts && msg.pastedTexts.length > 0)) && (
+                            <div className="grid grid-cols-5 gap-2 mb-1.5 justify-end w-full">
+                              {msg.attachments?.map((file, fIdx) => (
+                                <div
+                                  key={`att-${fIdx}`}
+                                  onClick={() => openAttachedPreview(file)}
+                                  className="relative w-20 h-20 rounded-xl border border-white/10 bg-[#1A1A1A] group/thumb shrink-0 cursor-pointer hover:border-[#39FF14]/40 transition-colors flex flex-col justify-between p-2 text-left"
+                                  title={file.name}
+                                >
+                                  {file.isImage ? (
+                                    <div className="w-full h-full rounded-lg overflow-hidden relative -m-2">
+                                      <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                                      <div className="absolute bottom-1 left-1 text-[7px] font-sans font-bold tracking-wider text-white/50 bg-black/60 border border-white/10 px-1 py-0.5 rounded uppercase">
+                                        IMG
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <span className="text-[9px] text-white/80 font-sans leading-snug font-medium line-clamp-3 break-all text-left block">
+                                        {file.name}
+                                      </span>
+                                      <div className="text-[7px] font-sans font-bold tracking-wider text-white/50 bg-white/5 border border-white/10 px-1 py-0.5 rounded uppercase self-start">
+                                        {file.name.split('.').pop()?.toUpperCase() || 'FILE'}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              ))}
+                              {msg.pastedTexts?.map((paste) => (
+                                <div
+                                  key={paste.id}
+                                  onClick={() => setPreviewingPaste(paste)}
+                                  className="relative w-20 h-20 rounded-xl border border-white/10 bg-[#1A1A1A] group/thumb shrink-0 cursor-pointer hover:border-[#39FF14]/40 transition-colors flex flex-col justify-between p-2 text-left"
+                                  title={paste.name}
+                                >
+                                  <span className="text-[9px] text-white/80 font-sans leading-snug font-medium line-clamp-3 break-all text-left block">
+                                    {paste.name}
+                                  </span>
+                                  <div className="text-[7px] font-sans font-bold tracking-wider text-white/50 bg-white/5 border border-white/10 px-1 py-0.5 rounded uppercase self-start">
+                                    TXT
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
                           {/* Message Bubble (avec troncature visuelle si trop longue) */}
                           <div className={`relative px-4 py-3 rounded-2xl text-[13px] leading-relaxed border ${
                             isUser
@@ -690,7 +759,7 @@ export default function HQAgentsPage() {
           {/* Chat Input Card */}
           <div className="w-full max-w-[580px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
 
-            {/* Attachment Thumbnails (horizontal wraps, Claude.ai style matching screenshot) */}
+            {/* Attachment Thumbnails (vignettes carrées, grille fixe 5 colonnes) */}
             {attachedFiles.length > 0 && (
               <div className="grid grid-cols-5 gap-2.5 w-full mb-1">
                 {attachedFiles.map((file, fileIdx) => {
@@ -739,7 +808,7 @@ export default function HQAgentsPage() {
               </div>
             )}
 
-            {/* Pasted Text Attachment Badges (vignette carrée, même style que les fichiers uploadés) */}
+            {/* Pasted Text Attachment Badges (vignette carrée, grille fixe 5 colonnes) */}
             {pastedAttachments.length > 0 && (
               <div className="grid grid-cols-5 gap-2.5 w-full mb-1">
                 {pastedAttachments.map((paste) => (
