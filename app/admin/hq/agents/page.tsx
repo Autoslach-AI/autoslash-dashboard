@@ -60,7 +60,7 @@ export default function HQAgentsPage() {
   // File attachment states
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; url: string }>>([]);
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; url: string; isImage: boolean }>>([]);
 
   // Plus menu popup state
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
@@ -231,7 +231,8 @@ export default function HQAgentsPage() {
 
         uploadedList.push({
           name: file.name,
-          url: json.url
+          url: json.url,
+          isImage: file.type.startsWith('image/')
         });
       }
       setAttachedFiles(uploadedList);
@@ -662,22 +663,33 @@ export default function HQAgentsPage() {
           {/* Chat Input Card */}
           <div className="w-full max-w-[480px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
 
-            {/* Attachment Badges */}
+            {/* Attachment Thumbnails (square, style Claude.ai) */}
             {attachedFiles.length > 0 && (
-              <div className="flex flex-col gap-1.5 self-start w-full">
+              <div className="flex flex-wrap gap-2 self-start w-full">
                 {attachedFiles.map((file, fileIdx) => (
                   <div
                     key={fileIdx}
-                    className="flex items-center justify-between px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[11px] text-white/80 w-full"
+                    className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-white/5 group/thumb shrink-0"
+                    title={file.name}
                   >
-                    <div className="flex items-center gap-2 truncate">
-                      <Paperclip className="w-3.5 h-3.5 text-[#39FF14] shrink-0" />
-                      <span className="truncate max-w-[300px]">{file.name}</span>
-                    </div>
+                    {file.isImage ? (
+                      <img
+                        src={file.url}
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center gap-1 px-1">
+                        <Paperclip className="w-4 h-4 text-[#39FF14]" />
+                        <span className="text-[8px] text-white/50 text-center truncate w-full leading-tight">
+                          {file.name}
+                        </span>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== fileIdx))}
-                      className="text-white/40 hover:text-white font-bold ml-1 cursor-pointer shrink-0"
+                      className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 hover:bg-black/90 text-white/80 hover:text-white flex items-center justify-center text-[10px] leading-none cursor-pointer opacity-0 group-hover/thumb:opacity-100 transition-opacity"
                     >
                       ✕
                     </button>
