@@ -692,7 +692,7 @@ export default function HQAgentsPage() {
 
             {/* Attachment Thumbnails (horizontal wraps, Claude.ai style matching screenshot) */}
             {attachedFiles.length > 0 && (
-              <div className="flex flex-row flex-wrap gap-2.5 w-full mb-1">
+              <div className="grid grid-cols-5 gap-2.5 w-full mb-1">
                 {attachedFiles.map((file, fileIdx) => {
                   const extension = file.name.split('.').pop()?.toUpperCase() || 'FILE';
                   return (
@@ -741,7 +741,7 @@ export default function HQAgentsPage() {
 
             {/* Pasted Text Attachment Badges (vignette carrée, même style que les fichiers uploadés) */}
             {pastedAttachments.length > 0 && (
-              <div className="flex flex-row flex-wrap gap-2.5 w-full mb-1">
+              <div className="grid grid-cols-5 gap-2.5 w-full mb-1">
                 {pastedAttachments.map((paste) => (
                   <div
                     key={paste.id}
