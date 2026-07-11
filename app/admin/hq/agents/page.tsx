@@ -7,7 +7,7 @@ import {
   Brain, Zap, LayoutDashboard, Users, ArrowRight,
   Sparkles, Loader2, AlertCircle, Settings,
   Pencil, Copy, RotateCw, Mic, PhoneOff, Paperclip,
-  Plus, Phone, Camera, Check, X
+  Plus, Phone, Camera, Check, X, FileText
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
@@ -24,6 +24,16 @@ interface Message {
 
 // Longueur au-delà de laquelle un message user est tronqué visuellement
 const TRUNCATE_THRESHOLD = 300;
+
+// Longueur au-delà de laquelle un COLLAGE dans l'input se transforme
+// automatiquement en pièce jointe texte (comme Claude.ai)
+const PASTE_TO_FILE_THRESHOLD = 800;
+
+interface PastedAttachment {
+  id:      string;
+  name:    string;
+  content: string;
+}
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
@@ -54,6 +64,10 @@ export default function HQAgentsPage() {
 
   // Plus menu popup state
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+
+  // Texte collé transformé automatiquement en pièce jointe (façon Claude.ai)
+  const [pastedAttachments, setPastedAttachments] = useState<PastedAttachment[]>([]);
+  const [previewingPaste, setPreviewingPaste] = useState<PastedAttachment | null>(null);
 
   // ── Édition en place ──────────────────────────────────────────────────────
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -105,6 +119,26 @@ export default function HQAgentsPage() {
       ta.style.height = 'auto';
       ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
     }
+  };
+
+  // Collage d'un texte long → transformation automatique en pièce jointe
+  // (reproduit le comportement de Claude.ai)
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = e.clipboardData.getData('text');
+    if (pastedText.length > PASTE_TO_FILE_THRESHOLD) {
+      e.preventDefault();
+      const firstLine = pastedText.split('\n')[0].trim().slice(0, 40);
+      const name = firstLine
+        ? `${firstLine}${firstLine.length >= 40 ? '…' : ''}.txt`
+        : 'Texte collé.txt';
+
+      setPastedAttachments(prev => [...prev, {
+        id: crypto.randomUUID(),
+        name,
+        content: pastedText
+      }]);
+    }
+    // Sinon, comportement de collage normal (texte inséré dans l'input)
   };
 
   // Web Speech API - Voice Dictation Handler
@@ -213,13 +247,21 @@ export default function HQAgentsPage() {
 
   // Envoi générique — accepte un contenu et un historique explicites,
   // pour être réutilisable à la fois par l'input du bas et par l'édition en place.
-  const dispatchMessage = useCallback(async (content: string, historyBase: Message[], attachments: Array<{ name: string; url: string }>) => {
+  const dispatchMessage = useCallback(async (
+    content: string,
+    historyBase: Message[],
+    attachments: Array<{ name: string; url: string }>,
+    pastedTexts: PastedAttachment[] = []
+  ) => {
     const trimmed = content.trim();
     if (!trimmed || sending) return;
 
     let userMsgContent = trimmed;
     if (attachments.length > 0) {
       userMsgContent += '\n' + attachments.map(f => `📎 ${f.name}`).join('\n');
+    }
+    if (pastedTexts.length > 0) {
+      userMsgContent += '\n' + pastedTexts.map(p => `📄 ${p.name}`).join('\n');
     }
 
     const userMsg: Message = {
@@ -250,6 +292,9 @@ export default function HQAgentsPage() {
       if (attachments.length > 0) {
         apiPrompt += `\n\n[Fichiers attachés : \n` + attachments.map(f => `- ${f.name} (URL : ${f.url})`).join('\n') + `]`;
       }
+      if (pastedTexts.length > 0) {
+        apiPrompt += pastedTexts.map(p => `\n\n[Texte collé — ${p.name}] :\n${p.content}`).join('');
+      }
 
       const res = await fetch('/api/admin/hq/chat', {
         method: 'POST',
@@ -275,20 +320,24 @@ export default function HQAgentsPage() {
   }, [sending]);
 
   // Send message (depuis l'input du bas)
+  // Note : le texte du message reste obligatoire même si des pièces jointes
+  // sont présentes — le bouton d'envoi est déjà désactivé tant que l'input est vide.
   const sendMessage = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed || sending) return;
 
     const currentAttachments = attachedFiles;
+    const currentPastedTexts = pastedAttachments;
     setInput('');
     setAttachedFiles([]);
+    setPastedAttachments([]);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
 
-    await dispatchMessage(trimmed, messages, currentAttachments);
+    await dispatchMessage(trimmed, messages, currentAttachments, currentPastedTexts);
     setTimeout(() => textareaRef.current?.focus(), 10);
-  }, [input, sending, messages, attachedFiles, dispatchMessage]);
+  }, [input, sending, messages, attachedFiles, pastedAttachments, dispatchMessage]);
 
   // Regenerate last response
   const regenerateResponse = useCallback(async () => {
@@ -637,6 +686,36 @@ export default function HQAgentsPage() {
               </div>
             )}
 
+            {/* Pasted Text Attachment Badges (façon Claude.ai) */}
+            {pastedAttachments.length > 0 && (
+              <div className="flex flex-col gap-1.5 self-start w-full">
+                {pastedAttachments.map((paste) => (
+                  <div
+                    key={paste.id}
+                    className="flex items-center justify-between px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-[11px] text-white/80 w-full"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setPreviewingPaste(paste)}
+                      className="flex items-center gap-2 truncate cursor-pointer hover:text-white transition-colors"
+                      title="Cliquer pour prévisualiser"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-[#39FF14] shrink-0" />
+                      <span className="truncate max-w-[280px]">{paste.name}</span>
+                      <span className="text-white/30 shrink-0">({paste.content.length} caractères)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPastedAttachments(prev => prev.filter(p => p.id !== paste.id))}
+                      className="text-white/40 hover:text-white font-bold ml-1 cursor-pointer shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Top: Actual interactive Textarea */}
             <textarea
               ref={textareaRef}
@@ -644,6 +723,7 @@ export default function HQAgentsPage() {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder="Écrivez votre message pour AXON..."
               disabled={sending}
               className="w-full bg-transparent resize-none text-[13px] text-white placeholder:text-white/30 focus:outline-none leading-relaxed max-h-[140px] font-sans pr-8 disabled:opacity-50"
@@ -770,6 +850,46 @@ export default function HQAgentsPage() {
         </div>
 
       </div>
+
+      {/* Pasted Text Preview Modal */}
+      <AnimatePresence>
+        {previewingPaste && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={() => setPreviewingPaste(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl max-h-[80vh] bg-[#121212] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden font-mono"
+            >
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
+                <div className="flex items-center gap-2 text-white/80 text-sm truncate">
+                  <FileText className="w-4 h-4 text-[#39FF14] shrink-0" />
+                  <span className="truncate">{previewingPaste.name}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewingPaste(null)}
+                  className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all cursor-pointer shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="overflow-y-auto px-5 py-4">
+                <pre className="whitespace-pre-wrap text-[12px] text-white/70 leading-relaxed font-sans">
+                  {previewingPaste.content}
+                </pre>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Voice Session Overlay (Gemini Live Style) */}
       <AnimatePresence>
