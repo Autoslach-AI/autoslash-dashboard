@@ -69,6 +69,33 @@ export default function HQAgentsPage() {
   const [pastedAttachments, setPastedAttachments] = useState<PastedAttachment[]>([]);
   const [previewingPaste, setPreviewingPaste] = useState<PastedAttachment | null>(null);
 
+  // Prévisualisation des fichiers attachés (image en zoom, texte en cadre défilant)
+  const [previewingAttachedFile, setPreviewingAttachedFile] = useState<{ name: string; url: string; isImage: boolean } | null>(null);
+  const [attachedPreviewContent, setAttachedPreviewContent] = useState<string | null>(null);
+  const [attachedPreviewLoading, setAttachedPreviewLoading] = useState(false);
+
+  const openAttachedPreview = async (file: { name: string; url: string; isImage: boolean }) => {
+    setPreviewingAttachedFile(file);
+    setAttachedPreviewContent(null);
+    if (!file.isImage) {
+      setAttachedPreviewLoading(true);
+      try {
+        const res = await fetch(file.url);
+        const text = await res.text();
+        setAttachedPreviewContent(text);
+      } catch (err) {
+        setAttachedPreviewContent("Impossible de charger le contenu de ce fichier.");
+      } finally {
+        setAttachedPreviewLoading(false);
+      }
+    }
+  };
+
+  const closeAttachedPreview = () => {
+    setPreviewingAttachedFile(null);
+    setAttachedPreviewContent(null);
+  };
+
   // ── Édition en place ──────────────────────────────────────────────────────
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -663,13 +690,14 @@ export default function HQAgentsPage() {
           {/* Chat Input Card */}
           <div className="w-full max-w-[480px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
 
-            {/* Attachment Thumbnails (square, style Claude.ai) */}
+            {/* Attachment Thumbnails (vertical, cliquables pour prévisualiser) */}
             {attachedFiles.length > 0 && (
-              <div className="flex flex-wrap gap-2 self-start w-full">
+              <div className="flex flex-col gap-2 self-start">
                 {attachedFiles.map((file, fileIdx) => (
                   <div
                     key={fileIdx}
-                    className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-white/5 group/thumb shrink-0"
+                    onClick={() => openAttachedPreview(file)}
+                    className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/10 bg-white/5 group/thumb shrink-0 cursor-pointer hover:border-[#39FF14]/40 transition-colors"
                     title={file.name}
                   >
                     {file.isImage ? (
@@ -688,7 +716,10 @@ export default function HQAgentsPage() {
                     )}
                     <button
                       type="button"
-                      onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== fileIdx))}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAttachedFiles(prev => prev.filter((_, idx) => idx !== fileIdx));
+                      }}
                       className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 hover:bg-black/90 text-white/80 hover:text-white flex items-center justify-center text-[10px] leading-none cursor-pointer opacity-0 group-hover/thumb:opacity-100 transition-opacity"
                     >
                       ✕
@@ -862,6 +893,75 @@ export default function HQAgentsPage() {
         </div>
 
       </div>
+
+      {/* Attached File Preview Modal (zoom image / cadre texte défilant) */}
+      <AnimatePresence>
+        {previewingAttachedFile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={closeAttachedPreview}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`${
+                previewingAttachedFile.isImage
+                  ? 'max-w-[90vw] max-h-[90vh]'
+                  : 'w-full max-w-2xl max-h-[80vh] bg-[#121212] border border-white/10 rounded-2xl flex flex-col overflow-hidden font-mono'
+              } shadow-2xl`}
+            >
+              {previewingAttachedFile.isImage ? (
+                <div className="relative">
+                  <img
+                    src={previewingAttachedFile.url}
+                    alt={previewingAttachedFile.name}
+                    className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={closeAttachedPreview}
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-black/70 hover:bg-black/90 text-white/80 hover:text-white transition-all cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
+                    <div className="flex items-center gap-2 text-white/80 text-sm truncate">
+                      <Paperclip className="w-4 h-4 text-[#39FF14] shrink-0" />
+                      <span className="truncate">{previewingAttachedFile.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeAttachedPreview}
+                      className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-all cursor-pointer shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto px-5 py-4">
+                    {attachedPreviewLoading ? (
+                      <div className="flex items-center justify-center py-10">
+                        <Loader2 className="w-5 h-5 text-[#39FF14] animate-spin" />
+                      </div>
+                    ) : (
+                      <pre className="whitespace-pre-wrap text-[12px] text-white/70 leading-relaxed font-sans">
+                        {attachedPreviewContent}
+                      </pre>
+                    )}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Pasted Text Preview Modal */}
       <AnimatePresence>
