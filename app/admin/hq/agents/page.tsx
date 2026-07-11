@@ -664,7 +664,7 @@ export default function HQAgentsPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="mx-auto max-w-[480px] w-full px-4 mb-2 shrink-0 animate-pulse"
+              className="mx-auto max-w-[580px] w-full px-4 mb-2 shrink-0 animate-pulse"
             >
               <div className="flex items-center gap-2.5 px-4 py-2.5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-[11px]">
                 <AlertCircle className="w-4 h-4 shrink-0" />
@@ -688,7 +688,7 @@ export default function HQAgentsPage() {
           />
 
           {/* Chat Input Card */}
-          <div className="w-full max-w-[480px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
+          <div className="w-full max-w-[580px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
 
             {/* Attachment Thumbnails (horizontal wraps, Claude.ai style matching screenshot) */}
             {attachedFiles.length > 0 && (
