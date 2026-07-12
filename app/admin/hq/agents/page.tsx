@@ -399,6 +399,23 @@ export default function HQAgentsPage() {
     );
   }, [messages, sending, dispatchMessage]);
 
+  // Régénérer à partir d'un message utilisateur spécifique (pas forcément le dernier) :
+  // tronque la conversation à ce point et renvoie exactement le même contenu.
+  const regenerateFromUserMessage = useCallback(async (msg: Message) => {
+    if (sending) return;
+    const idx = messages.findIndex(m => m.id === msg.id);
+    if (idx === -1) return;
+
+    const truncatedHistory = messages.slice(0, idx);
+
+    await dispatchMessage(
+      msg.content,
+      truncatedHistory,
+      msg.attachments ?? [],
+      msg.pastedTexts ?? []
+    );
+  }, [messages, sending, dispatchMessage]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -680,18 +697,35 @@ export default function HQAgentsPage() {
                           {!msg.loading && (
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                               {isUser ? (
-                                <button
-                                  onClick={() => startEditing(msg)}
-                                  disabled={editingId !== null}
-                                  title="Modifier"
-                                  className={`p-1 rounded-md text-white/40 transition-all ${
-                                    editingId !== null
-                                      ? 'opacity-30 pointer-events-none'
-                                      : 'hover:bg-white/10 hover:text-white cursor-pointer'
-                                  }`}
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => regenerateFromUserMessage(msg)}
+                                    disabled={editingId !== null || sending}
+                                    title="Régénérer"
+                                    className="p-1 rounded-md text-white/40 hover:bg-white/10 hover:text-white transition-all cursor-pointer disabled:opacity-30 disabled:pointer-events-none"
+                                  >
+                                    <RotateCw className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => startEditing(msg)}
+                                    disabled={editingId !== null}
+                                    title="Modifier"
+                                    className={`p-1 rounded-md text-white/40 transition-all ${
+                                      editingId !== null
+                                        ? 'opacity-30 pointer-events-none'
+                                        : 'hover:bg-white/10 hover:text-white cursor-pointer'
+                                    }`}
+                                  >
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => navigator.clipboard.writeText(msg.content)}
+                                    title="Copier"
+                                    className="p-1 rounded-md text-white/40 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </button>
+                                </>
                               ) : (
                                 <>
                                   <button
@@ -732,7 +766,7 @@ export default function HQAgentsPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="mx-auto max-w-[580px] w-full px-4 mb-2 shrink-0 animate-pulse"
+              className="mx-auto max-w-[480px] w-full px-4 mb-2 shrink-0 animate-pulse"
             >
               <div className="flex items-center gap-2.5 px-4 py-2.5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-[11px]">
                 <AlertCircle className="w-4 h-4 shrink-0" />
@@ -756,7 +790,7 @@ export default function HQAgentsPage() {
           />
 
           {/* Chat Input Card */}
-          <div className="w-full max-w-[580px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
+          <div className="w-full max-w-[480px] bg-[#141414] border border-white/[0.06] rounded-[20px] p-4 flex flex-col gap-3 shadow-2xl relative">
 
             {/* Attachment Thumbnails (vignettes carrées, grille fixe 5 colonnes) */}
             {attachedFiles.length > 0 && (
