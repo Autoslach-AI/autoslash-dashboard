@@ -13,7 +13,7 @@ export default function AgentRedirectPage() {
     if (agentId === 'axon') {
       router.replace('/admin/hq/agents');
     } else {
-      router.replace(`/admin/hq/agents/${agentId}/settings`);
+      router.replace(`/admin/hq/agents/axon/settings?tab=${agentId}`);
     }
   }, [agentId, router]);
 
