@@ -27,6 +27,7 @@ async function run() {
   await inspectTable('agent_skills');
   await inspectTable('agents');
   await inspectTable('skills_library');
+  await inspectTable('hq_agent_skills');
 }
 
 run();

@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, Zap, LayoutDashboard, Users, ArrowLeft,
   Terminal, Sliders, Power, Save, Loader2, AlertCircle,
-  CheckCircle2, ChevronDown, Clock
+  CheckCircle2, ChevronDown, Clock, Wrench, Plus, Upload,
+  PenLine, Trash2, X, FileCode
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
@@ -215,6 +216,123 @@ function AgentSettingsPageInner() {
   };
 
   const systemPromptCharCount = systemPrompt.length;
+
+  // ── Compétences (skills) ───────────────────────────────────────────────────
+  interface AgentSkill {
+    id:         string; // id de la ligne hq_agent_skills
+    skill_id:   string;
+    name:       string;
+    category:   string | null;
+    content:    string;
+    is_active:  boolean;
+  }
+
+  const [skills,        setSkills]        = useState<AgentSkill[]>([]);
+  const [skillsLoading, setSkillsLoading]  = useState(true);
+  const [addSkillOpen,  setAddSkillOpen]   = useState(false);
+  const [addSkillMode,  setAddSkillMode]   = useState<'file' | 'manual'>('manual');
+  const [skillForm,     setSkillForm]      = useState({ name: '', category: '', content: '' });
+  const [savingSkill,   setSavingSkill]    = useState(false);
+  const [skillsError,   setSkillsError]    = useState<string | null>(null);
+  const skillFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const loadSkills = useCallback(async (agentId: AgentTabId) => {
+    setSkillsLoading(true);
+    setSkillsError(null);
+    try {
+      const res = await fetch(`/api/admin/hq/skills?agent_id=${agentId}`);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setSkills(json.data ?? []);
+    } catch (err: any) {
+      setSkillsError(err.message || "Erreur lors du chargement des compétences.");
+    } finally {
+      setSkillsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSkills(activeAgentId);
+  }, [activeAgentId, loadSkills]);
+
+  const handleSkillFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      setSkillForm(prev => ({
+        ...prev,
+        name: prev.name || file.name.replace(/\.[^/.]+$/, ''),
+        content: text
+      }));
+    };
+    reader.readAsText(file);
+  };
+
+  const handleAddSkill = async () => {
+    if (!skillForm.name.trim() || !skillForm.content.trim()) return;
+    setSavingSkill(true);
+    setSkillsError(null);
+    try {
+      const res = await fetch('/api/admin/hq/skills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent_id: activeAgentId,
+          name:     skillForm.name.trim(),
+          category: skillForm.category.trim() || null,
+          content:  skillForm.content
+        })
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+
+      setSkills(prev => [...prev, json.data]);
+      setSkillForm({ name: '', category: '', content: '' });
+      setAddSkillOpen(false);
+    } catch (err: any) {
+      setSkillsError(err.message || "Erreur lors de l'ajout de la compétence.");
+    } finally {
+      setSavingSkill(false);
+    }
+  };
+
+  const toggleSkillActive = async (skill: AgentSkill) => {
+    const newState = !skill.is_active;
+    setSkills(prev => prev.map(s => s.id === skill.id ? { ...s, is_active: newState } : s));
+    try {
+      const res = await fetch('/api/admin/hq/skills', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: skill.id, is_active: newState })
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+    } catch (err: any) {
+      // rollback en cas d'échec
+      setSkills(prev => prev.map(s => s.id === skill.id ? { ...s, is_active: skill.is_active } : s));
+      setSkillsError(err.message || "Erreur lors de la mise à jour.");
+    }
+  };
+
+  const deleteSkill = async (skill: AgentSkill) => {
+    if (!confirm(`Retirer la compétence "${skill.name}" de ${currentTabMeta?.label ?? activeAgentId} ?`)) return;
+    const previous = skills;
+    setSkills(prev => prev.filter(s => s.id !== skill.id));
+    try {
+      const res = await fetch('/api/admin/hq/skills', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: skill.id })
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+    } catch (err: any) {
+      setSkills(previous); // rollback
+      setSkillsError(err.message || "Erreur lors de la suppression.");
+    }
+  };
 
   // ── Nav ─────────────────────────────────────────────────────────────────
   const primaryItems: NavItem[] = [
@@ -456,11 +574,224 @@ function AgentSettingsPageInner() {
                 </div>
               </section>
 
+              {/* SECTION_04 // SKILLS */}
+              <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Wrench className="w-4 h-4 text-orange-400" />
+                    <h2 className="text-sm font-bold text-white uppercase tracking-[0.3em]">Section_04 // Skills</h2>
+                  </div>
+                  <button
+                    onClick={() => { setAddSkillOpen(true); setAddSkillMode('manual'); setSkillForm({ name: '', category: '', content: '' }); }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-400/10 border border-orange-400/20 text-orange-400 text-[9px] font-black uppercase tracking-widest hover:bg-orange-400/15 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Ajouter une compétence
+                  </button>
+                </div>
+
+                {skillsError && (
+                  <div className="flex items-center gap-3 px-5 py-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                    <span className="text-xs font-mono text-red-400 flex-1">{skillsError}</span>
+                    <button onClick={() => setSkillsError(null)} className="text-red-400/50 hover:text-red-400">✕</button>
+                  </div>
+                )}
+
+                {skillsLoading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="w-5 h-5 text-white/20 animate-spin" />
+                  </div>
+                ) : skills.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 border border-dashed border-white/10 rounded-2xl gap-3">
+                    <Wrench className="w-6 h-6 text-white/10" />
+                    <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
+                      Aucune compétence assignée à {currentTabMeta.label}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {skills.map((skill) => (
+                      <div
+                        key={skill.id}
+                        className="bg-[#141414] border border-white/10 rounded-xl px-5 py-4 flex items-center justify-between gap-4"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <FileCode className={`w-4 h-4 shrink-0 ${skill.is_active ? 'text-orange-400' : 'text-white/20'}`} />
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-bold text-white truncate">{skill.name}</p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              {skill.category && (
+                                <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest bg-white/5 px-1.5 py-0.5 rounded">
+                                  {skill.category}
+                                </span>
+                              )}
+                              <span className="text-[9px] text-white/20">{skill.content.length.toLocaleString('fr-FR')} caractères</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <button
+                            onClick={() => toggleSkillActive(skill)}
+                            title={skill.is_active ? 'Désactiver' : 'Activer'}
+                            className={`relative w-10 h-5 rounded-full transition-all cursor-pointer ${
+                              skill.is_active ? 'bg-orange-400/30' : 'bg-white/10'
+                            }`}
+                          >
+                            <motion.div
+                              animate={{ x: skill.is_active ? 20 : 2 }}
+                              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                              className={`absolute top-0.5 w-4 h-4 rounded-full ${skill.is_active ? 'bg-orange-400' : 'bg-white/40'}`}
+                            />
+                          </button>
+                          <button
+                            onClick={() => deleteSkill(skill)}
+                            title="Retirer"
+                            className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
             </motion.div>
           )}
 
         </div>
       </div>
+
+      {/* ── MODALE AJOUT DE COMPÉTENCE ────────────────────────────────── */}
+      <AnimatePresence>
+        {addSkillOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+            onClick={() => !savingSkill && setAddSkillOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#141414] border border-white/10 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] font-mono"
+            >
+              <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <Wrench className="w-4 h-4 text-orange-400" />
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-white">
+                    Nouvelle compétence — {currentTabMeta.label}
+                  </h3>
+                </div>
+                <button onClick={() => !savingSkill && setAddSkillOpen(false)} className="text-white/30 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Sélecteur de mode */}
+              <div className="flex gap-2 px-6 pt-5 shrink-0">
+                <button
+                  onClick={() => setAddSkillMode('manual')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer border ${
+                    addSkillMode === 'manual'
+                      ? 'bg-orange-400/10 border-orange-400/30 text-orange-400'
+                      : 'bg-white/[0.02] border-white/10 text-white/40 hover:text-white/60'
+                  }`}
+                >
+                  <PenLine className="w-3.5 h-3.5" />
+                  Saisie manuelle
+                </button>
+                <button
+                  onClick={() => setAddSkillMode('file')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all cursor-pointer border ${
+                    addSkillMode === 'file'
+                      ? 'bg-orange-400/10 border-orange-400/30 text-orange-400'
+                      : 'bg-white/[0.02] border-white/10 text-white/40 hover:text-white/60'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Importer un fichier
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5 overflow-y-auto">
+                {addSkillMode === 'file' && (
+                  <div
+                    onClick={() => skillFileInputRef.current?.click()}
+                    className="border border-dashed border-white/20 rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-orange-400/40 transition-all"
+                  >
+                    <Upload className="w-6 h-6 text-white/30" />
+                    <p className="text-[10px] text-white/40 uppercase tracking-widest text-center">
+                      {skillForm.content ? 'Fichier chargé — cliquer pour remplacer' : 'Cliquer pour choisir un fichier (.md, .txt)'}
+                    </p>
+                    <input
+                      ref={skillFileInputRef}
+                      type="file"
+                      accept=".md,.txt"
+                      className="hidden"
+                      onChange={handleSkillFileChange}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Nom</label>
+                  <input
+                    value={skillForm.name}
+                    onChange={(e) => setSkillForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full bg-black border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40 transition-all"
+                    placeholder="Ex : Analyse de pipeline"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Catégorie (optionnel)</label>
+                  <input
+                    value={skillForm.category}
+                    onChange={(e) => setSkillForm(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full bg-black border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40 transition-all"
+                    placeholder="Ex : Analyse, Commercial, Support"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Contenu</label>
+                  <textarea
+                    value={skillForm.content}
+                    onChange={(e) => setSkillForm(prev => ({ ...prev, content: e.target.value }))}
+                    className="w-full h-48 bg-black border border-white/10 rounded-lg px-4 py-3 text-[12px] font-mono text-white/80 outline-none focus:border-orange-400/40 transition-all resize-none leading-relaxed"
+                    placeholder="Décris ici la compétence, les instructions ou le contexte que l'agent doit suivre..."
+                  />
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-white/10 flex justify-end gap-3 shrink-0 bg-black/30">
+                <button
+                  onClick={() => setAddSkillOpen(false)}
+                  disabled={savingSkill}
+                  className="px-6 py-2.5 text-[10px] font-bold text-white/40 uppercase tracking-widest hover:text-white transition-colors disabled:opacity-40"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleAddSkill}
+                  disabled={savingSkill || !skillForm.name.trim() || !skillForm.content.trim()}
+                  className="px-8 py-2.5 bg-orange-400 text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:shadow-[0_0_20px_rgba(251,146,60,0.3)] transition-all disabled:opacity-40 disabled:hover:shadow-none flex items-center gap-2 cursor-pointer"
+                >
+                  {savingSkill ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                  {savingSkill ? 'Ajout...' : 'Ajouter'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── MODALE CONFIRMATION MODIFICATIONS NON SAUVEGARDÉES ──────────── */}
       <AnimatePresence>

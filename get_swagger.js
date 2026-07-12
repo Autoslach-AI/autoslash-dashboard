@@ -10,9 +10,11 @@ async function getSwagger() {
     }
   });
   const data = await response.json();
+  console.log('API Response structure:', Object.keys(data), response.status);
+  if (data.error || data.message) console.log('Error/Msg:', data.error, data.message);
   
   if (data.definitions) {
-    ['agent_skills', 'agents'].forEach(tableName => {
+    ['skills_library', 'hq_agent_skills'].forEach(tableName => {
       console.log(`\n--- Definition for ${tableName} ---`);
       if (data.definitions[tableName]) {
         console.log(JSON.stringify(data.definitions[tableName], null, 2));
