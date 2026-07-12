@@ -86,6 +86,22 @@ function AgentSettingsPageInner() {
 
   const currentTabMeta = AGENT_TABS.find(t => t.id === activeAgentId)!;
 
+  // ── Détection de modifications non sauvegardées ───────────────────────────
+  const [pendingTabId, setPendingTabId] = useState<AgentTabId | null>(null);
+
+  const isDirty = (() => {
+    const cfg = configs[activeAgentId];
+    if (!cfg) return false;
+    return (
+      systemPrompt !== (cfg.system_prompt || '') ||
+      model !== (cfg.model || '') ||
+      provider !== (cfg.provider || '') ||
+      maxTokensPerSession !== (cfg.max_tokens_per_session ?? 2000) ||
+      maxRequestsPerDay !== (cfg.max_requests_per_day ?? 10) ||
+      isActive !== (cfg.is_active ?? true)
+    );
+  })();
+
   // ── Charger toutes les configs + les modèles disponibles ─────────────────
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -133,9 +149,32 @@ function AgentSettingsPageInner() {
     setSaveState('idle');
   }, [activeAgentId, configs]);
 
-  const handleTabChange = (tabId: AgentTabId) => {
+  const switchTab = (tabId: AgentTabId) => {
     setActiveAgentId(tabId);
     router.replace(`/admin/hq/agents/axon/settings?tab=${tabId}`, { scroll: false });
+  };
+
+  const handleTabChange = (tabId: AgentTabId) => {
+    if (tabId === activeAgentId) return;
+    if (isDirty) {
+      setPendingTabId(tabId);
+    } else {
+      switchTab(tabId);
+    }
+  };
+
+  const confirmDiscardAndSwitch = () => {
+    if (pendingTabId) switchTab(pendingTabId);
+    setPendingTabId(null);
+  };
+
+  const confirmSaveAndSwitch = async () => {
+    const targetTab = pendingTabId;
+    setPendingTabId(null);
+    if (targetTab) {
+      await handleSave();
+      switchTab(targetTab);
+    }
   };
 
   const handleModelChange = (modelString: string) => {
@@ -234,11 +273,14 @@ function AgentSettingsPageInner() {
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`pb-4 text-[10px] font-bold uppercase tracking-[0.3em] transition-all relative ${
+                className={`pb-4 text-[10px] font-bold uppercase tracking-[0.3em] transition-all relative flex items-center gap-2 ${
                   activeAgentId === tab.id ? 'text-white' : 'text-white/20 hover:text-white/40'
                 }`}
               >
                 {tab.label}
+                {activeAgentId === tab.id && isDirty && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-400" title="Modifications non sauvegardées" />
+                )}
                 {activeAgentId === tab.id && (
                   <motion.div
                     layoutId="settings-tab-underline"
@@ -419,6 +461,62 @@ function AgentSettingsPageInner() {
 
         </div>
       </div>
+
+      {/* ── MODALE CONFIRMATION MODIFICATIONS NON SAUVEGARDÉES ──────────── */}
+      <AnimatePresence>
+        {pendingTabId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+            onClick={() => setPendingTabId(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#141414] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl font-mono"
+            >
+              <div className="p-8 space-y-3">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5 text-orange-400 shrink-0" />
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-white">
+                    Modifications non sauvegardées
+                  </h3>
+                </div>
+                <p className="text-xs text-white/50 leading-relaxed">
+                  Tu as des changements sur <span className="text-white/80 font-bold">{currentTabMeta.label}</span> qui
+                  ne sont pas encore synchronisés. Que veux-tu faire avant de passer à un autre onglet ?
+                </p>
+              </div>
+
+              <div className="p-6 border-t border-white/10 flex flex-col gap-2 bg-black/30">
+                <button
+                  onClick={confirmSaveAndSwitch}
+                  disabled={saveState === 'saving'}
+                  className="w-full py-3 rounded-xl bg-[#39FF14]/10 border border-[#39FF14]/30 text-[#39FF14] text-[10px] font-black uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all disabled:opacity-50"
+                >
+                  Enregistrer puis changer d'onglet
+                </button>
+                <button
+                  onClick={confirmDiscardAndSwitch}
+                  className="w-full py-3 rounded-xl border border-red-500/20 text-red-400/80 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 hover:text-red-400 transition-all"
+                >
+                  Ignorer les modifications et changer
+                </button>
+                <button
+                  onClick={() => setPendingTabId(null)}
+                  className="w-full py-3 rounded-xl text-white/40 text-[10px] font-bold uppercase tracking-widest hover:text-white transition-all"
+                >
+                  Annuler — rester sur {currentTabMeta.label}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── BOUTON SYNC FLOTTANT ───────────────────────────────────────── */}
       <div className="fixed bottom-10 right-10 z-[200]">
