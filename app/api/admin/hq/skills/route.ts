@@ -128,35 +128,56 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json()
-    const { id, is_active } = body
+    const { id, is_active, skill_id, name, category, content } = body
 
-    if (!id || is_active === undefined) {
-      return NextResponse.json(
-        { error: 'id et is_active sont requis' },
-        { status: 400 }
-      )
+    // Cas 1 : toggle d'activation sur la jonction (comportement existant)
+    if (id && is_active !== undefined) {
+      const { data, error } = await supabase
+        .from('hq_agent_skills')
+        .update({ is_active })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
+      return NextResponse.json({ data })
     }
 
-    const { data, error } = await supabase
-      .from('hq_agent_skills')
-      .update({ is_active })
-      .eq('id', id)
-      .select()
-      .single()
+    // Cas 2 : édition du contenu de la compétence (nouveau)
+    if (skill_id) {
+      const fields: Record<string, any> = {}
+      if (name !== undefined) fields.name = name
+      if (category !== undefined) fields.category = category
+      if (content !== undefined) fields.content = content
 
-    if (error) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      )
+      if (Object.keys(fields).length === 0) {
+        return NextResponse.json(
+          { error: 'Aucun champ à mettre à jour' },
+          { status: 400 }
+        )
+      }
+
+      const { data, error } = await supabase
+        .from('skills_library')
+        .update(fields)
+        .eq('id', skill_id)
+        .select()
+        .single()
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
+      return NextResponse.json({ data })
     }
 
-    return NextResponse.json({ data })
-  } catch (err: any) {
     return NextResponse.json(
-      { error: err.message },
-      { status: 500 }
+      { error: 'Requête invalide : fournir soit (id + is_active), soit (skill_id + champs à modifier)' },
+      { status: 400 }
     )
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
 

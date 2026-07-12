@@ -49,19 +49,7 @@ const AGENT_TABS: Array<{ id: AgentTabId; label: string; color: string; glow: st
 
 // ─── Composant principal ─────────────────────────────────────────────────────
 
-export default function AgentSettingsPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center font-mono">
-        <Loader2 className="w-6 h-6 text-[#39FF14] animate-spin" />
-      </div>
-    }>
-      <AgentSettingsPageInner />
-    </Suspense>
-  );
-}
-
-function AgentSettingsPageInner() {
+function AgentSettingsPageContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { user, profile } = useUser();
@@ -331,6 +319,62 @@ function AgentSettingsPageInner() {
     } catch (err: any) {
       setSkills(previous); // rollback
       setSkillsError(err.message || "Erreur lors de la suppression.");
+    }
+  };
+
+  // ── Visualisation / édition d'une compétence ───────────────────────────────
+  const [viewingSkill,    setViewingSkill]    = useState<AgentSkill | null>(null);
+  const [skillEditMode,   setSkillEditMode]   = useState(false);
+  const [skillEditForm,   setSkillEditForm]   = useState({ name: '', category: '', content: '' });
+  const [savingSkillEdit, setSavingSkillEdit] = useState(false);
+  const [skillEditError,  setSkillEditError]  = useState<string | null>(null);
+
+  const openSkillView = (skill: AgentSkill) => {
+    setViewingSkill(skill);
+    setSkillEditMode(false);
+    setSkillEditForm({ name: skill.name, category: skill.category || '', content: skill.content });
+    setSkillEditError(null);
+  };
+
+  const closeSkillView = () => {
+    setViewingSkill(null);
+    setSkillEditMode(false);
+    setSkillEditError(null);
+  };
+
+  const saveSkillEdit = async () => {
+    if (!viewingSkill) return;
+    if (!skillEditForm.name.trim() || !skillEditForm.content.trim()) return;
+
+    setSavingSkillEdit(true);
+    setSkillEditError(null);
+    try {
+      const res = await fetch('/api/admin/hq/skills', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          skill_id: viewingSkill.skill_id,
+          name:     skillEditForm.name.trim(),
+          category: skillEditForm.category.trim() || null,
+          content:  skillEditForm.content
+        })
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+
+      const updated: AgentSkill = {
+        ...viewingSkill,
+        name:     json.data.name,
+        category: json.data.category,
+        content:  json.data.content
+      };
+      setSkills(prev => prev.map(s => s.id === updated.id ? updated : s));
+      setViewingSkill(updated);
+      setSkillEditMode(false);
+    } catch (err: any) {
+      setSkillEditError(err.message || "Erreur lors de la mise à jour.");
+    } finally {
+      setSavingSkillEdit(false);
     }
   };
 
@@ -614,7 +658,8 @@ function AgentSettingsPageInner() {
                     {skills.map((skill) => (
                       <div
                         key={skill.id}
-                        className="bg-[#141414] border border-white/10 rounded-xl px-5 py-4 flex items-center justify-between gap-4"
+                        onClick={() => openSkillView(skill)}
+                        className="bg-[#141414] border border-white/10 rounded-xl px-5 py-4 flex items-center justify-between gap-4 cursor-pointer hover:border-orange-400/30 transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
                           <FileCode className={`w-4 h-4 shrink-0 ${skill.is_active ? 'text-orange-400' : 'text-white/20'}`} />
@@ -633,7 +678,7 @@ function AgentSettingsPageInner() {
 
                         <div className="flex items-center gap-3 shrink-0">
                           <button
-                            onClick={() => toggleSkillActive(skill)}
+                            onClick={(e) => { e.stopPropagation(); toggleSkillActive(skill); }}
                             title={skill.is_active ? 'Désactiver' : 'Activer'}
                             className={`relative w-10 h-5 rounded-full transition-all cursor-pointer ${
                               skill.is_active ? 'bg-orange-400/30' : 'bg-white/10'
@@ -646,7 +691,7 @@ function AgentSettingsPageInner() {
                             />
                           </button>
                           <button
-                            onClick={() => deleteSkill(skill)}
+                            onClick={(e) => { e.stopPropagation(); deleteSkill(skill); }}
                             title="Retirer"
                             className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
                           >
@@ -793,6 +838,136 @@ function AgentSettingsPageInner() {
         )}
       </AnimatePresence>
 
+      {/* ── MODALE VISUALISATION / ÉDITION D'UNE COMPÉTENCE ─────────────── */}
+      <AnimatePresence>
+        {viewingSkill && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+            onClick={() => !savingSkillEdit && closeSkillView()}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#141414] border border-white/10 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] font-mono"
+            >
+              <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <FileCode className={`w-4 h-4 shrink-0 ${viewingSkill.is_active ? 'text-orange-400' : 'text-white/20'}`} />
+                  {skillEditMode ? (
+                    <input
+                      value={skillEditForm.name}
+                      onChange={(e) => setSkillEditForm(prev => ({ ...prev, name: e.target.value }))}
+                      className="bg-black border border-white/10 rounded-lg px-3 py-1.5 text-sm font-bold text-white outline-none focus:border-orange-400/40 transition-all min-w-0"
+                    />
+                  ) : (
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-white truncate">{viewingSkill.name}</h3>
+                  )}
+                  <span className={`text-[8px] font-black px-2 py-0.5 rounded border uppercase shrink-0 ${
+                    viewingSkill.is_active
+                      ? 'bg-orange-400/10 text-orange-400 border-orange-400/20'
+                      : 'bg-white/5 text-white/30 border-white/10'
+                  }`}>
+                    {viewingSkill.is_active ? 'Actif' : 'Inactif'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  {!skillEditMode && (
+                    <button
+                      onClick={() => setSkillEditMode(true)}
+                      title="Modifier"
+                      className="p-2 rounded-lg text-white/40 hover:text-orange-400 hover:bg-white/5 transition-all cursor-pointer"
+                    >
+                      <PenLine className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => !savingSkillEdit && closeSkillView()}
+                    className="p-2 rounded-lg text-white/30 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {skillEditError && (
+                <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl shrink-0">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span className="text-xs text-red-400 flex-1">{skillEditError}</span>
+                  <button onClick={() => setSkillEditError(null)} className="text-red-400/50 hover:text-red-400">✕</button>
+                </div>
+              )}
+
+              <div className="p-6 space-y-5 overflow-y-auto">
+                {skillEditMode ? (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Catégorie</label>
+                      <input
+                        value={skillEditForm.category}
+                        onChange={(e) => setSkillEditForm(prev => ({ ...prev, category: e.target.value }))}
+                        className="w-full bg-black border border-white/10 rounded-lg px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40 transition-all"
+                        placeholder="Ex : Analyse, Commercial, Support"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Contenu</label>
+                      <textarea
+                        value={skillEditForm.content}
+                        onChange={(e) => setSkillEditForm(prev => ({ ...prev, content: e.target.value }))}
+                        className="w-full h-72 bg-black border border-white/10 rounded-lg px-4 py-3 text-[12px] font-mono text-white/80 outline-none focus:border-orange-400/40 transition-all resize-none leading-relaxed"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {viewingSkill.category && (
+                      <span className="inline-block text-[9px] font-bold text-white/40 uppercase tracking-widest bg-white/5 px-2 py-1 rounded mb-2">
+                        {viewingSkill.category}
+                      </span>
+                    )}
+                    <div className="bg-black border border-white/[0.06] rounded-xl p-5">
+                      <pre className="whitespace-pre-wrap text-[12px] text-white/70 leading-relaxed font-sans">
+                        {viewingSkill.content}
+                      </pre>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {skillEditMode && (
+                <div className="p-6 border-t border-white/10 flex justify-end gap-3 shrink-0 bg-black/30">
+                  <button
+                    onClick={() => {
+                      setSkillEditMode(false);
+                      setSkillEditForm({ name: viewingSkill.name, category: viewingSkill.category || '', content: viewingSkill.content });
+                      setSkillEditError(null);
+                    }}
+                    disabled={savingSkillEdit}
+                    className="px-6 py-2.5 text-[10px] font-bold text-white/40 uppercase tracking-widest hover:text-white transition-colors disabled:opacity-40"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={saveSkillEdit}
+                    disabled={savingSkillEdit || !skillEditForm.name.trim() || !skillEditForm.content.trim()}
+                    className="px-8 py-2.5 bg-orange-400 text-black text-[10px] font-black uppercase tracking-widest rounded-lg hover:shadow-[0_0_20px_rgba(251,146,60,0.3)] transition-all disabled:opacity-40 disabled:hover:shadow-none flex items-center gap-2 cursor-pointer"
+                  >
+                    {savingSkillEdit ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {savingSkillEdit ? 'Enregistrement...' : 'Enregistrer'}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── MODALE CONFIRMATION MODIFICATIONS NON SAUVEGARDÉES ──────────── */}
       <AnimatePresence>
         {pendingTabId && (
@@ -878,5 +1053,18 @@ function AgentSettingsPageInner() {
       </div>
 
     </DoubleRibbonIntelligent>
+  );
+}
+
+export default function AgentSettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0A0A0A] font-mono text-white/90 p-6 lg:p-12 pb-40 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-8 h-8 text-white/20 animate-spin" />
+        <p className="text-[10px] text-white/20 uppercase tracking-widest">Initialisation de la console...</p>
+      </div>
+    }>
+      <AgentSettingsPageContent />
+    </Suspense>
   );
 }
