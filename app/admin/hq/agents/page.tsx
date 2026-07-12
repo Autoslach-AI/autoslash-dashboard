@@ -548,47 +548,8 @@ export default function HQAgentsPage() {
 
                       {/* Sender Name */}
                       <span className="text-[10px] text-white/30 mb-1 px-1">
-                        {isUser ? (profile?.full_name || 'Amadou') : 'AXON'}
+                        {isUser ? (profile?.full_name?.split(' ')[0] || 'Amadou') : 'AXON'}
                       </span>
-
-                      {/* Hover Actions Bar (Claude Style) */}
-                      {!msg.loading && !isEditing && (
-                        <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 z-10 ${
-                          isUser ? 'right-full mr-3' : 'left-full ml-3'
-                        }`}>
-                          {isUser ? (
-                            <button
-                              onClick={() => startEditing(msg)}
-                              disabled={editingId !== null}
-                              title="Modifier"
-                              className={`p-1.5 rounded-lg bg-[#141414] border border-white/10 text-white/60 transition-all ${
-                                editingId !== null
-                                  ? 'opacity-30 pointer-events-none'
-                                  : 'hover:bg-white/10 hover:text-white cursor-pointer'
-                              }`}
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => navigator.clipboard.writeText(msg.content)}
-                                title="Copier"
-                                className="p-1.5 rounded-lg bg-[#141414] border border-white/10 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={regenerateResponse}
-                                title="Régénérer"
-                                className="p-1.5 rounded-lg bg-[#141414] border border-white/10 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer"
-                              >
-                                <RotateCw className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
 
                       {/* ── Mode édition en place ─────────────────────────── */}
                       {isEditing ? (
@@ -709,11 +670,49 @@ export default function HQAgentsPage() {
                         </>
                       )}
 
-                      {/* Timestamp */}
+                      {/* Timestamp + Actions (sous la bulle, façon Claude) */}
                       {!isEditing && (
-                        <span className="text-[9px] text-white/20 mt-1 px-1">
-                          {msg.timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                        <div className={`flex items-center gap-1.5 mt-1 px-1 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                          <span className="text-[9px] text-white/20">
+                            {msg.timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+
+                          {!msg.loading && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              {isUser ? (
+                                <button
+                                  onClick={() => startEditing(msg)}
+                                  disabled={editingId !== null}
+                                  title="Modifier"
+                                  className={`p-1 rounded-md text-white/40 transition-all ${
+                                    editingId !== null
+                                      ? 'opacity-30 pointer-events-none'
+                                      : 'hover:bg-white/10 hover:text-white cursor-pointer'
+                                  }`}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => navigator.clipboard.writeText(msg.content)}
+                                    title="Copier"
+                                    className="p-1 rounded-md text-white/40 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={regenerateResponse}
+                                    title="Régénérer"
+                                    className="p-1 rounded-md text-white/40 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                                  >
+                                    <RotateCw className="w-3 h-3" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                     </div>
