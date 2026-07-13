@@ -7,7 +7,7 @@ import {
   Brain, Zap, LayoutDashboard, Users, ArrowLeft,
   Terminal, Sliders, Power, Save, Loader2, AlertCircle,
   CheckCircle2, ChevronDown, Clock, Wrench, Plus, Upload,
-  PenLine, Trash2, X, FileCode
+  PenLine, Trash2, X, FileCode, Eye, Code2
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
@@ -47,7 +47,93 @@ const AGENT_TABS: Array<{ id: AgentTabId; label: string; color: string; glow: st
   { id: 'commercial', label: 'COMMERCIAL', color: '#a855f7', glow: 'rgba(168,85,247,0.5)', description: 'Vitrine interactive — simulateur, qualification des leads' },
 ];
 
-// ─── Composant principal ─────────────────────────────────────────────────────
+// ─── Rendu Markdown minimal (sans dépendance externe) ─────────────────────────
+
+function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+  // Découpe une ligne en segments : **gras**, `code inline`, texte normal
+  const parts: React.ReactNode[] = [];
+  const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let i = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    const token = match[0];
+    if (token.startsWith('**')) {
+      parts.push(<strong key={`${keyPrefix}-b-${i}`} className="font-bold text-white">{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith('`')) {
+      parts.push(
+        <code key={`${keyPrefix}-c-${i}`} className="bg-white/10 text-orange-300 px-1.5 py-0.5 rounded text-[11px] font-mono">
+          {token.slice(1, -1)}
+        </code>
+      );
+    }
+    lastIndex = regex.lastIndex;
+    i++;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts;
+}
+
+function MarkdownLite({ content }: { content: string }) {
+  const lines = content.split('\n');
+  const blocks: React.ReactNode[] = [];
+  let listBuffer: { text: string; indent: number }[] = [];
+  let blockIndex = 0;
+
+  const flushList = () => {
+    if (listBuffer.length === 0) return;
+    const key = `list-${blockIndex++}`;
+    blocks.push(
+      <ul key={key} className="space-y-1.5 my-3">
+        {listBuffer.map((item, idx) => (
+          <li
+            key={`${key}-${idx}`}
+            className="flex items-start gap-2 text-[13px] text-white/70 leading-relaxed"
+            style={{ marginLeft: item.indent * 20 }}
+          >
+            <span className="text-orange-400/60 mt-1.5 shrink-0">•</span>
+            <span>{renderInline(item.text, `${key}-${idx}`)}</span>
+          </li>
+        ))}
+      </ul>
+    );
+    listBuffer = [];
+  };
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trimEnd();
+    const bulletMatch = line.match(/^(\s*)[-*]\s+(.*)$/);
+
+    if (bulletMatch) {
+      const indent = Math.floor(bulletMatch[1].length / 2);
+      listBuffer.push({ text: bulletMatch[2], indent });
+      return;
+    }
+
+    flushList();
+
+    if (line.startsWith('### ')) {
+      blocks.push(<h3 key={blockIndex++} className="text-[13px] font-bold text-white mt-4 mb-1">{renderInline(line.slice(4), `h3-${blockIndex}`)}</h3>);
+    } else if (line.startsWith('## ')) {
+      blocks.push(<h2 key={blockIndex++} className="text-[15px] font-bold text-white mt-5 mb-2">{renderInline(line.slice(3), `h2-${blockIndex}`)}</h2>);
+    } else if (line.startsWith('# ')) {
+      blocks.push(<h1 key={blockIndex++} className="text-lg font-bold text-white mt-2 mb-3">{renderInline(line.slice(2), `h1-${blockIndex}`)}</h1>);
+    } else if (line.trim() === '') {
+      blocks.push(<div key={blockIndex++} className="h-2" />);
+    } else {
+      blocks.push(<p key={blockIndex++} className="text-[13px] text-white/70 leading-relaxed">{renderInline(line, `p-${blockIndex}`)}</p>);
+    }
+  });
+  flushList();
+
+  return <div className="space-y-0.5">{blocks}</div>;
+}
+
+// ─── Contenu principal ───────────────────────────────────────────────────────
 
 function AgentSettingsPageContent() {
   const router       = useRouter();
@@ -325,6 +411,7 @@ function AgentSettingsPageContent() {
   // ── Visualisation / édition d'une compétence ───────────────────────────────
   const [viewingSkill,    setViewingSkill]    = useState<AgentSkill | null>(null);
   const [skillEditMode,   setSkillEditMode]   = useState(false);
+  const [skillViewMode,   setSkillViewMode]   = useState<'rendered' | 'raw'>('rendered');
   const [skillEditForm,   setSkillEditForm]   = useState({ name: '', category: '', content: '' });
   const [savingSkillEdit, setSavingSkillEdit] = useState(false);
   const [skillEditError,  setSkillEditError]  = useState<string | null>(null);
@@ -332,6 +419,7 @@ function AgentSettingsPageContent() {
   const openSkillView = (skill: AgentSkill) => {
     setViewingSkill(skill);
     setSkillEditMode(false);
+    setSkillViewMode('rendered');
     setSkillEditForm({ name: skill.name, category: skill.category || '', content: skill.content });
     setSkillEditError(null);
   };
@@ -931,10 +1019,39 @@ function AgentSettingsPageContent() {
                         {viewingSkill.category}
                       </span>
                     )}
-                    <div className="bg-black border border-white/[0.06] rounded-xl p-5">
-                      <pre className="whitespace-pre-wrap text-[12px] text-white/70 leading-relaxed font-sans">
-                        {viewingSkill.content}
-                      </pre>
+                    <div className="bg-black border border-white/[0.06] rounded-xl overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.02]">
+                        <span className="text-[9px] font-bold text-white/30 uppercase tracking-widest">SKILL.md</span>
+                        <div className="flex items-center gap-1 bg-white/5 rounded-lg p-0.5">
+                          <button
+                            onClick={() => setSkillViewMode('rendered')}
+                            title="Aperçu"
+                            className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                              skillViewMode === 'rendered' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'
+                            }`}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setSkillViewMode('raw')}
+                            title="Source brute"
+                            className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                              skillViewMode === 'raw' ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'
+                            }`}
+                          >
+                            <Code2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-5 max-h-[420px] overflow-y-auto">
+                        {skillViewMode === 'rendered' ? (
+                          <MarkdownLite content={viewingSkill.content} />
+                        ) : (
+                          <pre className="whitespace-pre-wrap text-[12px] text-white/70 leading-relaxed font-mono">
+                            {viewingSkill.content}
+                          </pre>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
@@ -1055,6 +1172,8 @@ function AgentSettingsPageContent() {
     </DoubleRibbonIntelligent>
   );
 }
+
+// ─── Export de la page enveloppé dans Suspense ───────────────────────────────
 
 export default function AgentSettingsPage() {
   return (
