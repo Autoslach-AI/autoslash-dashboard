@@ -133,9 +133,9 @@ function MarkdownLite({ content }: { content: string }) {
   return <div className="space-y-0.5">{blocks}</div>;
 }
 
-// ─── Contenu principal ───────────────────────────────────────────────────────
+// ─── Composant principal ─────────────────────────────────────────────────────
 
-function AgentSettingsPageContent() {
+function AgentSettingsContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { user, profile } = useUser();
@@ -226,6 +226,7 @@ function AgentSettingsPageContent() {
 
   const switchTab = (tabId: AgentTabId) => {
     setActiveAgentId(tabId);
+    setTrashOpen(false);
     router.replace(`/admin/hq/agents/axon/settings?tab=${tabId}`, { scroll: false });
   };
 
@@ -293,12 +294,13 @@ function AgentSettingsPageContent() {
 
   // ── Compétences (skills) ───────────────────────────────────────────────────
   interface AgentSkill {
-    id:         string; // id de la ligne hq_agent_skills
-    skill_id:   string;
-    name:       string;
-    category:   string | null;
-    content:    string;
-    is_active:  boolean;
+    id:          string; // id de la ligne hq_agent_skills
+    skill_id:    string;
+    name:        string;
+    category:    string | null;
+    content:     string;
+    is_active:   boolean;
+    deleted_at?: string | null;
   }
 
   const [skills,        setSkills]        = useState<AgentSkill[]>([]);
@@ -309,6 +311,76 @@ function AgentSettingsPageContent() {
   const [savingSkill,   setSavingSkill]    = useState(false);
   const [skillsError,   setSkillsError]    = useState<string | null>(null);
   const skillFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // ── Corbeille ────────────────────────────────────────────────────────────
+  const [trashOpen,     setTrashOpen]     = useState(false);
+  const [trashSkills,   setTrashSkills]   = useState<AgentSkill[]>([]);
+  const [trashLoading,  setTrashLoading]  = useState(false);
+  const [trashError,    setTrashError]    = useState<string | null>(null);
+  const [restoringId,   setRestoringId]   = useState<string | null>(null);
+  const [purgingId,     setPurgingId]     = useState<string | null>(null);
+
+  const loadTrash = useCallback(async (agentId: AgentTabId) => {
+    setTrashLoading(true);
+    setTrashError(null);
+    try {
+      const res = await fetch(`/api/admin/hq/skills?agent_id=${agentId}&trash=true`);
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+      setTrashSkills(json.data ?? []);
+    } catch (err: any) {
+      setTrashError(err.message || "Erreur lors du chargement de la corbeille.");
+    } finally {
+      setTrashLoading(false);
+    }
+  }, []);
+
+  const openTrash = () => {
+    setTrashOpen(true);
+    loadTrash(activeAgentId);
+  };
+
+  const restoreSkill = async (skill: AgentSkill) => {
+    setRestoringId(skill.id);
+    setTrashError(null);
+    try {
+      const res = await fetch('/api/admin/hq/skills', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: skill.id, restore: true })
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+
+      setTrashSkills(prev => prev.filter(s => s.id !== skill.id));
+      setSkills(prev => [...prev, { ...skill, deleted_at: null }]);
+    } catch (err: any) {
+      setTrashError(err.message || "Erreur lors de la restauration.");
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  const purgeSkill = async (skill: AgentSkill) => {
+    if (!confirm(`Supprimer définitivement "${skill.name}" ? Cette action est irréversible.`)) return;
+    setPurgingId(skill.id);
+    setTrashError(null);
+    try {
+      const res = await fetch('/api/admin/hq/skills', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: skill.id, permanent: true })
+      });
+      const json = await res.json();
+      if (json.error) throw new Error(json.error);
+
+      setTrashSkills(prev => prev.filter(s => s.id !== skill.id));
+    } catch (err: any) {
+      setTrashError(err.message || "Erreur lors de la suppression définitive.");
+    } finally {
+      setPurgingId(null);
+    }
+  };
 
   const loadSkills = useCallback(async (agentId: AgentTabId) => {
     setSkillsLoading(true);
@@ -391,7 +463,7 @@ function AgentSettingsPageContent() {
   };
 
   const deleteSkill = async (skill: AgentSkill) => {
-    if (!confirm(`Retirer la compétence "${skill.name}" de ${currentTabMeta?.label ?? activeAgentId} ?`)) return;
+    if (!confirm(`Envoyer "${skill.name}" à la corbeille ? Tu pourras la restaurer ensuite.`)) return;
     const previous = skills;
     setSkills(prev => prev.filter(s => s.id !== skill.id));
     try {
@@ -713,13 +785,22 @@ function AgentSettingsPageContent() {
                     <Wrench className="w-4 h-4 text-orange-400" />
                     <h2 className="text-sm font-bold text-white uppercase tracking-[0.3em]">Section_04 // Skills</h2>
                   </div>
-                  <button
-                    onClick={() => { setAddSkillOpen(true); setAddSkillMode('manual'); setSkillForm({ name: '', category: '', content: '' }); }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-400/10 border border-orange-400/20 text-orange-400 text-[9px] font-black uppercase tracking-widest hover:bg-orange-400/15 transition-all cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Ajouter une compétence
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={openTrash}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 text-white/40 text-[9px] font-black uppercase tracking-widest hover:text-white hover:border-white/20 transition-all cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Corbeille
+                    </button>
+                    <button
+                      onClick={() => { setAddSkillOpen(true); setAddSkillMode('manual'); setSkillForm({ name: '', category: '', content: '' }); }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-400/10 border border-orange-400/20 text-orange-400 text-[9px] font-black uppercase tracking-widest hover:bg-orange-400/15 transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Ajouter une compétence
+                    </button>
+                  </div>
                 </div>
 
                 {skillsError && (
@@ -1085,6 +1166,98 @@ function AgentSettingsPageContent() {
         )}
       </AnimatePresence>
 
+      {/* ── MODALE CORBEILLE ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {trashOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+            onClick={() => setTrashOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#141414] border border-white/10 rounded-2xl w-full max-w-xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh] font-mono"
+            >
+              <div className="p-6 border-b border-white/10 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <Trash2 className="w-4 h-4 text-white/40" />
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-white">
+                    Corbeille — {currentTabMeta.label}
+                  </h3>
+                </div>
+                <button onClick={() => setTrashOpen(false)} className="text-white/30 hover:text-white transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {trashError && (
+                <div className="mx-6 mt-4 flex items-center gap-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl shrink-0">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span className="text-xs text-red-400 flex-1">{trashError}</span>
+                  <button onClick={() => setTrashError(null)} className="text-red-400/50 hover:text-red-400">✕</button>
+                </div>
+              )}
+
+              <div className="p-6 overflow-y-auto">
+                {trashLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-5 h-5 text-white/20 animate-spin" />
+                  </div>
+                ) : trashSkills.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-3">
+                    <Trash2 className="w-6 h-6 text-white/10" />
+                    <p className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
+                      Corbeille vide
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {trashSkills.map((skill) => (
+                      <div
+                        key={skill.id}
+                        className="bg-black border border-white/10 rounded-xl px-5 py-4 flex items-center justify-between gap-4"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-bold text-white/60 truncate">{skill.name}</p>
+                          {skill.category && (
+                            <span className="text-[8px] font-bold text-white/20 uppercase tracking-widest bg-white/5 px-1.5 py-0.5 rounded mt-1 inline-block">
+                              {skill.category}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => restoreSkill(skill)}
+                            disabled={restoringId === skill.id}
+                            className="px-3 py-1.5 rounded-lg bg-[#39FF14]/10 border border-[#39FF14]/20 text-[#39FF14] text-[9px] font-bold uppercase tracking-widest hover:bg-[#39FF14]/20 transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+                          >
+                            {restoringId === skill.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                            Restaurer
+                          </button>
+                          <button
+                            onClick={() => purgeSkill(skill)}
+                            disabled={purgingId === skill.id}
+                            className="px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400/70 text-[9px] font-bold uppercase tracking-widest hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+                          >
+                            {purgingId === skill.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                            Supprimer définitivement
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── MODALE CONFIRMATION MODIFICATIONS NON SAUVEGARDÉES ──────────── */}
       <AnimatePresence>
         {pendingTabId && (
@@ -1173,17 +1346,15 @@ function AgentSettingsPageContent() {
   );
 }
 
-// ─── Export de la page enveloppé dans Suspense ───────────────────────────────
-
 export default function AgentSettingsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0A0A0A] font-mono text-white/90 p-6 lg:p-12 pb-40 flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-8 h-8 text-white/20 animate-spin" />
-        <p className="text-[10px] text-white/20 uppercase tracking-widest">Initialisation de la console...</p>
+        <p className="text-[10px] text-white/20 uppercase tracking-widest">Chargement de la page...</p>
       </div>
     }>
-      <AgentSettingsPageContent />
+      <AgentSettingsContent />
     </Suspense>
   );
 }
