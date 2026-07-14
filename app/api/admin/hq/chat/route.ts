@@ -32,6 +32,29 @@ export async function POST(req: Request) {
       )
     }
 
+    // 1.5 — Récupérer les compétences activées pour cet agent (tous agents confondus)
+    const { data: skillRows } = await supabase
+      .from('hq_agent_skills')
+      .select(`
+        is_active,
+        skills_library (
+          name,
+          category,
+          content
+        )
+      `)
+      .eq('agent_id', agent_id)
+      .eq('is_active', true)
+      .is('deleted_at', null)
+
+    const skillsBlock = skillRows && skillRows.length > 0
+      ? `\n\n=== COMPÉTENCES ACTIVES ===\n` +
+        skillRows.map((r: any) =>
+          `\n## ${r.skills_library?.name}${r.skills_library?.category ? ` (${r.skills_library.category})` : ''}\n${r.skills_library?.content}`
+        ).join('\n') +
+        `\n\n=== FIN DES COMPÉTENCES ===\n`
+      : ''
+
     // 2 — Construire le contexte Supabase pour AXON Oracle
     let contextBlock = ''
 
@@ -96,8 +119,8 @@ ${logs && logs.length > 0
 
     // 3 — Construire le system prompt avec contexte injecté
     const systemPrompt = agentConfig.system_prompt
-      ? `${agentConfig.system_prompt}\n\n${contextBlock}`
-      : `Tu es AXON, l'assistant stratégique d'Amadou, fondateur d'Autoslash AI. Tu analyses les données de la plateforme et fournis des insights actionnables. Tu ne prends jamais d'actions directes — tu suggères uniquement.\n\n${contextBlock}`
+      ? `${agentConfig.system_prompt}\n\n${contextBlock}${skillsBlock}`
+      : `Tu es AXON, l'assistant stratégique d'Amadou, fondateur d'Autoslash AI. Tu analyses les données de la plateforme et fournis des insights actionnables. Tu ne prends jamais d'actions directes — tu suggères uniquement.\n\n${contextBlock}${skillsBlock}`
 
     // 4 — Appeler Gemini API
     const geminiResponse = await fetch(
