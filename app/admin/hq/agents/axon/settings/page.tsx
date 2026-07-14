@@ -135,7 +135,7 @@ function MarkdownLite({ content }: { content: string }) {
 
 // ─── Composant principal ─────────────────────────────────────────────────────
 
-function AgentSettingsContent() {
+function AgentSettingsPageContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const { user, profile } = useUser();
@@ -361,8 +361,14 @@ function AgentSettingsContent() {
     }
   };
 
-  const purgeSkill = async (skill: AgentSkill) => {
-    if (!confirm(`Supprimer définitivement "${skill.name}" ? Cette action est irréversible.`)) return;
+  // ── Confirmation stylée pour les suppressions ─────────────────────────────
+  const [confirmAction, setConfirmAction] = useState<{ type: 'trash' | 'purge'; skill: AgentSkill } | null>(null);
+
+  const requestPurgeSkill = (skill: AgentSkill) => {
+    setConfirmAction({ type: 'purge', skill });
+  };
+
+  const performPurgeSkill = async (skill: AgentSkill) => {
     setPurgingId(skill.id);
     setTrashError(null);
     try {
@@ -462,8 +468,11 @@ function AgentSettingsContent() {
     }
   };
 
-  const deleteSkill = async (skill: AgentSkill) => {
-    if (!confirm(`Envoyer "${skill.name}" à la corbeille ? Tu pourras la restaurer ensuite.`)) return;
+  const requestDeleteSkill = (skill: AgentSkill) => {
+    setConfirmAction({ type: 'trash', skill });
+  };
+
+  const performDeleteSkill = async (skill: AgentSkill) => {
     const previous = skills;
     setSkills(prev => prev.filter(s => s.id !== skill.id));
     try {
@@ -477,6 +486,17 @@ function AgentSettingsContent() {
     } catch (err: any) {
       setSkills(previous); // rollback
       setSkillsError(err.message || "Erreur lors de la suppression.");
+    }
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    const { type, skill } = confirmAction;
+    setConfirmAction(null);
+    if (type === 'trash') {
+      await performDeleteSkill(skill);
+    } else {
+      await performPurgeSkill(skill);
     }
   };
 
@@ -860,7 +880,7 @@ function AgentSettingsContent() {
                             />
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); deleteSkill(skill); }}
+                            onClick={(e) => { e.stopPropagation(); requestDeleteSkill(skill); }}
                             title="Retirer"
                             className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
                           >
@@ -1240,7 +1260,7 @@ function AgentSettingsContent() {
                             Restaurer
                           </button>
                           <button
-                            onClick={() => purgeSkill(skill)}
+                            onClick={() => requestPurgeSkill(skill)}
                             disabled={purgingId === skill.id}
                             className="px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400/70 text-[9px] font-bold uppercase tracking-widest hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
                           >
@@ -1252,6 +1272,64 @@ function AgentSettingsContent() {
                     ))}
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── MODALE CONFIRMATION SUPPRESSION (corbeille / définitive) ────── */}
+      <AnimatePresence>
+        {confirmAction && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+            onClick={() => setConfirmAction(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#141414] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl font-mono"
+            >
+              <div className="p-8 space-y-3">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className={`w-5 h-5 shrink-0 ${confirmAction.type === 'purge' ? 'text-red-400' : 'text-orange-400'}`} />
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-white">
+                    {confirmAction.type === 'purge' ? 'Suppression définitive' : 'Envoyer à la corbeille'}
+                  </h3>
+                </div>
+                <p className="text-xs text-white/50 leading-relaxed">
+                  {confirmAction.type === 'purge' ? (
+                    <>Supprimer définitivement <span className="text-white/80 font-bold">"{confirmAction.skill.name}"</span> ?
+                    Cette action est irréversible, elle ne pourra plus être restaurée.</>
+                  ) : (
+                    <>Envoyer <span className="text-white/80 font-bold">"{confirmAction.skill.name}"</span> à la corbeille ?
+                    Tu pourras la restaurer à tout moment depuis là.</>
+                  )}
+                </p>
+              </div>
+
+              <div className="p-6 border-t border-white/10 flex justify-end gap-3 bg-black/30">
+                <button
+                  onClick={() => setConfirmAction(null)}
+                  className="px-6 py-2.5 text-[10px] font-bold text-white/40 uppercase tracking-widest hover:text-white transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmAction}
+                  className={`px-8 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all cursor-pointer ${
+                    confirmAction.type === 'purge'
+                      ? 'bg-red-500 text-white hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]'
+                      : 'bg-orange-400 text-black hover:shadow-[0_0_20px_rgba(251,146,60,0.3)]'
+                  }`}
+                >
+                  {confirmAction.type === 'purge' ? 'Supprimer définitivement' : 'Envoyer à la corbeille'}
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -1349,12 +1427,12 @@ function AgentSettingsContent() {
 export default function AgentSettingsPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen bg-[#0A0A0A] font-mono text-white/90 flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-8 h-8 text-white/20 animate-spin" />
-        <p className="text-[10px] text-white/20 uppercase tracking-widest">Chargement de la page...</p>
+        <p className="text-[10px] text-white/20 uppercase tracking-widest">Initialisation...</p>
       </div>
     }>
-      <AgentSettingsContent />
+      <AgentSettingsPageContent />
     </Suspense>
   );
 }
