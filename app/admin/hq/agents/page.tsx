@@ -7,7 +7,7 @@ import {
   Brain, Zap, LayoutDashboard, Users, ArrowRight,
   Sparkles, Loader2, AlertCircle, Settings,
   Pencil, Copy, RotateCw, Mic, PhoneOff, Paperclip,
-  Plus, Phone, Camera, Check, X, FileText
+  Plus, Phone, Camera, Check, X, FileText, Library
 } from 'lucide-react';
 import { useUser } from '@/lib/contexts/user-context';
 import DoubleRibbonIntelligent, { NavItem } from '@/components/DoubleRibbonIntelligent';
@@ -522,6 +522,15 @@ export default function HQAgentsPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Library / Knowledge Base Button */}
+            <button 
+              onClick={() => router.push('/admin/hq/knowledge')}
+              title="Base de connaissances"
+              className="flex items-center justify-center p-2 text-white/30 hover:text-white transition-all cursor-pointer rounded-lg"
+            >
+              <Library className="w-4 h-4" />
+            </button>
+
             {/* Paramètres Button (Discrete Ghost Style) */}
             <button
               onClick={() => router.push('/admin/hq/agents/axon/settings')}
