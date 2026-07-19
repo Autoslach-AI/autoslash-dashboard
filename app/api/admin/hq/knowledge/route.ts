@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { CanvasFactory } from 'pdf-parse/worker'
 import { PDFParse } from 'pdf-parse'
 import mammoth from 'mammoth'
 
@@ -20,7 +21,7 @@ async function extractText(file: File, buffer: Buffer): Promise<string> {
   const ext = file.name.split('.').pop()?.toLowerCase()
 
   if (ext === 'pdf') {
-    const parser = new PDFParse({ data: buffer })
+    const parser = new PDFParse({ data: new Uint8Array(buffer), CanvasFactory })
     try {
       const result = await parser.getText()
       return result.text
