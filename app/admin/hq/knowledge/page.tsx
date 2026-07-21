@@ -154,7 +154,7 @@ export default function KnowledgeBasePage() {
 
   const filteredDocuments = sourceFilter === 'all'
     ? documents
-    : documents.filter(d => d.source_agent === sourceFilter);
+    : documents.filter(d => d.source_agent === sourceFilter || d.visibility === 'shared');
 
   // ── Ajout d'un document ────────────────────────────────────────────────────
   const [addOpen,   setAddOpen]   = useState(false);
