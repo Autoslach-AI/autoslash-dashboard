@@ -55,6 +55,34 @@ export async function POST(req: Request) {
         `\n\n=== FIN DES COMPÉTENCES ===\n`
       : ''
 
+    // 1.6 — Récupérer les documents de la base de connaissances visibles 
+    // pour cet agent (AXON voit tout, les autres voient leurs ajouts + le partagé)
+    let knowledgeQuery = supabase
+      .from('hq_knowledge_base')
+      .select('name, category, content, source_agent')
+      .is('deleted_at', null)
+
+    if (agent_id !== 'axon') {
+      knowledgeQuery = knowledgeQuery.or(`source_agent.eq.${agent_id},visibility.eq.shared`)
+    }
+
+    const { data: knowledgeRows } = await knowledgeQuery
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    const MAX_CHARS_PER_DOC = 3000
+
+    const knowledgeBlock = knowledgeRows && knowledgeRows.length > 0
+      ? `\n\n=== BASE DE CONNAISSANCES ===\n` +
+        knowledgeRows.map((r: any) => {
+          const truncated = r.content.length > MAX_CHARS_PER_DOC
+            ? r.content.slice(0, MAX_CHARS_PER_DOC) + '\n[...document tronqué, voir la base de connaissances pour le contenu complet]'
+            : r.content
+          return `\n## ${r.name}${r.category ? ` (${r.category})` : ''}\n${truncated}`
+        }).join('\n') +
+        `\n\n=== FIN DE LA BASE DE CONNAISSANCES ===\n`
+      : ''
+
     // 2 — Construire le contexte Supabase pour AXON Oracle
     let contextBlock = ''
 
@@ -119,8 +147,8 @@ ${logs && logs.length > 0
 
     // 3 — Construire le system prompt avec contexte injecté
     const systemPrompt = agentConfig.system_prompt
-      ? `${agentConfig.system_prompt}\n\n${contextBlock}${skillsBlock}`
-      : `Tu es AXON, l'assistant stratégique d'Amadou, fondateur d'Autoslash AI. Tu analyses les données de la plateforme et fournis des insights actionnables. Tu ne prends jamais d'actions directes — tu suggères uniquement.\n\n${contextBlock}${skillsBlock}`
+      ? `${agentConfig.system_prompt}\n\n${contextBlock}${skillsBlock}${knowledgeBlock}`
+      : `Tu es AXON, l'assistant stratégique d'Amadou, fondateur d'Autoslash AI. Tu analyses les données de la plateforme et fournis des insights actionnables. Tu ne prends jamais d'actions directes — tu suggères uniquement.\n\n${contextBlock}${skillsBlock}${knowledgeBlock}`
 
     // 4 — Appeler Gemini API
     const geminiResponse = await fetch(
