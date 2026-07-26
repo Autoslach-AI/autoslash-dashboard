@@ -151,8 +151,11 @@ ${logs && logs.length > 0
       : `Tu es AXON, l'assistant stratégique d'Amadou, fondateur d'Autoslash AI. Tu analyses les données de la plateforme et fournis des insights actionnables. Tu ne prends jamais d'actions directes — tu suggères uniquement.\n\n${contextBlock}${skillsBlock}${knowledgeBlock}`
 
     // 4 — Appeler Gemini API
+    // ⚠️ TEMPORAIRE : clé unique partagée entre les 3 agents. 
+    // À remplacer par le futur système de pool de clés (par agent + par client, 
+    // rotation interne, arrêt strict côté client à l'épuisement).
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${agentConfig.model ?? 'gemini-2.0-flash'}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${agentConfig.model ?? 'gemini-2.0-flash'}:generateContent?key=${process.env.GEMINI_API_KEY_TEMP}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
