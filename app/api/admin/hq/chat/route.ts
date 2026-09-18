@@ -155,7 +155,7 @@ ${logs && logs.length > 0
     // À remplacer par le futur système de pool de clés (par agent + par client, 
     // rotation interne, arrêt strict côté client à l'épuisement).
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${agentConfig.model ?? 'gemini-2.0-flash'}:generateContent?key=${process.env.GEMINI_API_KEY_TEMP}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${agentConfig.model ?? 'gemini-3.6-flash'}:generateContent?key=${process.env.GEMINI_API_KEY_TEMP?.trim()}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
