@@ -150,41 +150,75 @@ ${logs && logs.length > 0
       ? `${agentConfig.system_prompt}\n\n${contextBlock}${skillsBlock}${knowledgeBlock}`
       : `Tu es AXON, l'assistant stratégique d'Amadou, fondateur d'Autoslash AI. Tu analyses les données de la plateforme et fournis des insights actionnables. Tu ne prends jamais d'actions directes — tu suggères uniquement.\n\n${contextBlock}${skillsBlock}${knowledgeBlock}`
 
-    // 4 — Appeler Gemini API
-    // ⚠️ TEMPORAIRE : clé unique partagée entre les 3 agents. 
-    // À remplacer par le futur système de pool de clés (par agent + par client, 
-    // rotation interne, arrêt strict côté client à l'épuisement).
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${agentConfig.model ?? 'gemini-3.6-flash'}:generateContent?key=${process.env.GEMINI_API_KEY_TEMP?.trim()}`,
-      {
+    // 4 — Appeler le bon fournisseur selon agentConfig.provider
+    let reply = ''
+
+    if (agentConfig.provider === 'Anthropic') {
+      const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY_HQ?.trim() ?? '',
+          'anthropic-version': '2023-06-01'
+        },
         body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: systemPrompt }]
-          },
-          contents: messages.map((m: any) => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }]
-          })),
-          generationConfig: {
-            temperature:     0.7,
-            maxOutputTokens: agentConfig.max_tokens_per_session ?? 1000
-          }
+          model: agentConfig.model ?? 'claude-sonnet-5',
+          system: systemPrompt,
+          max_tokens: agentConfig.max_tokens_per_session ?? 1000,
+          messages: messages.map((m: any) => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.content
+          }))
         })
+      })
+
+      if (!anthropicResponse.ok) {
+        const err = await anthropicResponse.json()
+        return NextResponse.json(
+          { error: `Anthropic error: ${err.error?.message ?? 'Unknown'}` },
+          { status: 500 }
+        )
       }
-    )
 
-    if (!geminiResponse.ok) {
-      const err = await geminiResponse.json()
-      return NextResponse.json(
-        { error: `Gemini error: ${err.error?.message ?? 'Unknown'}` },
-        { status: 500 }
+      const anthropicData = await anthropicResponse.json()
+      reply = anthropicData.content?.[0]?.text ?? ''
+
+    } else {
+      // ⚠️ TEMPORAIRE : clé unique partagée entre les 3 agents.
+      // À remplacer par le futur système de pool de clés (par agent + par client,
+      // rotation interne, arrêt strict côté client à l'épuisement).
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${agentConfig.model ?? 'gemini-3.6-flash'}:generateContent?key=${process.env.GEMINI_API_KEY_TEMP?.trim()}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: systemPrompt }]
+            },
+            contents: messages.map((m: any) => ({
+              role: m.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: m.content }]
+            })),
+            generationConfig: {
+              temperature:     0.7,
+              maxOutputTokens: agentConfig.max_tokens_per_session ?? 1000
+            }
+          })
+        }
       )
-    }
 
-    const geminiData = await geminiResponse.json()
-    const reply = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+      if (!geminiResponse.ok) {
+        const err = await geminiResponse.json()
+        return NextResponse.json(
+          { error: `Gemini error: ${err.error?.message ?? 'Unknown'}` },
+          { status: 500 }
+        )
+      }
+
+      const geminiData = await geminiResponse.json()
+      reply = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+    }
 
     return NextResponse.json({ reply })
 
